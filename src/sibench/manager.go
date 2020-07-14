@@ -150,6 +150,12 @@ func (m* Manager) runPhase(secs uint64) {
             case <-ticker.C:
                 fmt.Printf("%v: %v\n", i, summary.ToString(m.job.Order.ObjectSize))
                 i++
+
+                // Draw some lines to indicate the ramp-up/ramp-down demarcation.
+                if (uint64(i) == m.job.RampUp) || (uint64(i) == m.job.RampUp + m.job.RunTime) {
+                    fmt.Printf("-----------------------------------------------------------\n")
+                }
+
                 summary.Zero()
 
             case <-timer.C:

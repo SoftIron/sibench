@@ -72,4 +72,12 @@ func (s *StatSummary) ToString(objectSize uint64) string {
 }
 
 
+/*
+ * Do the maths for a slice full of detailed stats.
+ */
+func CrunchTheNumbers(stats []Stat, job *Job) {
+
+}
+
+
 

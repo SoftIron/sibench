@@ -5,15 +5,21 @@ import "github.com/docopt/docopt-go"
 import "fmt"
 import "math"
 import "os"
+import "regexp"
 import "strings"
+import "strconv"
+import "time"
 
 
 type Config struct {
     Server bool
     S3 bool
     Run bool
+    Bucket string
+    Port int
     SibenchPort int
     Size string
+    SizeInBytes uint64
     Objects int
     Servers string
     RunTime int
@@ -31,13 +37,16 @@ func usage() string {
     return `SoftIron Benchmark Tool.
 Usage:
   sibench server [--sibench-port PORT]
-  sibench s3 run [--sibench-port PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [--servers SERVERS] (-a KEY) (-k KEY) <targets> ...
+  sibench s3 run [--sibench-port PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-b BUCKET] [-p PORT]
+                 [--servers SERVERS] (-a KEY) (-k KEY) <targets> ...
 Options:
   -o COUNT, --objects COUNT      The number of objects to use as our working set  [default: 1000]
   -s SIZE, --size SIZE           Object size to test. [default: 1M]
   -r TIME, --run-time TIME       The time spent on each phase of the benchmark.  [default: 30]
   -u TIME, --ramp-up TIME        The extra time we run at the start of each phase where we don't collect stats.  [default: 5]
   -d TIME, --ramp-down TIME      The extra time we run at the end of each phase where we don't collect stats.  [default: 2]
+  -b BUCKET, --bucket BUCKET     The name of the bucket we wish to use for S3 operations.  [default: sibench]
+  -p PORT, --port PORT           The port on which to connect to S3.  [default: 7480]
   --sibench-port PORT            The port that servers should listen on.  Only needs to be set if there's a conflict. [default: 5150]
   --servers SERVERS              A comma-separated list of sibench servers to connect to.  [default: localhost]
   --access-key KEY, -a KEY       S3 access key
@@ -67,8 +76,26 @@ func dieOnError(err error, format string, a ...interface{}) {
 
 
 func validateConfig(conf *Config) error {
+    if (conf.Port < 0) || ( conf.Port > int(math.MaxUint16)) {
+        return fmt.Errorf("S3 Port not in range: %v", conf.SibenchPort)
+    }
+
     if (conf.SibenchPort < 0) || ( conf.SibenchPort > int(math.MaxUint16)) {
         return fmt.Errorf("Sibench Port not in range: %v", conf.SibenchPort)
+    }
+
+    // Turn the size (in K or M) into bytes...
+
+    re := regexp.MustCompile(`([1-9][0-9]*)([kKmM])`)
+    groups := re.FindStringSubmatch(conf.Size)
+    if groups == nil {
+        return fmt.Errorf("Bad size specifier: %v", conf.Size)
+    }
+
+    val, _ := strconv.Atoi(groups[1])
+    conf.SizeInBytes = uint64(val) * 1024
+    if strings.EqualFold(groups[2], "m") {
+        conf.SizeInBytes *= 1024
     }
 
     return nil
@@ -85,11 +112,11 @@ func main() {
     err = opts.Bind(&conf)
     dieOnError(err, "Failure binding config")
 
-    fmt.Printf("%+v\n", conf)
-
     // This can error on bad user input.
     err = validateConfig(&conf)
     dieOnError(err, "Failure validating arguments")
+
+    fmt.Printf("%+v\n", conf)
 
     if conf.Server {
         startServer(&conf)
@@ -119,15 +146,15 @@ func startRun(conf *Config) {
     j.RampDown = uint64(conf.RampDown)
 
     j.Order.JobId = 1
-    j.Order.Bucket = "sibench"
-    j.Order.ObjectSize = 1024 * 1024
-    j.Order.Seed = 12345
+    j.Order.Bucket = conf.Bucket
+    j.Order.ObjectSize = conf.SizeInBytes
+    j.Order.Seed = uint64(time.Now().Unix())
     j.Order.GeneratorType = "prng"
     j.Order.RangeStart = 0
     j.Order.RangeEnd = uint64(conf.Objects)
     j.Order.ConnectionType = "s3"
     j.Order.Targets = conf.Targets
-    j.Order.Port = 7480
+    j.Order.Port = uint16(conf.Port)
     j.Order.Credentials = map[string]string { "access_key": conf.AccessKey, "secret_key": conf.SecretKey }
 
     m := CreateManager()
