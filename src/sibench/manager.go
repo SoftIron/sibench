@@ -148,7 +148,7 @@ func (m* Manager) runPhase(secs uint64) {
                 summary.Add(&s)
 
             case <-ticker.C:
-                fmt.Printf("%v: %v\n", i, summary)
+                fmt.Printf("%v: %v\n", i, summary.ToString(m.job.Order.ObjectSize))
                 i++
                 summary.Zero()
 

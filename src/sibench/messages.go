@@ -58,11 +58,21 @@ const (
 )
 
 
+func (sp StatPhase) ToString() string {
+    switch sp {
+        case SP_Write:    return "Write"
+        case SP_Prepare:  return "Prepare"
+        case SP_Read:     return "Read"
+        default:          return "Unkown"
+    }
+}
+
+
 type StatError uint8
 const (
     SE_None = iota
     SE_VerifyFailure
-    SE_ConnectionFailure
+    SE_OperationFailure
     SE_Len // Not an error code, but a count of how many error codes we have
 )
 

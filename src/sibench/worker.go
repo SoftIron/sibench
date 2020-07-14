@@ -75,7 +75,7 @@ var validWSTransitions = map[Opcode]map[workerState]workerState {
  */
 const (
     Stat_VerifyFailure time.Duration = -1
-    Stat_ConnectionFailure           = -2
+    Stat_OperationFailure           = -2
 )
 
 
@@ -230,7 +230,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
 
     if err != nil {
         fmt.Printf("   [w%v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
-        s.Error = SE_ConnectionFailure
+        s.Error = SE_OperationFailure
     }
 
     // Submit a stat
@@ -286,7 +286,7 @@ func (w *Worker) read() {
 
     if err != nil {
         fmt.Printf("   [w%v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
-        s.Error = SE_ConnectionFailure
+        s.Error = SE_OperationFailure
     } else {
         err = w.generator.Verify(w.order.ObjectSize, key, contents)
         if err != nil {
