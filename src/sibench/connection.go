@@ -3,8 +3,15 @@ package main
 import "io"
 import "fmt"
 
+
+/* 
+ * Connection is the abstraction of different storage backends.  
+ *
+ * Currently we ony have an S3 connection, but we should add librados, CephFS and
+ * others too.
+ */
 type Connection interface {
-    /* Return the target of this conection */
+    /* Return the target of this conection, as a convenience */
     Target() string
 
     ListBuckets() ([]string, error)
@@ -21,6 +28,9 @@ type Connection interface {
 
 
 
+/*
+ * Factory function that mints new connections of the appropriate type.
+ */
 func CreateConnection(connectionType string, target string, port uint16, credentials map[string]string) (Connection, error) {
     switch connectionType {
         case "s3": return CreateS3Connection(target, port, credentials)
