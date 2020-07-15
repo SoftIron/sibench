@@ -3,9 +3,7 @@
  * Some of the types here are also used to communicate between a foreman and its workers.
  */
 
-
 package main
-
 
 import "time"
 
@@ -84,13 +82,14 @@ type StatSummary [SP_Len][SE_Len] uint64
 
 
 /*
- * The full detail stats that we send on Job completion.
+ * The fully-detailed stats that we send on Job completion.
  */
 type Stat struct {
     TimeSincePhaseStart time.Duration
     Duration time.Duration
     Phase StatPhase
     Error StatError
+    Server string
     Target string
 }
 
@@ -100,19 +99,21 @@ type Stat struct {
  * It is sent as the data for the Connect message.
  */
 type WorkOrder struct {
-    JobId uint64             // Which job this WorkOrder is part of
+    JobId uint64                    // Which job this WorkOrder is part of
+    ServerName string               // The name we wish the server processing the order to use in stats
 
     // Object parameters
-    Bucket string
-    ObjectSize uint64
-    Seed uint64
-    GeneratorType string
-    RangeStart uint64        // Start of the object range to be used.
-    RangeEnd uint64          // End of the object range, not inclusive.
+    Bucket string                   // The storage bucket into which we will write
+    ObjectSize uint64               // The size of the objects we read and write
+    Seed uint64                     // A seed for any PRNGs in use. 
+    GeneratorType string            // Which type of Generator we will use to create and verify object data.
+    RangeStart uint64               // Start of the object range to be used.
+    RangeEnd uint64                 // End of the object range, not inclusive.
 
     // Connection parameters
-    ConnectionType string
-    Targets []string
-    Port uint16
-    Credentials map[string]string
+    ConnectionType string           // The type of connection: s3, librados etc... 
+    Targets []string                // The set of gateways, monitors, metadata servers or whatever we connect to. 
+    Port uint16                     // The port on which we connect.
+    Credentials map[string]string   // ConnectionType-specific key/value pairs for credential info for connecting.
 }
+

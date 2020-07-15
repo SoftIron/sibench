@@ -11,6 +11,7 @@ import "strconv"
 import "time"
 
 
+/* Struct type into which DocOpt can put our command line options. */
 type Config struct {
     Server bool
     S3 bool
@@ -31,8 +32,7 @@ type Config struct {
 }
 
 
-/* Return a usage string for DocOpt argument parsing.:w
- */
+/* Return a usage string for DocOpt argument parsing. */
 func usage() string {
     return `SoftIron Benchmark Tool.
 Usage:
@@ -66,6 +66,10 @@ func dumpOpts(opts *docopt.Opts) {
 }
 
 
+/* 
+ * Helper to simplify our error handling.  
+ * If err is not nil, then we print an error message and die (with a non-zero exit code).
+ */
 func dieOnError(err error, format string, a ...interface{}) {
     if err != nil {
         fmt.Printf(format, a)
@@ -75,6 +79,10 @@ func dieOnError(err error, format string, a ...interface{}) {
 }
 
 
+/* 
+ * Do any argument checking that can not be done inherently by DocOpt (such as 
+ * ensuring a port number is < 65535, or that a string has a particular form.
+ */
 func validateConfig(conf *Config) error {
     if (conf.Port < 0) || ( conf.Port > int(math.MaxUint16)) {
         return fmt.Errorf("S3 Port not in range: %v", conf.SibenchPort)
@@ -128,6 +136,7 @@ func main() {
 }
 
 
+/* Start a server, listening on a TCP port */
 func startServer(conf *Config) {
     listenPort := uint16(conf.SibenchPort)
     err := StartForeman(listenPort)
@@ -135,6 +144,7 @@ func startServer(conf *Config) {
 }
 
 
+/* Create a job and execute it on some set of servers. */
 func startRun(conf *Config) {
 
     var j Job

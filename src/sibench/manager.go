@@ -6,21 +6,34 @@ import "os"
 import "time"
 
 
+/*
+ * A Manager handles connecting to a set of Foremen over TCP and executing
+ * a benchmarking job on them.
+ *
+ * Currently a manager can only handle running a single job, but this would also 
+ * be the right place to add queueing, or a job-listening socket, or anything 
+ * else that you would need to manage multiple users with multiple (possibly
+ * simultaneous requests).  
+ *
+ * For the moment, though, this is just brain-dead simple.
+ */
 type Manager struct {
     job *Job
     storageConn Connection
     msgConns []*comms.MessageConnection
     msgChannel chan *comms.ReceivedMessageInfo
+    connToServerName map[*comms.MessageConnection]string
 }
 
 
-
+/* Creates a new manager object. */
 func CreateManager() *Manager{
     var m Manager
     return &m
 }
 
 
+/* Runs a single benchmark on the manager */
 func (m *Manager) Run(j *Job) error {
     m.job = j
 
@@ -37,7 +50,6 @@ func (m *Manager) Run(j *Job) error {
     }
 
     m.sendJobToServers()
-
     phaseTime := j.RunTime + j.RampUp + j.RampDown
 
     // Write
@@ -53,8 +65,9 @@ func (m *Manager) Run(j *Job) error {
     m.runPhase(phaseTime)
     m.sendOpToServers(Op_ReadStop, true)
 
-    // Handle the full Stats
-    m.drainStats()
+    // Fetch the fully-detailed stats, and then process them.
+    stats := m.drainStats()
+    CrunchTheNumbers(stats, m.job)
 
     // Terminate
     m.sendOpToServers(Op_Terminate, true)
@@ -65,6 +78,10 @@ func (m *Manager) Run(j *Job) error {
 }
 
 
+/* 
+ * Sends an operation request to the servers.  
+ * If waitForResponse is true, then we block until all the servers have responded.
+ */
 func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
     fmt.Printf("Sending: %v\n", op)
 
@@ -79,9 +96,20 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
 }
 
 
-func (m* Manager) drainStats() {
+/* 
+ * When we have complete a phase (or the whole run!) we can ask the servers to 
+ * send us all the detailed stats that they have been collecting (and to then
+ * forget about them themselves).  
+ * 
+ * (The detailed  stats are NOT sent during the benchmark's execution as it may be a 
+ * lot of traffic, though once-per-second summaries are sent during that time).
+ *
+ * We return the stats we obtain this way.
+ */
+func (m* Manager) drainStats() []*Stat {
     m.sendOpToServers(Op_StatDetails, false)
 
+    var stats []*Stat
     count := 0
     pending := len(m.msgConns)
 
@@ -99,15 +127,15 @@ func (m* Manager) drainStats() {
 
         switch op {
             case Op_StatDetails:
-                var s Stat
-                msg.Data(&s)
+                s := new(Stat)
+                msg.Data(s)
+                stats = append(stats, s)
                 count++
 
             case Op_StatDetailsDone:
                 pending--
                 if pending == 0 {
-                    fmt.Printf("Received %v detailed stats\n", count)
-                    return
+                    return stats
                 }
 
             case Op_StatSummary:
@@ -121,6 +149,13 @@ func (m* Manager) drainStats() {
 }
 
 
+/*
+ * Waits for the specified number of seconds whilst a benchmark executes.
+ *
+ * During this time, we accept StatSummary messages from the servers.   
+ * These are aggragated, and printed out once per second so that the user can
+ * see what the system is doing.
+ */
 func (m* Manager) runPhase(secs uint64) {
     timer := time.NewTimer(time.Duration(secs + 1) * time.Second)
     ticker := time.NewTicker(time.Second)
@@ -148,7 +183,7 @@ func (m* Manager) runPhase(secs uint64) {
                 summary.Add(&s)
 
             case <-ticker.C:
-                fmt.Printf("%v: %v\n", i, summary.ToString(m.job.Order.ObjectSize))
+                fmt.Printf("%v: %v\n", i, summary.String(m.job.Order.ObjectSize))
                 i++
 
                 // Draw some lines to indicate the ramp-up/ramp-down demarcation.
@@ -166,6 +201,13 @@ func (m* Manager) runPhase(secs uint64) {
 }
 
 
+/* 
+ * Blocks until all the servers have responded with the specified opcode.
+ *
+ * Any unexpected opcodes recieved from the servers will cause us to error out.
+ * The exception to that is StatSummary messages, which can be received at any
+ * time, and which are just ignored here.
+ */
 func (m *Manager) waitForResponses(expectedOp Opcode) {
     fmt.Printf("Waiting for %s\n", expectedOp)
     pending := len(m.msgConns)
@@ -195,6 +237,14 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
 }
 
 
+/*
+ * Send a job to our current set of servers.
+ *
+ * This makes a copy of the Job's WorkOrder for each server, and adjusts the object 
+ * range of each so that the range is partioned distinctly between the servers. 
+ *
+ * We block until all the servers have acknowledged the new job.
+ */
 func (m *Manager) sendJobToServers() {
     nServers := uint64(len(m.msgConns))
 
@@ -213,6 +263,7 @@ func (m *Manager) sendJobToServers() {
     for _, conn := range m.msgConns {
         // First make a copy of our work order and adjust it for the server.
         o := *order
+        o.ServerName = m.connToServerName[conn]
         o.RangeStart = rangeStart
         o.RangeEnd = rangeStart + rangeStride
 
@@ -230,9 +281,19 @@ func (m *Manager) sendJobToServers() {
 }
 
 
+/* 
+ * Attempts to connect to a set of servers (as specified in our current Job).
+ *
+ * Currently we exit with a non-zero error code if we can't connect to all of them.  
+ *
+ * In future (if we add job queuing, and the Manager becomes a daemon) then we could
+ * change this to log the errors but continue with whatever servers we could 
+ * successfully talk to.
+ */
 func (m *Manager) connectToServers() error {
     // Construct our aggregated recv channel
     m.msgChannel = make(chan *comms.ReceivedMessageInfo, 1000)
+    m.connToServerName = make(map[*comms.MessageConnection]string)
 
     for _, s := range m.job.Servers {
         endpoint := fmt.Sprintf("%v:%v", s, m.job.ServerPort)
@@ -242,6 +303,7 @@ func (m *Manager) connectToServers() error {
         if err == nil {
             conn.ReceiveToChannel(m.msgChannel)
             m.msgConns = append(m.msgConns, conn)
+            m.connToServerName[conn] = s
         } else {
             fmt.Printf("Could not connect to sibench server at %v: %v\n", endpoint, err)
             os.Exit(-1)
@@ -252,6 +314,7 @@ func (m *Manager) connectToServers() error {
 }
 
 
+/* Disconnects from all the Foremen that we are successfully connected to. */
 func (m *Manager) disconnectFromServers() {
     fmt.Printf("Disconnecting from servers\n")
 
@@ -263,6 +326,7 @@ func (m *Manager) disconnectFromServers() {
 }
 
 
+/* Create a bucket in which to put/get our benchmark objects. */
 func (m *Manager) createBucket() error {
     o := &(m.job.Order)
 
@@ -279,6 +343,7 @@ func (m *Manager) createBucket() error {
 }
 
 
+/* Delete the bucket we use for our benchmark objects */
 func (m *Manager) deleteBucket() {
     err := m.storageConn.DeleteBucket(m.job.Order.Bucket)
     if err != nil {

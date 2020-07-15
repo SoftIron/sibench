@@ -227,6 +227,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     s.TimeSincePhaseStart = end.Sub(w.phaseStart)
     s.Duration = end.Sub(start)
     s.Target = conn.Target()
+    s.Server = w.order.ServerName
 
     if err != nil {
         fmt.Printf("   [w%v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
@@ -283,6 +284,7 @@ func (w *Worker) read() {
     s.TimeSincePhaseStart = end.Sub(w.phaseStart)
     s.Duration = end.Sub(start)
     s.Target = conn.Target()
+    s.Server = w.order.ServerName
 
     if err != nil {
         fmt.Printf("   [w%v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)

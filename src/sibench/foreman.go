@@ -3,11 +3,17 @@ package main
 import "comms"
 import "fmt"
 import "io"
-import "os"
 import "runtime"
 import "time"
 
 
+/* 
+ * All the states a Foreman can be in. 
+ *
+ * Note that BadTransition isn't really a state, but is the nil value.
+ * This is made use of when we look up valid transitions in our state
+ * tables: anything not in the table automatically maps to BadTransition.
+ */
 type foremanState int
 const(
     FS_BadTransition foremanState = iota
@@ -28,6 +34,7 @@ const(
 )
 
 
+/* Return a human-readable string for each state. */
 func foremanStateToStr(state foremanState) string {
     switch state {
         case FS_BadTransition:      return "BadTranstition"
@@ -96,6 +103,10 @@ var validWorkerTransitions = map[Opcode]map[foremanState]foremanState {
 }
 
 
+/*
+ * Control opcodes the Foreman can send over a channel to its stats processing go-routine
+ * to tell it what to do.
+ */
 type statControl int
 const (
     SC_SendDetails statControl = iota
@@ -105,17 +116,41 @@ const (
 )
 
 
+/* Simple type to bundle up a Worker with the channel through which we control it */
 type WorkerInfo struct {
     Worker *Worker
     OpChannel chan Opcode
 }
 
 
+/* 
+ * A Foreman is a server that listens on TCP for incoming commands from a Manager and 
+ * executes them by farming our the actual work to a horde of Workers.
+ *
+ * Foremen only work on one TCP connection at a time.  If any other managers attempt
+ * to connect, then they will be handed a Op_Busy message and then connection will be 
+ * closed.
+ *
+ * When a Foreman accepts a new WorkOrder from a Manager (sent as part of an Op_Connect
+ * message), it spins up a set of Workers.  We have choose the number of workers based
+ * on the number of CPU cores of the box that the Foreman is running on.  Typically we
+ * do not create more than a dozen or two workers; we do not attempt to get maximum
+ * bandwidth from a given machine, as that means that some of workers operations would
+ * spend a lot of time blocking.  In effect this would mean that we are benchmarking
+ * the local machine, and not the storage cluster!
+ *
+ * The short version: if you want higher bandwidth from sibench, add more nodes.
+ */
 type Foreman struct {
+    /* Our current WorkOrder, or nil if we are idle. */
     order *WorkOrder
+
+    /* Our current set of workers, or nil if we are idle. */
     workerInfos []*WorkerInfo
+
+    /* A channel on which workers can send their response to us.  
+     * They all share the same channel. */
     workerResponseChannel chan *WorkerResponse
-    hostname string
 
     /* Channel used by workers to send us stats */
     statChannel chan *Stat
@@ -126,24 +161,39 @@ type Foreman struct {
     /* Channel used by our stats processing go-routine to indicate that it's completed a control request */
     statResponseChannel chan statControl
 
+    /* The channel on which new TCP connections are given to us by our listening socket. */
     tcpControlChannel chan *comms.MessageConnection
+
+    /* The channel on which we are currently sending and receiving with a Manager. */
     tcpMessageChannel chan *comms.ReceivedMessageInfo
+
+    /* The TCP connection we are currently using to talk to a Manager. */
     tcpConnection *comms.MessageConnection
+
+    /* We give each new worker a unique ID, which is not reused when we start a new WorkOrder. */
     nextWorkerId uint64
+
+    /* How many workers have yet to respond to the last opcode we sent them */
+    pendingResponses int
+
+    /* Our current state. */
     state foremanState
-    pendingResponses int /* How many workers have yet to respond to the last opcode we sent them */
 }
 
 
+/* 
+ * Creates a new Foreman which starts a TCP listening socket and waits for connections.  
+ *
+ * If we have an error establishing a listening socket, then we return the error.
+ *
+ * Otherwise, we will start out event-loop.  We will not return from that, so this function
+ * should be run as a new go-routine if you need to continue to do things in your current 
+ * go-routine.
+ */
 func StartForeman(listenPort uint16) error {
     var err error
     var f Foreman
     f.setState(FS_Idle)
-
-    f.hostname, err = os.Hostname()
-    if err != nil {
-        return err
-    }
 
     endpoint := fmt.Sprintf(":%v", listenPort)
     f.tcpControlChannel = make(chan *comms.MessageConnection, 100)
@@ -159,6 +209,7 @@ func StartForeman(listenPort uint16) error {
 }
 
 
+/* Event-loop that endlessly polls for new messages or connections */
 func (f *Foreman) eventLoop() {
     for {
         select {
@@ -254,6 +305,14 @@ func (f *Foreman) handleTcpMsg(msgInfo *comms.ReceivedMessageInfo) {
 }
 
 
+/*
+ * Handle a response from a worker, after we asked it to perform some operation.
+ *
+ * We check that the response is one we were expecting, and that it is legal in our current state.
+ *
+ * If this is the last worker to respond, then we notify our Manager that we have completed the
+ * operation and change our state.
+ */
 func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
     if (f.state == FS_Terminate) && (resp.Op != Op_Terminate) {
         fmt.Printf("Ignoring worker response (%v) as we are terminating\n", resp.Op)
@@ -276,6 +335,7 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
 }
 
 
+/* Handle a new connection (with its attendant WorkOrder). */
 func (f *Foreman) connect() {
     fmt.Printf("Connect for work order in job %v\n", f.order.JobId)
 
@@ -287,7 +347,8 @@ func (f *Foreman) connect() {
 
     go processStats(f.statChannel, f.statControlChannel, f.statResponseChannel, f.tcpConnection)
 
-    // Create our workers
+    // Create our workers.
+    // We divvy up our object range between them.
 
     nWorkers := uint64(runtime.NumCPU())
     f.workerInfos = make([]*WorkerInfo, 0, nWorkers)
@@ -355,7 +416,7 @@ func (f *Foreman) sendResponseToManager(op Opcode, err error) {
     fmt.Printf("Send response to manager: %v, %v\n", op, err)
 
     var resp ForemanGenericResponse
-    resp.Hostname = f.hostname
+    resp.Hostname = f.order.ServerName
     resp.Error = err
 
     f.tcpConnection.Send(string(op), &resp)
@@ -375,12 +436,14 @@ func (f *Foreman) sendOpcodeToWorkers(op Opcode) {
 }
 
 
+/* Set state.  Mostly a place to put a logging statement. */
 func (f *Foreman) setState(state foremanState) {
     fmt.Printf("Foreman changing state: %v -> %v\n", foremanStateToStr(f.state), foremanStateToStr(state))
     f.state = state
 }
 
 
+/* Helper function to terminate the current WorkOrder when we hit a failure */
 func (f *Foreman) fail(err error) {
     fmt.Printf("Failing with error: %v\n", err)
     f.sendResponseToManager(Op_Failed, err)
@@ -388,6 +451,8 @@ func (f *Foreman) fail(err error) {
 }
 
 
+/* Terminate the current WorkOrder, kill our workers and return to the Idle state ready for the 
+ * next connection. */
 func (f *Foreman) terminate() {
     f.setState(FS_Terminate)
     f.sendOpcodeToWorkers(Op_Terminate)
@@ -412,11 +477,11 @@ func (f *Foreman) terminate() {
 }
 
 
+/* Tells our Stat-processing go-routine to send all its stored details back to the Manager */
 func (f *Foreman) sendStatDetails() {
-    // The stats processing go-routing to send details
     f.statControlChannel <- SC_SendDetails
 
-    // Then wait for confirmation that it has been done.
+    // Wait for confirmation that it has been done.
     sc := <-f.statResponseChannel
 
     if (sc != SC_SendDetails) {
@@ -425,6 +490,18 @@ func (f *Foreman) sendStatDetails() {
 }
 
 
+/* 
+ * Stats handling function, to be run as its own go-routine.
+ *
+ * statChannel is a channel to receive the stats which the workers are generating.
+ * controlChannel is a channel to receive incoming state changes (including 'shut down please').
+ * repsponseChannel is a channel on which we acknowledge receipt of control requests.
+ * tcpConnection is a connection back to the Manager so that we can send it stats and summaries 
+ * when appropriate. 
+ *
+ * We start a Ticker to trigger sending a summary back to the Manager once per second.  
+ * This can be enabled and disabled by using the controlChannel.
+ */
 func processStats(statChannel chan *Stat, controlChannel chan statControl, responseChannel chan statControl, tcpConnection *comms.MessageConnection) {
     ticker := time.NewTicker(1 * time.Second)
     var summary = new(StatSummary)
