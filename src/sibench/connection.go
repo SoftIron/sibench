@@ -1,6 +1,5 @@
 package main
 
-import "io"
 import "fmt"
 
 
@@ -19,8 +18,8 @@ type Connection interface {
     DeleteBucket(bucket string) error
 
     ListObjects(bucket string) ([]string, error)
-    PutObject(bucket string, key string, contents io.ReadSeeker) error
-    GetObject(bucket string, key string) (io.Reader, error)
+    PutObject(bucket string, key string, contents []byte) error
+    GetObject(bucket string, key string) ([]byte, error)
 
     /* Close the connection */
     Close()
@@ -33,7 +32,8 @@ type Connection interface {
  */
 func CreateConnection(connectionType string, target string, port uint16, credentials map[string]string) (Connection, error) {
     switch connectionType {
-        case "s3": return CreateS3Connection(target, port, credentials)
+        case "s3":    return CreateS3Connection(target, port, credentials)
+        case "rados": return CreateRadosConnection(target, port, credentials)
     }
 
     return nil, fmt.Errorf("Unknown connectionType: %v", connectionType)

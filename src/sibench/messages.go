@@ -113,7 +113,7 @@ type WorkOrder struct {
     // Connection parameters
     ConnectionType string           // The type of connection: s3, librados etc... 
     Targets []string                // The set of gateways, monitors, metadata servers or whatever we connect to. 
-    Port uint16                     // The port on which we connect.
+    Port uint16                     // The port on which we connect to the storage servers.
     Credentials map[string]string   // ConnectionType-specific key/value pairs for credential info for connecting.
 }
 

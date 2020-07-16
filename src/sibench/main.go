@@ -12,23 +12,37 @@ import "time"
 
 
 /* Struct type into which DocOpt can put our command line options. */
-type Config struct {
+type Arguments struct {
+    // Command selection bools
     Server bool
     S3 bool
+    Rados bool
     Run bool
-    Bucket string
+
+    // Common options
     Port int
-    SibenchPort int
     Size string
-    SizeInBytes uint64
     Objects int
     Servers string
     RunTime int
     RampUp int
     RampDown int
     Targets []string
-    AccessKey string
-    SecretKey string
+
+    // S3 options
+    S3AccessKey string
+    S3SecretKey string
+    S3Bucket string
+    S3Port int
+
+    // Rados options
+    CephPool string
+    CephUser string
+    CephKey  string
+
+    // Synthesized options
+    Bucket string
+    SizeInBytes uint64
 }
 
 
@@ -36,21 +50,26 @@ type Config struct {
 func usage() string {
     return `SoftIron Benchmark Tool.
 Usage:
-  sibench server [--sibench-port PORT]
-  sibench s3 run [--sibench-port PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-b BUCKET] [-p PORT]
-                 [--servers SERVERS] (-a KEY) (-k KEY) <targets> ...
+  sibench server    [-p PORT]
+  sibench s3 run    [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [--servers SERVERS] <targets> ...
+                    [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
+  sibench rados run [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [--servers SERVERS] <targets> ...
+                    [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
 Options:
-  -o COUNT, --objects COUNT      The number of objects to use as our working set  [default: 1000]
-  -s SIZE, --size SIZE           Object size to test. [default: 1M]
-  -r TIME, --run-time TIME       The time spent on each phase of the benchmark.  [default: 30]
-  -u TIME, --ramp-up TIME        The extra time we run at the start of each phase where we don't collect stats.  [default: 5]
-  -d TIME, --ramp-down TIME      The extra time we run at the end of each phase where we don't collect stats.  [default: 2]
-  -b BUCKET, --bucket BUCKET     The name of the bucket we wish to use for S3 operations.  [default: sibench]
-  -p PORT, --port PORT           The port on which to connect to S3.  [default: 7480]
-  --sibench-port PORT            The port that servers should listen on.  Only needs to be set if there's a conflict. [default: 5150]
-  --servers SERVERS              A comma-separated list of sibench servers to connect to.  [default: localhost]
-  --access-key KEY, -a KEY       S3 access key
-  --secret-key KEY, -k KEY       S3 secret key
+  -p PORT, --port PORT         The port on which sibench communicates.  [default: 5150]
+  -s SIZE, --size SIZE         Object size to test, in units of K or M.   [default: 1M]
+  -o COUNT, --objects COUNT    The number of objects to use as our working set.  [default: 1000]
+  -r TIME, --run-time TIME     The time spent on each phase of the benchmark.  [default: 30]
+  -u TIME, --ramp-up TIME      The extra time we run at the start of each phase where we don't collect stats.  [default: 5]
+  -d TIME, --ramp-down TIME    The extra time we run at the end of each phase where we don't collect stats.  [default: 2]
+  --servers SERVERS            A comma-separated list of sibench servers to connect to.  [default: localhost]
+  --s3-port PORT               The port on which to connect to S3.  [default: 7480]
+  --s3-bucket BUCKET           The name of the bucket we wish to use for S3 operations.  [default: sibench]
+  --s3-access-key KEY          S3 access key
+  --s3-secret-key KEY          S3 secret key
+  --ceph-pool POOL             The pool we use for benchmarking.  [default: sibench]
+  --ceph-user USER             The ceph username we use.  [default: admin]
+  --ceph-key KEY               The secret key belonging to the ceph user
 `
 }
 
@@ -83,27 +102,27 @@ func dieOnError(err error, format string, a ...interface{}) {
  * Do any argument checking that can not be done inherently by DocOpt (such as 
  * ensuring a port number is < 65535, or that a string has a particular form.
  */
-func validateConfig(conf *Config) error {
-    if (conf.Port < 0) || ( conf.Port > int(math.MaxUint16)) {
-        return fmt.Errorf("S3 Port not in range: %v", conf.SibenchPort)
+func validateArguments(args *Arguments) error {
+    if (args.Port < 0) || ( args.Port > int(math.MaxUint16)) {
+        return fmt.Errorf("Port not in range: %v", args.Port)
     }
 
-    if (conf.SibenchPort < 0) || ( conf.SibenchPort > int(math.MaxUint16)) {
-        return fmt.Errorf("Sibench Port not in range: %v", conf.SibenchPort)
+    if (args.S3Port < 0) || ( args.S3Port > int(math.MaxUint16)) {
+        return fmt.Errorf("S3 Port not in range: %v", args.S3Port)
     }
 
     // Turn the size (in K or M) into bytes...
 
     re := regexp.MustCompile(`([1-9][0-9]*)([kKmM])`)
-    groups := re.FindStringSubmatch(conf.Size)
+    groups := re.FindStringSubmatch(args.Size)
     if groups == nil {
-        return fmt.Errorf("Bad size specifier: %v", conf.Size)
+        return fmt.Errorf("Bad size specifier: %v", args.Size)
     }
 
     val, _ := strconv.Atoi(groups[1])
-    conf.SizeInBytes = uint64(val) * 1024
+    args.SizeInBytes = uint64(val) * 1024
     if strings.EqualFold(groups[2], "m") {
-        conf.SizeInBytes *= 1024
+        args.SizeInBytes *= 1024
     }
 
     return nil
@@ -115,57 +134,65 @@ func main() {
     opts, err := docopt.ParseDoc(usage())
     dieOnError(err, "Error parsing arguments")
 
+    dumpOpts(&opts)
+
     // Error should never happen outside of development, since docopt is complaining that our type bindings are wrong.
-    var conf Config
-    err = opts.Bind(&conf)
-    dieOnError(err, "Failure binding config")
+    var args Arguments
+    err = opts.Bind(&args)
+    dieOnError(err, "Failure binding argsig")
 
     // This can error on bad user input.
-    err = validateConfig(&conf)
+    err = validateArguments(&args)
     dieOnError(err, "Failure validating arguments")
 
-    fmt.Printf("%+v\n", conf)
+    fmt.Printf("%+v\n", args)
 
-    if conf.Server {
-        startServer(&conf)
+    if args.Server {
+        startServer(&args)
     }
 
-    if conf.Run {
-        startRun(&conf)
+    if args.Run {
+        startRun(&args)
     }
 }
 
 
 /* Start a server, listening on a TCP port */
-func startServer(conf *Config) {
-    listenPort := uint16(conf.SibenchPort)
-    err := StartForeman(listenPort)
+func startServer(args *Arguments) {
+    err := StartForeman(uint16(args.Port))
     dieOnError(err, "Failure creating server")
 }
 
 
 /* Create a job and execute it on some set of servers. */
-func startRun(conf *Config) {
+func startRun(args *Arguments) {
 
     var j Job
 
-    j.Servers = strings.Split(conf.Servers, ",")
-    j.ServerPort = uint16(conf.SibenchPort)
-    j.RunTime = uint64(conf.RunTime)
-    j.RampUp = uint64(conf.RampUp)
-    j.RampDown = uint64(conf.RampDown)
+    j.Servers = strings.Split(args.Servers, ",")
+    j.ServerPort = uint16(args.Port)
+    j.RunTime = uint64(args.RunTime)
+    j.RampUp = uint64(args.RampUp)
+    j.RampDown = uint64(args.RampDown)
 
     j.Order.JobId = 1
-    j.Order.Bucket = conf.Bucket
-    j.Order.ObjectSize = conf.SizeInBytes
+    j.Order.ObjectSize = args.SizeInBytes
     j.Order.Seed = uint64(time.Now().Unix())
     j.Order.GeneratorType = "prng"
     j.Order.RangeStart = 0
-    j.Order.RangeEnd = uint64(conf.Objects)
-    j.Order.ConnectionType = "s3"
-    j.Order.Targets = conf.Targets
-    j.Order.Port = uint16(conf.Port)
-    j.Order.Credentials = map[string]string { "access_key": conf.AccessKey, "secret_key": conf.SecretKey }
+    j.Order.RangeEnd = uint64(args.Objects)
+    j.Order.Targets = args.Targets
+
+    if args.S3 {
+        j.Order.ConnectionType = "s3"
+        j.Order.Bucket = args.S3Bucket
+        j.Order.Credentials = map[string]string { "access_key": args.S3AccessKey, "secret_key": args.S3SecretKey }
+        j.Order.Port = uint16(args.S3Port)
+    } else {
+        j.Order.ConnectionType = "rados"
+        j.Order.Bucket = args.CephPool
+        j.Order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
+    }
 
     m := CreateManager()
 

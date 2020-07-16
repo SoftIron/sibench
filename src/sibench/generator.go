@@ -1,7 +1,6 @@
 package main
 
 import "fmt"
-import "io"
 
 
 /* 
@@ -24,13 +23,13 @@ type Generator interface {
      * key is the object name.
      * cycle is a counter that should be incremented if overwriting an object, so that the contents will not be the same as before. 
      */
-    Generate(size uint64, key string, cycle uint64) io.ReadSeeker
+    Generate(size uint64, key string, cycle uint64) []byte
 
     /*
      * Verify checks if the contents of a payload are well-formed. 
      * Returns nil on success, or an error on failure.
      */
-    Verify(size uint64, key string, contents io.Reader) error
+    Verify(size uint64, key string, contents []byte) error
 }
 
 

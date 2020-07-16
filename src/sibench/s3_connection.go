@@ -127,9 +127,11 @@ func (conn *S3Connection) ListObjects(bucket string) ([]string, error) {
 }
 
 
-func (conn *S3Connection) PutObject(bucket string, key string, contents io.ReadSeeker) error {
+func (conn *S3Connection) PutObject(bucket string, key string, contents []byte) error {
+    reader := bytes.NewReader(contents)
+
 	_, err := conn.client.PutObject(&s3.PutObjectInput{
-		Body:   contents,
+		Body:   reader,
 		Bucket: &bucket,
 		Key:    &key,
 	})
@@ -138,7 +140,7 @@ func (conn *S3Connection) PutObject(bucket string, key string, contents io.ReadS
 }
 
 
-func (conn *S3Connection) GetObject(bucket string, key string) (io.Reader, error) {
+func (conn *S3Connection) GetObject(bucket string, key string) ([]byte, error) {
 
 	obj, err := conn.client.GetObject(&s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
     if err != nil {
@@ -151,7 +153,7 @@ func (conn *S3Connection) GetObject(bucket string, key string) (io.Reader, error
 	    return nil, err
 	}
 
-    return bytes.NewReader(buf.Bytes()), nil
+    return buf.Bytes(), nil
 }
 
 

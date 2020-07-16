@@ -3,7 +3,6 @@ package main
 import "bytes"
 import "encoding/binary"
 import "fmt"
-import "io"
 
 
 // Cheap hash function.
@@ -29,7 +28,7 @@ func CreatePrngGenerator(seed uint64) *PrngGenerator {
 }
 
 
-func (pg *PrngGenerator) generateBuffer(size uint64, key string, cycle uint64) []byte {
+func (pg *PrngGenerator) Generate(size uint64, key string, cycle uint64) []byte {
     buf := make([]byte, 0, size)
     tmp64 := make([]byte, 8)
     zeroes := make([]byte, 8)
@@ -79,31 +78,18 @@ func (pg *PrngGenerator) generateBuffer(size uint64, key string, cycle uint64) [
 
 
 
-func (pg *PrngGenerator) Generate(size uint64, key string, cycle uint64) io.ReadSeeker {
-    return bytes.NewReader(pg.generateBuffer(size, key, cycle))
-}
-
-
-func (pg *PrngGenerator) Verify(size uint64, key string, contents io.Reader) error {
-
-    actual_buf := make([]byte, size)
-    n, err := contents.Read(actual_buf)
-
-    if err != nil {
-        return fmt.Errorf("Failure reading contents: %v\n", err)
-    }
-
-    if uint64(n) != size {
-        return fmt.Errorf("Incorrect size: %v\n", n)
+func (pg *PrngGenerator) Verify(size uint64, key string, contents []byte) error {
+    if uint64(len(contents)) != size {
+        return fmt.Errorf("Incorrect size: expected %v but got %v\n", size, len(contents))
     }
 
     // Read the cycle from the header of the payload: it's the only bit we don't necessarily know. 
-    actual_cycle := binary.LittleEndian.Uint64(actual_buf[8:])
+    cycle := binary.LittleEndian.Uint64(contents[8:])
 
     // Now we can generate the expected buffer to compare against.
-    expected_buf := pg.generateBuffer(size, key, actual_cycle)
+    expected := pg.Generate(size, key, cycle)
 
-    if bytes.Compare(actual_buf, expected_buf) != 0 {
+    if bytes.Compare(contents, expected) != 0 {
         return fmt.Errorf("Buffers do not match\n")
     }
 

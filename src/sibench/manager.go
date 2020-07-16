@@ -333,7 +333,8 @@ func (m *Manager) createBucket() error {
     var err error
 
     // Create a connection
-    m.storageConn, err = CreateS3Connection(o.Targets[0], o.Port, o.Credentials)
+    m.storageConn, err = CreateConnection(o.ConnectionType, o.Targets[0], o.Port, o.Credentials)
+
     if err != nil {
         return err
     }
