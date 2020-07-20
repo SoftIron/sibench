@@ -99,8 +99,8 @@ func errorFilter(err StatError) filterFunc {
 func rampFilter(job *Job) filterFunc {
 
     // Durations are in ns, so convert our values from seconds
-    up := job.RampUp * 1000 * 1000 * 1000
-    time := job.RunTime * 1000 * 1000 * 1000
+    up := job.rampUp * 1000 * 1000 * 1000
+    time := job.runTime * 1000 * 1000 * 1000
 
     return func(s *Stat) bool {
         start := uint64(s.TimeSincePhaseStart)
@@ -196,9 +196,9 @@ func (a *Analysis) String() string {
         toUnits(a.Bandwidth),
         a.Successes,
         a.Failures,
-        a.ResTimeMin,
-        a.ResTimeMax,
-        a.ResTime95)
+        a.ResTimeMin / (1000 * 1000),
+        a.ResTimeMax / (1000 * 1000),
+        a.ResTime95  / (1000 * 1000))
 }
 
 
@@ -207,7 +207,7 @@ func (a *Analysis) String() string {
  * We pass in the name that we wish to give the Analysis.
  * The job is needed so that we can pul run times and object size from it.
  */
-func CreateAnalysis(stats []*Stat, name string, job *Job) *Analysis {
+func NewAnalysis(stats []*Stat, name string, job *Job) *Analysis {
     var result Analysis
     result.Name =name
 
@@ -219,25 +219,14 @@ func CreateAnalysis(stats []*Stat, name string, job *Job) *Analysis {
         sortByDuration(good)
 
         // Would like to use Duration.Milliseconds, but it doesn't exist in our go version.
-        result.ResTimeMin = uint64(good[0].Duration) / (1000 * 1000)
-        result.ResTimeMax = uint64(good[len(good) - 1].Duration) / (1000 * 1000)
-        result.ResTime95  = uint64(good[int(float64(len(good)) * 0.95)].Duration) / (1000 * 1000)
-        result.Bandwidth  = uint64(8 * len(good)) * job.Order.ObjectSize / job.RunTime
+        result.ResTimeMin = uint64(good[0].Duration)
+        result.ResTimeMax = uint64(good[len(good) - 1].Duration)
+        result.ResTime95  = uint64(good[int(float64(len(good)) * 0.95)].Duration)
+        result.Bandwidth  = uint64(8 * len(good)) * job.order.ObjectSize / job.runTime
     }
 
     return &result
 }
-
-
-/* Process each phase that we are interested in, one by one */
-func crunchPhases(stats []*Stat, job *Job, prefix string) {
-    phases := []StatPhase{ SP_Write, SP_Read }
-    for _, phase := range phases {
-        pstats := filter(stats, phaseFilter(phase))
-        fmt.Printf("%v\n", CreateAnalysis(pstats, prefix + " " + phase.ToString(), job).String())
-    }
-}
-
 
 
 /*
@@ -245,7 +234,7 @@ func crunchPhases(stats []*Stat, job *Job, prefix string) {
  * We return a slice of various different Analyses that we create.
  * As a side-effect, we also currently print the Analyses to the console.
  */
-func CrunchTheNumbers(stats []*Stat, job *Job) []*Analysis {
+func AnalyseStats(job *Job, stats []*Stat) []*Analysis {
     var results []*Analysis
 
     // Start off by throwing out anything in a ramp period.
@@ -259,16 +248,16 @@ func CrunchTheNumbers(stats []*Stat, job *Job) []*Analysis {
         fmt.Printf("%v\n", strings.Repeat("-", lineWidth))
         pstats := filter(stats, phaseFilter(phase))
 
-        for _, t := range job.Order.Targets {
+        for _, t := range job.order.Targets {
             tstats := filter(pstats, targetFilter(t))
-            a := CreateAnalysis(tstats, "Target[" + t + "] " + phase.ToString(), job)
+            a := NewAnalysis(tstats, "Target[" + t + "] " + phase.ToString(), job)
             results = append(results, a)
             fmt.Printf("%v\n", a.String())
         }
 
-        for _, s := range job.Servers {
+        for _, s := range job.servers {
             sstats := filter(pstats, serverFilter(s))
-            a := CreateAnalysis(sstats, "Server[" + s + "] " + phase.ToString(), job)
+            a := NewAnalysis(sstats, "Server[" + s + "] " + phase.ToString(), job)
             results = append(results, a)
             fmt.Printf("%v\n", a.String())
         }
@@ -279,7 +268,7 @@ func CrunchTheNumbers(stats []*Stat, job *Job) []*Analysis {
     // End up with the most imporant stats - the overall performance.
     for _, phase := range phases {
         pstats := filter(stats, phaseFilter(phase))
-        a := CreateAnalysis(pstats, "Total " + phase.ToString(), job)
+        a := NewAnalysis(pstats, "Total " + phase.ToString(), job)
         results = append(results, a)
         fmt.Printf("%v\n", a.String())
     }

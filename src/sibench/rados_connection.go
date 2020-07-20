@@ -16,7 +16,7 @@ type RadosConnection struct {
 }
 
 
-func CreateRadosConnection(monitor string, port uint16, credentialMap map[string]string) (*RadosConnection, error) {
+func NewRadosConnection(monitor string, port uint16, credentialMap map[string]string) (*RadosConnection, error) {
     client, err := rados.NewConnWithUser(credentialMap["username"])
     if err != nil {
         return nil, err

@@ -111,7 +111,7 @@ type Worker struct {
 }
 
 
-func CreateWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
+func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
     fmt.Printf("   [w%v] creating worker\n", spec.Id)
 
     var w Worker
@@ -192,7 +192,7 @@ func (w *Worker) handleOpcode(op Opcode) {
 
 func (w *Worker) connect() {
     for _, t := range w.order.Targets {
-        conn, err := CreateConnection(w.order.ConnectionType, t, w.order.Port, w.order.Credentials)
+        conn, err := NewConnection(w.order.ConnectionType, t, w.order.Port, w.order.Credentials)
         if err != nil {
             fmt.Printf("   [w%v] failure during connect to %v: %v\n", w.spec.Id, t, err)
             w.setState(WS_Failed)

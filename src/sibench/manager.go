@@ -27,7 +27,7 @@ type Manager struct {
 
 
 /* Creates a new manager object. */
-func CreateManager() *Manager{
+func NewManager() *Manager{
     var m Manager
     return &m
 }
@@ -50,7 +50,7 @@ func (m *Manager) Run(j *Job) error {
     }
 
     m.sendJobToServers()
-    phaseTime := j.RunTime + j.RampUp + j.RampDown
+    phaseTime := j.runTime + j.rampUp + j.rampDown
 
     // Write
     m.sendOpToServers(Op_WriteStart, true)
@@ -66,8 +66,8 @@ func (m *Manager) Run(j *Job) error {
     m.sendOpToServers(Op_ReadStop, true)
 
     // Fetch the fully-detailed stats, and then process them.
-    stats := m.drainStats()
-    CrunchTheNumbers(stats, m.job)
+    m.drainStats()
+    m.job.CrunchTheNumbers()
 
     // Terminate
     m.sendOpToServers(Op_Terminate, true)
@@ -106,10 +106,9 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
  *
  * We return the stats we obtain this way.
  */
-func (m* Manager) drainStats() []*Stat {
+func (m* Manager) drainStats() {
     m.sendOpToServers(Op_StatDetails, false)
 
-    var stats []*Stat
     count := 0
     pending := len(m.msgConns)
 
@@ -129,13 +128,13 @@ func (m* Manager) drainStats() []*Stat {
             case Op_StatDetails:
                 s := new(Stat)
                 msg.Data(s)
-                stats = append(stats, s)
+                m.job.addStat(s)
                 count++
 
             case Op_StatDetailsDone:
                 pending--
                 if pending == 0 {
-                    return stats
+                    return
                 }
 
             case Op_StatSummary:
@@ -183,11 +182,11 @@ func (m* Manager) runPhase(secs uint64) {
                 summary.Add(&s)
 
             case <-ticker.C:
-                fmt.Printf("%v: %v\n", i, summary.String(m.job.Order.ObjectSize))
+                fmt.Printf("%v: %v\n", i, summary.String(m.job.order.ObjectSize))
                 i++
 
                 // Draw some lines to indicate the ramp-up/ramp-down demarcation.
-                if (uint64(i) == m.job.RampUp) || (uint64(i) == m.job.RampUp + m.job.RunTime) {
+                if (uint64(i) == m.job.rampUp) || (uint64(i) == m.job.rampUp + m.job.runTime) {
                     fmt.Printf("-----------------------------------------------------------\n")
                 }
 
@@ -248,7 +247,7 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
 func (m *Manager) sendJobToServers() {
     nServers := uint64(len(m.msgConns))
 
-    order := &(m.job.Order)
+    order := &(m.job.order)
 
     rangeStart := order.RangeStart
     rangeLen := order.RangeEnd - order.RangeStart
@@ -295,8 +294,8 @@ func (m *Manager) connectToServers() error {
     m.msgChannel = make(chan *comms.ReceivedMessageInfo, 1000)
     m.connToServerName = make(map[*comms.MessageConnection]string)
 
-    for _, s := range m.job.Servers {
-        endpoint := fmt.Sprintf("%v:%v", s, m.job.ServerPort)
+    for _, s := range m.job.servers {
+        endpoint := fmt.Sprintf("%v:%v", s, m.job.serverPort)
         fmt.Printf("Connecting to sibench server at %v\n", endpoint)
 
         conn, err := comms.ConnectTCP(endpoint, comms.MakeEncoderFactory(), 0)
@@ -328,25 +327,25 @@ func (m *Manager) disconnectFromServers() {
 
 /* Create a bucket in which to put/get our benchmark objects. */
 func (m *Manager) createBucket() error {
-    o := &(m.job.Order)
+    o := &(m.job.order)
 
     var err error
 
     // Create a connection
-    m.storageConn, err = CreateConnection(o.ConnectionType, o.Targets[0], o.Port, o.Credentials)
+    m.storageConn, err = NewConnection(o.ConnectionType, o.Targets[0], o.Port, o.Credentials)
 
     if err != nil {
         return err
     }
 
     // Create bucket
-    return m.storageConn.CreateBucket(m.job.Order.Bucket)
+    return m.storageConn.CreateBucket(m.job.order.Bucket)
 }
 
 
 /* Delete the bucket we use for our benchmark objects */
 func (m *Manager) deleteBucket() {
-    err := m.storageConn.DeleteBucket(m.job.Order.Bucket)
+    err := m.storageConn.DeleteBucket(m.job.order.Bucket)
     if err != nil {
         fmt.Printf("Error deleting bucket: %v\n", err)
     }

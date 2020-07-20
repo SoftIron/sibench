@@ -26,16 +26,56 @@ package main
  */
 type Job struct {
     /* All the stuff we need to hand out to our Foremen. */
-    Order WorkOrder
+    order WorkOrder
 
     /* The SiBench servers we should talk to. */
-    Servers []string    // The sibench servers we will try to use to do the work
-    ServerPort uint16   // The port we use to connect to those servers.
+    servers []string    // The sibench servers we will try to use to do the work
+    serverPort uint16   // The port we use to connect to those servers.
 
     /* Duration paramteters (all in seconds) */
-    RampUp uint64       // Time given to settle down before we start recording results
-    RunTime uint64      // The length of the main part of the run where we record results.
-    RampDown uint64     // Time at the end of the run where we throw away the results again.
+    rampUp uint64       // Time given to settle down before we start recording results
+    runTime uint64      // The length of the main part of the run where we record results.
+    rampDown uint64     // Time at the end of the run where we throw away the results again.
+
+    /* The report object bundles up everything we need to generate a report when we're done. */
+    report Report
 }
 
 
+
+/* 
+ * A Report contains all the information we return from a run.
+ *
+ * The fields are all public so that JSON encoders can access them.
+ */
+type Report struct {
+    Arguments *Arguments
+    Errors []error
+    Analyses []*Analysis
+    Stats []*Stat
+}
+
+
+func (j *Job) setArguments(args *Arguments) {
+    j.report.Arguments = args
+}
+
+
+func (j *Job) addError(err error) {
+    j.report.Errors = append(j.report.Errors, err)
+}
+
+
+func (j *Job) addAnalysis(a *Analysis) {
+    j.report.Analyses = append(j.report.Analyses, a)
+}
+
+
+func (j *Job) addStat(s *Stat) {
+    j.report.Stats = append(j.report.Stats, s)
+}
+
+
+func (j *Job) CrunchTheNumbers() {
+    j.report.Analyses = AnalyseStats(j, j.report.Stats)
+}

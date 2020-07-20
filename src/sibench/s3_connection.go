@@ -15,7 +15,7 @@ type S3Connection struct {
 }
 
 
-func CreateS3Connection(gateway string, port uint16, credentialMap map[string]string) (*S3Connection, error) {
+func NewS3Connection(gateway string, port uint16, credentialMap map[string]string) (*S3Connection, error) {
 
     access_key := credentialMap["access_key"]
     secret_key := credentialMap["secret_key"]

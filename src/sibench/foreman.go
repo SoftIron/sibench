@@ -383,7 +383,7 @@ func (f *Foreman) connect() {
             o.RangeEnd = f.order.RangeEnd
         }
 
-        w, err := CreateWorker(s, &o)
+        w, err := NewWorker(s, &o)
         if err == nil {
             info := WorkerInfo{OpChannel: opChannel, Worker: w}
             f.workerInfos = append(f.workerInfos, &info)
