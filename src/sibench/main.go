@@ -204,6 +204,7 @@ func startRun(args *Arguments) {
     err := m.Run(&j)
     if err != nil {
         fmt.Printf("Error running job: %v\n", err)
+        j.addError(err)
     }
 
     jsonReport, err := json.MarshalIndent(j.report, "", "  ")
