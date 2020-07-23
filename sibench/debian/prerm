@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+if [ -x /bin/systemctl ] ; then
+    systemctl disable --now sibench.service ||:
+fi

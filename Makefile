@@ -12,6 +12,8 @@ comms:
 test:
 	go test -v ./...
 
+.PHONY: clean
+
 clean:
 	go clean ./...
 	rm -f bin/*

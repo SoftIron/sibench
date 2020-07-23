@@ -1,0 +1,13 @@
+[Unit]
+Description="sibench - SoftIron benchmarking facilitieas" 
+Wants=network-online.target
+After=network-online.target
+Type=simple
+
+[Service]
+RuntimeDirectory=sibench
+RuntimeDirectoryPreserve=true
+ExecStart=/usr/bin/sibench
+
+[Install]
+WantedBy=multi-user.target

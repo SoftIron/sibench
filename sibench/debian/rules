@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+clean:
+	make clean
+	rm -fr usr/bin debian/sibench
+	mkdir -p usr/bin debian/sibench
+build:
+	make all
+	cp bin/sibench bin/comms usr/bin/
+binary:
+	cp -a lib usr debian/sibench/
+	dh_makeshlibs
+	dh_gencontrol
+	dh_builddeb
