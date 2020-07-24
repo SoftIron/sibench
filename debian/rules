@@ -1,13 +1,14 @@
 #!/usr/bin/make -f
+DH_VERBOSE = 1
 clean:
 	make clean
 	rm -fr usr/bin debian/sibench
 	mkdir -p usr/bin debian/sibench
 build:
 	make all
-	cp bin/sibench bin/comms usr/bin/
+	cp bin/sibench usr/bin/
 binary:
-	cp -a lib usr debian/sibench/
+	cp -a lib usr debian/sibench
 	dh_makeshlibs
 	dh_gencontrol
 	dh_builddeb

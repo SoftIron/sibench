@@ -4,10 +4,12 @@ all = sibench comms
 all:	$(all)
 
 sibench:
-	go install sibench
+	go get $@
+	go install $@
 
 comms:
-	go install comms
+	go get $@
+	go install $@
 
 test:
 	go test -v ./...

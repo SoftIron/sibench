@@ -7,7 +7,7 @@ Type=simple
 [Service]
 RuntimeDirectory=sibench
 RuntimeDirectoryPreserve=true
-ExecStart=/usr/bin/sibench
+ExecStart=/usr/bin/sibench server
 
 [Install]
 WantedBy=multi-user.target
