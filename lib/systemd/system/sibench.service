@@ -2,9 +2,9 @@
 Description="sibench - SoftIron benchmarking facilitieas" 
 Wants=network-online.target
 After=network-online.target
-Type=simple
 
 [Service]
+Type=simple
 RuntimeDirectory=sibench
 RuntimeDirectoryPreserve=true
 ExecStart=/usr/bin/sibench server
