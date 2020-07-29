@@ -1,3 +1,7 @@
+sibench (0.0.2) buster; urgency=low
+  [ Harry Richardson ]
+  * enable the sibench.service after installation
+ -- Milan Kovacik <milan@softiron.com>  Wed, 29 Jul 2020 13:55:00 -0500
 sibench (0.0.1) buster; urgency=low
   [ Harry Richardson ]
   * the initial package
