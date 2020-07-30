@@ -29,8 +29,9 @@ type Connection interface {
  */
 func NewConnection(connectionType string, target string, port uint16, credentials map[string]string) (Connection, error) {
     switch connectionType {
-        case "s3":    return NewS3Connection(target, port, credentials)
-        case "rados": return NewRadosConnection(target, port, credentials)
+        case "s3":      return NewS3Connection(target, port, credentials)
+        case "rados":   return NewRadosConnection(target, port, credentials)
+        case "cephfs":  return NewCephFSConnection(target, port, credentials)
     }
 
     return nil, fmt.Errorf("Unknown connectionType: %v", connectionType)

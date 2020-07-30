@@ -190,12 +190,12 @@ type Foreman struct {
  * should be run as a new go-routine if you need to continue to do things in your current 
  * go-routine.
  */
-func StartForeman(listenPort uint16) error {
+func StartForeman() error {
     var err error
     var f Foreman
     f.setState(FS_Idle)
 
-    endpoint := fmt.Sprintf(":%v", listenPort)
+    endpoint := fmt.Sprintf(":%v", config.ListenPort)
     f.tcpControlChannel = make(chan *comms.MessageConnection, 100)
     _, err = comms.ListenTCP(endpoint, comms.MakeEncoderFactory(), f.tcpControlChannel)
     if err != nil {

@@ -19,7 +19,6 @@ import "time"
  */
 type Manager struct {
     job *Job
-    storageConn Connection
     msgConns []*comms.MessageConnection
     msgChannel chan *comms.ReceivedMessageInfo
     connToServerName map[*comms.MessageConnection]string
@@ -325,32 +324,51 @@ func (m *Manager) disconnectFromServers() {
 }
 
 
-/* Create a bucket in which to put/get our benchmark objects. */
+/* 
+ * Create a bucket in which to put/get our benchmark objects. 
+ *
+ * Note that we do not keep the connection open, even though we'll need a connection later
+ * to delete the bucket. This is because the connection may be backed by a mounted filesystem,
+ * in which case the sibench servers will also be mounting it.  If one of the servers is on
+ * the same host as the manager (as is likely), then we don't want to try to mount it twice at 
+ * the same time.
+ *
+ * (We use the MountManager _within_ a process to prevent multiple mounting, but the manager and
+ * the servers are in different processes, and rather than building a cross-process sync 
+ * mechanism, it's easier to just drop out connection and recreate it when we come to delete
+ * the bucket).
+ */
 func (m *Manager) createBucket() error {
     o := &(m.job.order)
 
-    var err error
-
     // Create a connection
-    m.storageConn, err = NewConnection(o.ConnectionType, o.Targets[0], o.Port, o.Credentials)
-
+    conn, err := NewConnection(o.ConnectionType, o.Targets[0], o.Port, o.Credentials)
     if err != nil {
         return err
     }
 
-    // Create bucket
-    return m.storageConn.CreateBucket(m.job.order.Bucket)
+    defer conn.Close()
+    return conn.CreateBucket(m.job.order.Bucket)
 }
 
 
 /* Delete the bucket we use for our benchmark objects */
 func (m *Manager) deleteBucket() {
-    err := m.storageConn.DeleteBucket(m.job.order.Bucket)
+    o := &(m.job.order)
+
+    // Create a connection
+    conn, err := NewConnection(o.ConnectionType, o.Targets[0], o.Port, o.Credentials)
+    if err != nil {
+        return
+    }
+
+    defer conn.Close()
+
+    // Delete the bucket.
+    err = conn.DeleteBucket(o.Bucket)
     if err != nil {
         fmt.Printf("Error deleting bucket: %v\n", err)
     }
-
-    m.storageConn.Close()
 }
 
 

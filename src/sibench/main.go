@@ -18,11 +18,13 @@ type Arguments struct {
     Server bool
     S3 bool
     Rados bool
+    Cephfs bool
     Run bool
     Verbose bool
 
     // Common options
     Port int
+    MountsDir string
     Size string
     Objects int
     Servers string
@@ -38,10 +40,11 @@ type Arguments struct {
     S3Bucket string
     S3Port int
 
-    // Rados options
+    // Rados and/or CephFS options
     CephPool string
     CephUser string
     CephKey  string
+    CephDir  string
 
     // Synthesized options
     Bucket string
@@ -53,28 +56,33 @@ type Arguments struct {
 func usage() string {
     return `SoftIron Benchmark Tool.
 Usage:
-  sibench server    [-v] [-p PORT]
-  sibench s3 run    [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-j FILE] [--servers SERVERS] <targets> ...
-                    [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
-  sibench rados run [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-j FILE] [--servers SERVERS] <targets> ...
-                    [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
+  sibench server     [-v] [-p PORT] [-m DIR]
+  sibench s3 run     [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-j FILE] [--servers SERVERS] <targets> ...
+                     [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
+  sibench rados run  [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-j FILE] [--servers SERVERS] <targets> ...
+                     [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
+  sibench cephfs run [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-j FILE] [-m DIR] [--servers SERVERS] <targets> ...
+                     [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
+
 Options:
-  -v, --verbose                Turn on debug output
-  -p PORT, --port PORT         The port on which sibench communicates.  [default: 5150]
-  -s SIZE, --size SIZE         Object size to test, in units of K or M.   [default: 1M]
-  -o COUNT, --objects COUNT    The number of objects to use as our working set.  [default: 1000]
-  -r TIME, --run-time TIME     The time spent on each phase of the benchmark.  [default: 30]
-  -u TIME, --ramp-up TIME      The extra time we run at the start of each phase where we don't collect stats.  [default: 5]
-  -d TIME, --ramp-down TIME    The extra time we run at the end of each phase where we don't collect stats.  [default: 2]
+  -v, --verbose                Turn on debug output.
+  -p PORT, --port PORT         The port on which sibench communicates.                          [default: 5150]
+  -m DIR, --mounts-dir DIR     The directory in which we should create any filesystem mounts.   [default: /tmp/sibench_mnt]
+  -s SIZE, --size SIZE         Object size to test, in units of K or M.                         [default: 1M]
+  -o COUNT, --objects COUNT    The number of objects to use as our working set.                 [default: 1000]
+  -r TIME, --run-time TIME     Seconds spent on each phase of the benchmark.                    [default: 30]
+  -u TIME, --ramp-up TIME      Seconds at the start of each phase where we don't record data.   [default: 5]
+  -d TIME, --ramp-down TIME    Seconds at the end of each phase where we don't record data.     [default: 2]
   -j FILE, --json-output FILE  The file to which we write our json results.
-  --servers SERVERS            A comma-separated list of sibench servers to connect to.  [default: localhost]
-  --s3-port PORT               The port on which to connect to S3.  [default: 7480]
-  --s3-bucket BUCKET           The name of the bucket we wish to use for S3 operations.  [default: sibench]
-  --s3-access-key KEY          S3 access key
-  --s3-secret-key KEY          S3 secret key
-  --ceph-pool POOL             The pool we use for benchmarking.  [default: sibench]
-  --ceph-user USER             The ceph username we use.  [default: admin]
-  --ceph-key KEY               The secret key belonging to the ceph user
+  --servers SERVERS            A comma-separated list of sibench servers to connect to.         [default: localhost]
+  --s3-port PORT               The port on which to connect to S3.                              [default: 7480]
+  --s3-bucket BUCKET           The name of the bucket we wish to use for S3 operations.         [default: sibench]
+  --s3-access-key KEY          S3 access key.
+  --s3-secret-key KEY          S3 secret key.
+  --ceph-pool POOL             The pool we use for benchmarking.                                [default: sibench]
+  --ceph-user USER             The ceph username we use.                                        [default: admin]
+  --ceph-key KEY               The secret key belonging to the ceph user.
+  --ceph-dir DIR               The CephFS directory which we should use for a benchmark.        [default: sibench]
 `
 }
 
@@ -134,6 +142,18 @@ func validateArguments(args *Arguments) error {
 }
 
 
+/*
+ * Build our Config.
+ *
+ * Currently this uses just our command line arguments, but it will probably load a json file later on.
+ */
+func buildConfig(args *Arguments) error {
+    config.ListenPort = uint16(args.Port)
+    config.MountsDir = args.MountsDir
+    return nil
+}
+
+
 func main() {
     // Error should never happen outside of development, since docopt is complaining that our usage string has bad syntax.
     opts, err := docopt.ParseDoc(usage())
@@ -147,6 +167,10 @@ func main() {
     // This can error on bad user input.
     err = validateArguments(&args)
     dieOnError(err, "Failure validating arguments")
+
+    // Build our config.  In the future, this may load json etc...
+    err = buildConfig(&args)
+    dieOnError(err, "Failure building config")
 
     if args.Verbose {
         fmt.Printf("%v\n", prettyPrint(args))
@@ -164,7 +188,8 @@ func main() {
 
 /* Start a server, listening on a TCP port */
 func startServer(args *Arguments) {
-    err := StartForeman(uint16(args.Port))
+
+    err := StartForeman()
     dieOnError(err, "Failure creating server")
 }
 
@@ -192,9 +217,13 @@ func startRun(args *Arguments) {
         j.order.Bucket = args.S3Bucket
         j.order.Credentials = map[string]string { "access_key": args.S3AccessKey, "secret_key": args.S3SecretKey }
         j.order.Port = uint16(args.S3Port)
-    } else {
+    } else if args.Rados {
         j.order.ConnectionType = "rados"
         j.order.Bucket = args.CephPool
+        j.order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
+    } else {
+        j.order.ConnectionType = "cephfs"
+        j.order.Bucket = args.CephDir
         j.order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
     }
 

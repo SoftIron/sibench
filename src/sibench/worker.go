@@ -162,6 +162,10 @@ func (w *Worker) eventLoop() {
     }
 
     fmt.Printf("   [w%v] shutting down\n", w.spec.Id)
+
+    for _, conn := range w.connections {
+        conn.Close()
+    }
 }
 
 
@@ -171,7 +175,7 @@ func (w *Worker) handleOpcode(op Opcode) {
     // See if the Opcode is valid in our current state.
     nextState := validWSTransitions[op][w.state]
     if nextState == WS_BadTransition {
-        fmt.Printf("   [w%v] handleOpcode: bad transition from state %v\n", w.spec.Id, w.state)
+        fmt.Printf("   [w%v] handleOpcode: bad transition from state %v\n", w.spec.Id, workerStateToStr(w.state))
         w.sendResponse(op, fmt.Errorf("Bad state transition"))
         w.setState(WS_Failed)
         return
