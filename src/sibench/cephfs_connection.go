@@ -50,6 +50,8 @@ func NewCephFSConnection(monitor string, port uint16, credentialMap map[string]s
         mountManager.MountComplete(conn.mountPoint, true)
     }
 
+    conn.InitFileConnection(conn.mountPoint)
+
     return &conn, nil
 }
 

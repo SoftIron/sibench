@@ -47,11 +47,13 @@ func (conn *FileConnection) ListBuckets() ([]string, error) {
 
 
 func (conn *FileConnection) CreateBucket(bucket string) error {
+    fmt.Printf("FileConnection creating directory: %v\n", bucket)
     return os.MkdirAll(filepath.Join(conn.root, bucket), 0644)
 }
 
 
 func (conn *FileConnection) DeleteBucket(bucket string) error {
+    fmt.Printf("FileConnection deleting directory: %v\n", bucket)
     return os.RemoveAll(filepath.Join(conn.root, bucket))
 }
 
