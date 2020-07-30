@@ -25,8 +25,7 @@ func NewCephFSConnection(monitor string, port uint16, credentialMap map[string]s
         // The mount doesn't exist yet, and we've been told to create it.
 
         // First ensure our mount point exists
-
-	    _, err := os.Stat(conn.mountPoint)
+        _, err := os.Stat(conn.mountPoint)
 	    if os.IsNotExist(err) {
 		    err = os.MkdirAll(conn.mountPoint, 0755)
 		    if err != nil {
@@ -37,7 +36,6 @@ func NewCephFSConnection(monitor string, port uint16, credentialMap map[string]s
 	    }
 
         // Now do the actual mount
-
         options := fmt.Sprintf("name=%v,secret=%v", credentialMap["username"], credentialMap["key"])
         fmt.Printf("CephFSConnection mounting: %v\n", options)
 
@@ -50,8 +48,8 @@ func NewCephFSConnection(monitor string, port uint16, credentialMap map[string]s
         mountManager.MountComplete(conn.mountPoint, true)
     }
 
+    // Tell our FileConnection delegate which directory to use as its file root.
     conn.InitFileConnection(conn.mountPoint)
-
     return &conn, nil
 }
 
