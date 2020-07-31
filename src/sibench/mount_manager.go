@@ -1,6 +1,6 @@
 package main
 
-import "fmt"
+import "logger"
 import "sync"
 
 
@@ -94,12 +94,12 @@ func (m *MountManager) Acquire(mountPoint string) bool {
             case MS_Init:
                 mi.count++
                 mi.state = MS_Mounting
-                fmt.Printf("MountManager: mountpoint %v moving from Init to Mounting\n", mountPoint)
+                logger.Debugf("MountManager: mountpoint %v moving from Init to Mounting\n", mountPoint)
                 return true
 
             case MS_Mounted:
                 mi.count++
-                fmt.Printf("MountManager: reusing %v with count %v\n", mountPoint, mi.count)
+                logger.Debugf("MountManager: reusing %v with count %v\n", mountPoint, mi.count)
                 return false
 
             default:
@@ -113,7 +113,7 @@ func (m *MountManager) Acquire(mountPoint string) bool {
  * Tell the manager that we have tried to mount, and whether we succeeded or not.
  */
 func (m *MountManager) MountComplete(mountPoint string, success bool) {
-    fmt.Printf("MountManager: mount completed: %v, success: %v\n", mountPoint, success)
+    logger.Debugf("MountManager: mount completed: %v, success: %v\n", mountPoint, success)
 
     mi := m.getMountInfo(mountPoint)
     mi.cond.L.Lock()
@@ -151,12 +151,12 @@ func (m *MountManager) Release(mountPoint string) bool {
     mi.count--
 
     if mi.count == 0 {
-        fmt.Printf("MountManager: mount released: %v, now unmounting\n", mountPoint)
+        logger.Debugf("MountManager: mount released: %v, now unmounting\n", mountPoint)
         mi.state = MS_Unmounting
         return true
     }
 
-    fmt.Printf("MountManager: mount released: %v, count still %v\n", mountPoint, mi.count)
+    logger.Debugf("MountManager: mount released: %v, count still %v\n", mountPoint, mi.count)
     return false
 }
 

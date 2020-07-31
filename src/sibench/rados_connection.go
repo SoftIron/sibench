@@ -1,6 +1,7 @@
 package main
 
 import "fmt"
+import "logger"
 import "github.com/ceph/go-ceph/rados"
 
 
@@ -32,7 +33,7 @@ func NewRadosConnection(monitor string, port uint16, credentialMap map[string]st
         return nil, err
     }
 
-    fmt.Printf("Creating Rados Connection to %v\n", monitor)
+    logger.Infof("Creating rados connection to %v as user %v\n", monitor, credentialMap["username"])
 
     err = client.Connect()
     if err != nil {
@@ -139,6 +140,7 @@ func (conn *RadosConnection) GetObject(bucket string, key string) ([]byte, error
 
 
 func (conn *RadosConnection) Close() {
+    logger.Infof("Closing rados connection to %v\n", conn.Target())
     conn.client.Shutdown()
 }
 

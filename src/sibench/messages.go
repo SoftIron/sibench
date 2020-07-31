@@ -23,6 +23,8 @@ const(
     // Opcodes used between Foreman<->Manager
     Op_StatDetails = "StatDetails"
     Op_StatDetailsDone = "StatDetailsDone"
+    Op_StatSummaryStart = "StatSummaryStart"
+    Op_StatSummaryStop = "StatSummaryStop"
 
     // Opcodes used bewtween Manager<->Foreman and between Foreman<->Worker
     Op_Connect = "Connect"

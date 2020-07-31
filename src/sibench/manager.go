@@ -2,6 +2,8 @@ package main
 
 import "comms"
 import "fmt"
+import "io"
+import "logger"
 import "os"
 import "time"
 
@@ -52,23 +54,25 @@ func (m *Manager) Run(j *Job) error {
     phaseTime := j.runTime + j.rampUp + j.rampDown
 
     // Write
-    m.sendOpToServers(Op_WriteStart, true)
-    m.runPhase(phaseTime)
-    m.sendOpToServers(Op_WriteStop, true)
+    logger.Infof("\n----------------------- WRITE -----------------------------\n")
+    m.runPhase(phaseTime, Op_WriteStart, Op_WriteStop)
 
     // Prepare
     m.sendOpToServers(Op_Prepare, true)
 
     // Read
-    m.sendOpToServers(Op_ReadStart, true)
-    m.runPhase(phaseTime)
-    m.sendOpToServers(Op_ReadStop, true)
+    logger.Infof("\n----------------------- READ ------------------------------\n")
+    m.runPhase(phaseTime, Op_ReadStart, Op_ReadStop)
 
-    // Fetch the fully-detailed stats, and then process them.
+    // Fetch the fully-detailed stats.
     m.drainStats()
+
+    // Process the stats.
+    logger.Infof("\n")
     m.job.CrunchTheNumbers()
 
     // Terminate
+    logger.Infof("\n")
     m.sendOpToServers(Op_Terminate, true)
 
     defer m.disconnectFromServers()
@@ -82,7 +86,7 @@ func (m *Manager) Run(j *Job) error {
  * If waitForResponse is true, then we block until all the servers have responded.
  */
 func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
-    fmt.Printf("Sending: %v\n", op)
+    logger.Debugf("Sending: %v\n", op)
 
     // Send our request.
     for _, conn := range m.msgConns {
@@ -114,7 +118,7 @@ func (m* Manager) drainStats() {
     for {
         msgInfo := <-m.msgChannel
         if msgInfo.Error != nil {
-            fmt.Printf("Failure: %v\n", msgInfo.Error)
+            logger.Errorf("Failure: %v\n", msgInfo.Error)
             os.Exit(-1)
         }
 
@@ -140,7 +144,7 @@ func (m* Manager) drainStats() {
                 // Ignore this - we just received one a bit later than expected.
 
             default:
-                fmt.Printf("Unexpected opcode: %v\n", op)
+                logger.Errorf("Unexpected opcode: %v\n", op)
                 os.Exit(-1)
         }
     }
@@ -154,7 +158,10 @@ func (m* Manager) drainStats() {
  * These are aggragated, and printed out once per second so that the user can
  * see what the system is doing.
  */
-func (m* Manager) runPhase(secs uint64) {
+func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
+    m.sendOpToServers(startOp, true)
+    m.sendOpToServers(Op_StatSummaryStart, true)
+
     timer := time.NewTimer(time.Duration(secs + 1) * time.Second)
     ticker := time.NewTicker(time.Second)
 
@@ -165,7 +172,11 @@ func (m* Manager) runPhase(secs uint64) {
         select {
             case msgInfo := <-m.msgChannel:
                 if msgInfo.Error != nil {
-                    fmt.Printf("Failure: %v\n", msgInfo.Error)
+                    if msgInfo.Error == io.EOF {
+                        logger.Errorf("Received remote close from %v\n", msgInfo.Connection.RemoteIP())
+                    } else {
+                        logger.Errorf("%v\n", msgInfo.Error)
+                    }
                     os.Exit(-1)
                 }
 
@@ -173,7 +184,7 @@ func (m* Manager) runPhase(secs uint64) {
                 op := Opcode(msg.ID())
 
                 if op != Op_StatSummary {
-                    fmt.Printf("Failure: unexpected opcode %v\n", op)
+                    logger.Errorf("Unexpected opcode %v\n", op)
                 }
 
                 var s StatSummary
@@ -181,18 +192,20 @@ func (m* Manager) runPhase(secs uint64) {
                 summary.Add(&s)
 
             case <-ticker.C:
-                fmt.Printf("%v: %v\n", i, summary.String(m.job.order.ObjectSize))
+                logger.Infof("%v: %v\n", i, summary.String(m.job.order.ObjectSize))
                 i++
 
                 // Draw some lines to indicate the ramp-up/ramp-down demarcation.
                 if (uint64(i) == m.job.rampUp) || (uint64(i) == m.job.rampUp + m.job.runTime) {
-                    fmt.Printf("-----------------------------------------------------------\n")
+                    logger.Infof("-----------------------------------------------------------\n")
                 }
 
                 summary.Zero()
 
             case <-timer.C:
                 ticker.Stop()
+                m.sendOpToServers(Op_StatSummaryStop, true)
+                m.sendOpToServers(stopOp, true)
                 return
         }
     }
@@ -207,14 +220,14 @@ func (m* Manager) runPhase(secs uint64) {
  * time, and which are just ignored here.
  */
 func (m *Manager) waitForResponses(expectedOp Opcode) {
-    fmt.Printf("Waiting for %s\n", expectedOp)
+    logger.Debugf("Waiting for %s\n", expectedOp)
     pending := len(m.msgConns)
 
     for {
         msgInfo := <-m.msgChannel
 
         if msgInfo.Error != nil {
-            fmt.Printf("Failure: %v\n", msgInfo.Error)
+            logger.Errorf("%v\n", msgInfo.Error)
             os.Exit(-1)
         }
 
@@ -224,11 +237,11 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
         if op == expectedOp {
             pending--
             if pending == 0 {
-                fmt.Printf("Finished waiting\n")
+                logger.Debugf("Finished waiting for %v\n", op)
                 return
             }
         } else if op != Op_StatSummary {
-            fmt.Printf("Unexpected Opcode received: expected %v but got %v\n", expectedOp, op)
+            logger.Errorf("Unexpected Opcode received: expected %v but got %v\n", expectedOp, op)
             os.Exit(-1)
         }
     }
@@ -285,7 +298,7 @@ func (m *Manager) sendJobToServers() {
  * Currently we exit with a non-zero error code if we can't connect to all of them.  
  *
  * In future (if we add job queuing, and the Manager becomes a daemon) then we could
- * change this to log the errors but continue with whatever servers we could 
+ * change this to logger the errors but continue with whatever servers we could 
  * successfully talk to.
  */
 func (m *Manager) connectToServers() error {
@@ -295,7 +308,7 @@ func (m *Manager) connectToServers() error {
 
     for _, s := range m.job.servers {
         endpoint := fmt.Sprintf("%v:%v", s, m.job.serverPort)
-        fmt.Printf("Connecting to sibench server at %v\n", endpoint)
+        logger.Infof("Connecting to sibench server at %v\n", endpoint)
 
         conn, err := comms.ConnectTCP(endpoint, comms.MakeEncoderFactory(), 0)
         if err == nil {
@@ -303,7 +316,7 @@ func (m *Manager) connectToServers() error {
             m.msgConns = append(m.msgConns, conn)
             m.connToServerName[conn] = s
         } else {
-            fmt.Printf("Could not connect to sibench server at %v: %v\n", endpoint, err)
+            logger.Warnf("Could not connect to sibench server at %v: %v\n", endpoint, err)
             os.Exit(-1)
         }
     }
@@ -314,13 +327,13 @@ func (m *Manager) connectToServers() error {
 
 /* Disconnects from all the Foremen that we are successfully connected to. */
 func (m *Manager) disconnectFromServers() {
-    fmt.Printf("Disconnecting from servers\n")
+    logger.Infof("Disconnecting from servers\n")
 
     for _, c := range m.msgConns {
         c.Close()
     }
 
-    fmt.Print("Disconnected\n")
+    logger.Infof("Disconnected\n")
 }
 
 
@@ -367,7 +380,7 @@ func (m *Manager) deleteBucket() {
     // Delete the bucket.
     err = conn.DeleteBucket(o.Bucket)
     if err != nil {
-        fmt.Printf("Error deleting bucket: %v\n", err)
+        logger.Errorf("failure deleting bucket: %v\n", err)
     }
 }
 

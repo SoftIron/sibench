@@ -2,6 +2,7 @@ package main
 
 
 import "fmt"
+import "logger"
 import "time"
 
 
@@ -112,7 +113,7 @@ type Worker struct {
 
 
 func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
-    fmt.Printf("   [w%v] creating worker\n", spec.Id)
+    logger.Debugf("[worker %v] creating worker\n", spec.Id)
 
     var w Worker
     w.spec = *spec
@@ -123,7 +124,7 @@ func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
     var err error
     w.generator, err = CreateGenerator(order.GeneratorType, order.Seed)
     if err != nil {
-        fmt.Printf("   [w%v] failure during creation: %v\n", spec.Id, err)
+        logger.Errorf("[worker %v] failure during creation: %v\n", spec.Id, err)
         return nil, err
     }
 
@@ -140,7 +141,7 @@ func (w *Worker) Id() uint64 {
 
 
 func (w *Worker) sendResponse(op Opcode, err error) {
-    fmt.Printf("   [w%v] sending Response: %v, %v\n", w.spec.Id, op, err)
+    logger.Debugf("[worker %v] sending Response: %v, %v\n", w.spec.Id, op, err)
     w.spec.ResponseChannel <- &WorkerResponse{ WorkerId: w.spec.Id, Op: op, Error: err }
 }
 
@@ -161,7 +162,7 @@ func (w *Worker) eventLoop() {
         }
     }
 
-    fmt.Printf("   [w%v] shutting down\n", w.spec.Id)
+    logger.Debugf("[worker %v] shutting down\n", w.spec.Id)
 
     for _, conn := range w.connections {
         conn.Close()
@@ -170,12 +171,12 @@ func (w *Worker) eventLoop() {
 
 
 func (w *Worker) handleOpcode(op Opcode) {
-    fmt.Printf("   [w%v] handleOpcode: %v\n", w.spec.Id, op)
+    logger.Debugf("[worker %v] handleOpcode: %v\n", w.spec.Id, op)
 
     // See if the Opcode is valid in our current state.
     nextState := validWSTransitions[op][w.state]
     if nextState == WS_BadTransition {
-        fmt.Printf("   [w%v] handleOpcode: bad transition from state %v\n", w.spec.Id, workerStateToStr(w.state))
+        logger.Errorf("[worker %v] handleOpcode: bad transition from state %v\n", w.spec.Id, workerStateToStr(w.state))
         w.sendResponse(op, fmt.Errorf("Bad state transition"))
         w.setState(WS_Failed)
         return
@@ -198,7 +199,7 @@ func (w *Worker) connect() {
     for _, t := range w.order.Targets {
         conn, err := NewConnection(w.order.ConnectionType, t, w.order.Port, w.order.Credentials)
         if err != nil {
-            fmt.Printf("   [w%v] failure during connect to %v: %v\n", w.spec.Id, t, err)
+            logger.Errorf("[worker %v] failure during connect to %v: %v\n", w.spec.Id, t, err)
             w.setState(WS_Failed)
             w.sendResponse(Op_Connect, err)
             return
@@ -207,7 +208,7 @@ func (w *Worker) connect() {
         w.connections = append(w.connections, conn)
     }
 
-    fmt.Printf("   [w%v] successfully connected\n", w.spec.Id)
+    logger.Debugf("[worker %v] successfully connected\n", w.spec.Id)
     w.setState(WS_ConnectDone)
     w.sendResponse(Op_Connect, nil)
 }
@@ -218,7 +219,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     contents := w.generator.Generate(w.order.ObjectSize, key, w.cycle)
     conn := w.connections[w.connIndex]
 
-    // fmt.Printf("   [w%v] putting object<%v> to %v\n", w.spec.Id, key, conn.Target())
+    // logger.Debugf(" [worker %v] putting object<%v> to %v\n", w.spec.Id, key, conn.Target())
 
     // Actually do the PUT
     start := time.Now()
@@ -234,7 +235,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     s.Server = w.order.ServerName
 
     if err != nil {
-        fmt.Printf("   [w%v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+        logger.Warnf("[worker %v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
         s.Error = SE_OperationFailure
     }
 
@@ -246,7 +247,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     if w.objectIndex >= w.order.RangeEnd {
         w.objectIndex = w.order.RangeStart
         w.cycle++
-        fmt.Printf("   [w%v] advancing cycle to %v\n", w.spec.Id, w.cycle)
+        logger.Debugf("[worker %v] advancing cycle to %v\n", w.spec.Id, w.cycle)
     }
 
     // Advance our connection index ready for next time
@@ -275,7 +276,7 @@ func (w *Worker) read() {
     key := fmt.Sprintf("obj_%v", w.objectIndex)
     conn := w.connections[w.connIndex]
 
-    // fmt.Printf("   [w%v] getting object<%v> from %v\n", w.spec.Id, key, conn.Target())
+    // logger.Debugf(" [worker %v] getting object<%v> from %v\n", w.spec.Id, key, conn.Target())
 
     // Actually do the GET
     start := time.Now()
@@ -291,12 +292,12 @@ func (w *Worker) read() {
     s.Server = w.order.ServerName
 
     if err != nil {
-        fmt.Printf("   [w%v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+        logger.Warnf("[worker %v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
         s.Error = SE_OperationFailure
     } else {
         err = w.generator.Verify(w.order.ObjectSize, key, contents)
         if err != nil {
-            fmt.Printf("   [w%v] failure verfiying  object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+            logger.Warnf("[worker %v] failure verfiying  object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
             s.Error = SE_VerifyFailure
         }
     }
@@ -316,7 +317,7 @@ func (w *Worker) read() {
 
 
 func (w *Worker) setState(state workerState) {
-    fmt.Printf("   [w%v] Worker changing state: %v -> %v\n", w.spec.Id, workerStateToStr(w.state), workerStateToStr(state))
+    logger.Debugf("[worker %v] Worker changing state: %v -> %v\n", w.spec.Id, workerStateToStr(w.state), workerStateToStr(state))
     w.state = state
 }
 

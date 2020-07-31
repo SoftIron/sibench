@@ -2,7 +2,7 @@ package main
 
 
 import "path/filepath"
-import "fmt"
+import "logger"
 import "io/ioutil"
 import "os"
 
@@ -24,7 +24,7 @@ type FileConnection struct {
 
 
 func (conn *FileConnection) InitFileConnection(root string) {
-    fmt.Printf("Initialising FileConnection on %v\n", root)
+    logger.Debugf("Initialising file connection on %v\n", root)
     conn.root = root
 }
 
@@ -47,13 +47,13 @@ func (conn *FileConnection) ListBuckets() ([]string, error) {
 
 
 func (conn *FileConnection) CreateBucket(bucket string) error {
-    fmt.Printf("FileConnection creating directory: %v\n", bucket)
+    logger.Infof("FileConnection creating directory: %v\n", filepath.Join(conn.root, bucket))
     return os.MkdirAll(filepath.Join(conn.root, bucket), 0644)
 }
 
 
 func (conn *FileConnection) DeleteBucket(bucket string) error {
-    fmt.Printf("FileConnection deleting directory: %v\n", bucket)
+    logger.Infof("FileConnection deleting directory: %v\n",filepath.Join(conn.root, bucket))
     return os.RemoveAll(filepath.Join(conn.root, bucket))
 }
 

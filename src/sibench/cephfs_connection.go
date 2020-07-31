@@ -1,6 +1,7 @@
 package main
 
 import "fmt"
+import "logger"
 import "os"
 import "path/filepath"
 import "syscall"
@@ -19,7 +20,7 @@ func NewCephFSConnection(monitor string, port uint16, credentialMap map[string]s
     conn.monitor = monitor
     conn.mountPoint = filepath.Join(config.MountsDir, monitor)
 
-    fmt.Printf("Creating CephFSConnection to %v in %v as %v\n", monitor, conn.mountPoint, credentialMap["username"])
+    logger.Infof("Creating cephfs connection to %v in %v as %v\n", monitor, conn.mountPoint, credentialMap["username"])
 
     if mountManager.Acquire(conn.mountPoint) {
         // The mount doesn't exist yet, and we've been told to create it.
@@ -29,7 +30,7 @@ func NewCephFSConnection(monitor string, port uint16, credentialMap map[string]s
 	    if os.IsNotExist(err) {
 		    err = os.MkdirAll(conn.mountPoint, 0755)
 		    if err != nil {
-                fmt.Printf("Unable to create mount point %v: %v\n", conn.mountPoint, err)
+                logger.Errorf("Unable to create mount point %v: %v\n", conn.mountPoint, err)
                 mountManager.MountComplete(conn.mountPoint, false)
                 return nil, err
 		    }
@@ -37,7 +38,7 @@ func NewCephFSConnection(monitor string, port uint16, credentialMap map[string]s
 
         // Now do the actual mount
         options := fmt.Sprintf("name=%v,secret=%v", credentialMap["username"], credentialMap["key"])
-        fmt.Printf("CephFSConnection mounting: %v\n", options)
+        logger.Debugf("CephFSConnection mounting: %v\n", options)
 
         err = syscall.Mount(monitor + ":/", conn.mountPoint, "ceph", 0, options)
         if err != nil {
@@ -61,8 +62,10 @@ func (conn *CephFSConnection) Target() string {
 
 
 func (conn *CephFSConnection) Close() {
+    logger.Infof("Closing cephfs connection to %v\n", conn.Target())
+
     if mountManager.Release(conn.mountPoint) {
-        fmt.Printf("Unmounting %v\n", conn.mountPoint)
+        logger.Debugf("Unmounting %v\n", conn.mountPoint)
         syscall.Unmount(conn.mountPoint, 0)
         mountManager.UnmountComplete(conn.mountPoint)
     }

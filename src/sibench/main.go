@@ -4,6 +4,7 @@ import "encoding/json"
 import "github.com/docopt/docopt-go"
 import "fmt"
 import "io/ioutil"
+import "logger"
 import "math"
 import "os"
 import "regexp"
@@ -73,7 +74,7 @@ Options:
   -r TIME, --run-time TIME     Seconds spent on each phase of the benchmark.                    [default: 30]
   -u TIME, --ramp-up TIME      Seconds at the start of each phase where we don't record data.   [default: 5]
   -d TIME, --ramp-down TIME    Seconds at the end of each phase where we don't record data.     [default: 2]
-  -j FILE, --json-output FILE  The file to which we write our json results.
+  -j FILE, --json-output FILE  The file to which we write our json results.                     [default: sibench.json]
   --servers SERVERS            A comma-separated list of sibench servers to connect to.         [default: localhost]
   --s3-port PORT               The port on which to connect to S3.                              [default: 7480]
   --s3-bucket BUCKET           The name of the bucket we wish to use for S3 operations.         [default: sibench]
@@ -174,6 +175,7 @@ func main() {
 
     if args.Verbose {
         fmt.Printf("%v\n", prettyPrint(args))
+        logger.SetLevel(logger.Debug)
     }
 
     if args.Server {
@@ -244,6 +246,6 @@ func startRun(args *Arguments) {
         dieOnError(err, "Unable to write json report to file: %v", args.JsonOutput)
     }
 
-    fmt.Printf("Done\n")
+    logger.Infof("Done\n")
 }
 
