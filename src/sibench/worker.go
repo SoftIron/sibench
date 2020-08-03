@@ -110,7 +110,13 @@ type Worker struct {
     connections []Connection
     connIndex uint64
     phaseStart time.Time
-    lastDelay time.Time
+
+    /* These fields are used for the bandwidth-limiting delays code */
+
+    phaseFirstOp bool           // Whether this is the first op since we started a phase.
+    lastOpStart time.Time       // The start time of our last read or write
+    avgElapsed time.Duration    // Our running average operation time.
+    postDelay time.Duration     // A delay we need to insert after the next op completes.
 }
 
 
@@ -148,47 +154,12 @@ func (w *Worker) sendResponse(op Opcode, err error) {
 }
 
 
-
-/* Insert delays in order to limit bandwitdh */
-func (w *Worker) bandwidthDelay() {
-    // See if we need to do anything in the first place.
-    if ((w.state != WS_Write) && (w.state != WS_Read)) || (w.order.Bandwidth == 0) {
-        return
-    }
-
-    if w.lastDelay.Unix() == 0 {
-        // Random delay to smooth out between workers.
-        time.Sleep(time.Duration(rand.Intn(1000 * 1000 * 10)))
-        w.lastDelay = time.Now()
-        return
-    }
-
-    now := time.Now()
-    elapsed := now.Sub(w.lastDelay)
-
-    desired := time.Duration(1000 * 1000 * 1000 * w.order.ObjectSize / w.order.Bandwidth)
-
-    if w.spec.Id == 0 {
-        fmt.Printf("BW: %v, Elapsed: %v, Desired: %v\n", w.order.Bandwidth, elapsed, desired)
-    }
-
-    if desired > elapsed {
-        noise := (0.05 * rand.NormFloat64() * 2.0) + 1.0
-        time.Sleep(time.Duration(float64(desired - elapsed) * noise))
-    }
-
-    w.lastDelay = time.Now()
-}
-
-
 func (w *Worker) eventLoop() {
     for w.state != WS_Terminated {
         select {
             case op := <-w.spec.OpChannel: w.handleOpcode(op)
             default: // default is needed to prevent blocking when there's no opcode to process.
         }
-
-        w.bandwidthDelay()
 
         switch w.state {
             case WS_Connect:  w.connect()
@@ -229,6 +200,7 @@ func (w *Worker) handleOpcode(op Opcode) {
 
     w.setState(nextState)
     w.phaseStart = time.Now()
+    w.phaseFirstOp = true
 }
 
 
@@ -291,6 +263,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
 
 
 func (w *Worker) write() {
+    w.limitBandwidth()
     w.writeOrPrepare(SP_Write)
 }
 
@@ -308,6 +281,8 @@ func (w *Worker) prepare() {
 
 
 func (w *Worker) read() {
+    w.limitBandwidth()
+
     key := fmt.Sprintf("obj_%v", w.objectIndex)
     conn := w.connections[w.connIndex]
 
@@ -348,6 +323,58 @@ func (w *Worker) read() {
 
     // Advance our connection index ready for next time
     w.connIndex = (w.connIndex + 1) % uint64(len(w.connections))
+}
+
+
+/* 
+ * Sleep in order to limit bandwidth 
+ */
+func (w *Worker) limitBandwidth() {
+    // See if we need to do anything in the first place.
+    if w.order.Bandwidth == 0 {
+        return
+    }
+
+    if w.phaseFirstOp {
+        // Random delay to smooth out between workers.  
+        // This is only really important for large object sizes (where traffic is 'lumpy').
+        time.Sleep(time.Duration(rand.Intn(1000 * 1000 * 10)))
+
+        w.phaseFirstOp = false
+        w.lastOpStart = time.Now()
+        w.avgElapsed = 0
+        w.postDelay = 0
+        return
+    }
+
+    elapsed := time.Now().Sub(w.lastOpStart)
+    time.Sleep(w.postDelay)
+
+    // Compute our rolling average.
+    if w.avgElapsed == 0 {
+        // This is our first completed op, so start the rolling average with this value.
+        w.avgElapsed = elapsed
+    } else {
+        // This is not our first complete op: merge in the new value to our rolling average
+        w.avgElapsed = ((w.avgElapsed * 7) + elapsed) / 8
+    }
+
+    // Compute how log we would like an op to take to maintain our limited bandwidth.
+    desired := time.Duration(1000 * 1000 * 1000 * w.order.ObjectSize / w.order.Bandwidth)
+
+    // If the desired value is slower than the average value, sleep for a bit.
+    if desired > w.avgElapsed {
+        // Compute the total delay we want
+        totalDelay := desired - w.avgElapsed
+
+        // Then split it into two parts: a pre-delay that we'll do before the operation, 
+        // and a post-delay that we'll do afterwards (in the interests of traffic smoothing).
+        preDelay := time.Duration(rand.Intn(int(totalDelay)))
+        w.postDelay = totalDelay - preDelay
+        time.Sleep(preDelay)
+    }
+
+    w.lastOpStart = time.Now()
 }
 
 
