@@ -274,6 +274,7 @@ func (m *Manager) sendJobToServers() {
     for _, conn := range m.msgConns {
         // First make a copy of our work order and adjust it for the server.
         o := *order
+        o.Bandwidth = order.Bandwidth / nServers
         o.ServerName = m.connToServerName[conn]
         o.RangeStart = rangeStart
         o.RangeEnd = rangeStart + rangeStride

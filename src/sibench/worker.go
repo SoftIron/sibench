@@ -3,6 +3,7 @@ package main
 
 import "fmt"
 import "logger"
+import "math/rand"
 import "time"
 
 
@@ -109,6 +110,7 @@ type Worker struct {
     connections []Connection
     connIndex uint64
     phaseStart time.Time
+    lastDelay time.Time
 }
 
 
@@ -146,12 +148,47 @@ func (w *Worker) sendResponse(op Opcode, err error) {
 }
 
 
+
+/* Insert delays in order to limit bandwitdh */
+func (w *Worker) bandwidthDelay() {
+    // See if we need to do anything in the first place.
+    if ((w.state != WS_Write) && (w.state != WS_Read)) || (w.order.Bandwidth == 0) {
+        return
+    }
+
+    if w.lastDelay.Unix() == 0 {
+        // Random delay to smooth out between workers.
+        time.Sleep(time.Duration(rand.Intn(1000 * 1000 * 10)))
+        w.lastDelay = time.Now()
+        return
+    }
+
+    now := time.Now()
+    elapsed := now.Sub(w.lastDelay)
+
+    desired := time.Duration(1000 * 1000 * 1000 * w.order.ObjectSize / w.order.Bandwidth)
+
+    if w.spec.Id == 0 {
+        fmt.Printf("BW: %v, Elapsed: %v, Desired: %v\n", w.order.Bandwidth, elapsed, desired)
+    }
+
+    if desired > elapsed {
+        noise := (0.05 * rand.NormFloat64() * 2.0) + 1.0
+        time.Sleep(time.Duration(float64(desired - elapsed) * noise))
+    }
+
+    w.lastDelay = time.Now()
+}
+
+
 func (w *Worker) eventLoop() {
     for w.state != WS_Terminated {
         select {
             case op := <-w.spec.OpChannel: w.handleOpcode(op)
             default: // default is needed to prevent blocking when there's no opcode to process.
         }
+
+        w.bandwidthDelay()
 
         switch w.state {
             case WS_Connect:  w.connect()
@@ -218,8 +255,6 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     key := fmt.Sprintf("obj_%v", w.objectIndex)
     contents := w.generator.Generate(w.order.ObjectSize, key, w.cycle)
     conn := w.connections[w.connIndex]
-
-    // logger.Debugf(" [worker %v] putting object<%v> to %v\n", w.spec.Id, key, conn.Target())
 
     // Actually do the PUT
     start := time.Now()
@@ -292,12 +327,12 @@ func (w *Worker) read() {
     s.Server = w.order.ServerName
 
     if err != nil {
-        logger.Warnf("[worker %v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+        logger.Warnf("[worker %v] failure getting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
         s.Error = SE_OperationFailure
     } else {
         err = w.generator.Verify(w.order.ObjectSize, key, contents)
         if err != nil {
-            logger.Warnf("[worker %v] failure verfiying  object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+            logger.Warnf("[worker %v] failure verfiying object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
             s.Error = SE_VerifyFailure
         }
     }

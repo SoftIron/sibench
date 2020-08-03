@@ -32,6 +32,7 @@ type Arguments struct {
     RunTime int
     RampUp int
     RampDown int
+    Bandwidth string
     JsonOutput string
     Targets []string
 
@@ -49,6 +50,7 @@ type Arguments struct {
 
     // Synthesized options
     Bucket string
+    BandwidthInBytes uint64
     SizeInBytes uint64
 }
 
@@ -58,14 +60,16 @@ func usage() string {
     return `SoftIron Benchmark Tool.
 Usage:
   sibench server     [-v] [-p PORT] [-m DIR]
-  sibench s3 run     [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-j FILE] [--servers SERVERS] <targets> ...
+  sibench s3 run     [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-b BW] [-j FILE] [--servers SERVERS] <targets> ...
                      [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
-  sibench rados run  [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-j FILE] [--servers SERVERS] <targets> ...
+  sibench rados run  [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-b BW] [-j FILE] [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
-  sibench cephfs run [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-j FILE] [-m DIR] [--servers SERVERS] <targets> ...
+  sibench cephfs run [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-b BW] [-j FILE] [-m DIR] [--servers SERVERS] <targets> ...
                      [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
+  sibench -h | --help
 
 Options:
+  -h, --help                   Show full usage
   -v, --verbose                Turn on debug output.
   -p PORT, --port PORT         The port on which sibench communicates.                          [default: 5150]
   -m DIR, --mounts-dir DIR     The directory in which we should create any filesystem mounts.   [default: /tmp/sibench_mnt]
@@ -75,6 +79,7 @@ Options:
   -u TIME, --ramp-up TIME      Seconds at the start of each phase where we don't record data.   [default: 5]
   -d TIME, --ramp-down TIME    Seconds at the end of each phase where we don't record data.     [default: 2]
   -j FILE, --json-output FILE  The file to which we write our json results.                     [default: sibench.json]
+  -b BW, --bandwidth BW        Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
   --servers SERVERS            A comma-separated list of sibench servers to connect to.         [default: localhost]
   --s3-port PORT               The port on which to connect to S3.                              [default: 7480]
   --s3-bucket BUCKET           The name of the bucket we wish to use for S3 operations.         [default: sibench]
@@ -113,6 +118,35 @@ func dieOnError(err error, format string, a ...interface{}) {
 
 
 /* 
+ * Convert a string with optional units into an uint, expanding the units.
+ * The units accepted are [None] or K, M, G in either upper or lower case.
+ *
+ * Eg:  1->1, 1k->1024, 1m->1048576 etc.
+ */
+func expandUnits(val string) (uint64, error) {
+    // A regex for converting numbers with optional units (in K, M or G) into long form.
+    re := regexp.MustCompile(`([0-9]+)([kKmMgG]?)$`)
+
+    // Turn the size (in K, M or G) into bytes...
+    groups := re.FindStringSubmatch(val)
+    if groups == nil {
+        return 0, fmt.Errorf("Bad size specifier: %v", val)
+    }
+
+    ival, _ := strconv.Atoi(groups[1])
+    uval := uint64(ival)
+
+    switch strings.ToLower(groups[2]) {
+        case "k": uval *= 1024
+        case "m": uval *= 1024 * 1024
+        case "g": uval *= 1024 * 1024 * 1024
+    }
+
+    return uval, nil
+}
+
+
+/* 
  * Do any argument checking that can not be done inherently by DocOpt (such as 
  * ensuring a port number is < 65535, or that a string has a particular form.
  */
@@ -125,19 +159,18 @@ func validateArguments(args *Arguments) error {
         return fmt.Errorf("S3 Port not in range: %v", args.S3Port)
     }
 
-    // Turn the size (in K or M) into bytes...
-
-    re := regexp.MustCompile(`([1-9][0-9]*)([kKmM])`)
-    groups := re.FindStringSubmatch(args.Size)
-    if groups == nil {
-        return fmt.Errorf("Bad size specifier: %v", args.Size)
+    var err error
+    args.SizeInBytes, err = expandUnits(args.Size)
+    if err != nil {
+        return err
     }
 
-    val, _ := strconv.Atoi(groups[1])
-    args.SizeInBytes = uint64(val) * 1024
-    if strings.EqualFold(groups[2], "m") {
-        args.SizeInBytes *= 1024
+    args.BandwidthInBytes, err = expandUnits(args.Bandwidth)
+    if err != nil {
+        return err
     }
+
+    args.BandwidthInBytes /= 8
 
     return nil
 }
@@ -213,6 +246,7 @@ func startRun(args *Arguments) {
     j.order.RangeStart = 0
     j.order.RangeEnd = uint64(args.Objects)
     j.order.Targets = args.Targets
+    j.order.Bandwidth = args.BandwidthInBytes
 
     if args.S3 {
         j.order.ConnectionType = "s3"

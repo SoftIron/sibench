@@ -103,6 +103,7 @@ type Stat struct {
 type WorkOrder struct {
     JobId uint64                    // Which job this WorkOrder is part of
     ServerName string               // The name we wish the server processing the order to use in stats
+    Bandwidth uint64                // Bytes/s limit, or zero for no limit.
 
     // Object parameters
     Bucket string                   // The storage bucket into which we will write

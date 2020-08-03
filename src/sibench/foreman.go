@@ -397,6 +397,7 @@ func (f *Foreman) connect() {
         }
 
         o := *(f.order)
+        o.Bandwidth = f.order.Bandwidth / nWorkers
         o.RangeStart = rangeStart
         o.RangeEnd = rangeStart + rangeStride
 
