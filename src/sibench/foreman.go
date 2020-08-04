@@ -497,7 +497,7 @@ func (f *Foreman) terminate() {
         logger.Infof("TCP connction closed\n")
     }
 
-    logger.Infof("WorkOrder Terminated: %v\n")
+    logger.Infof("WorkOrder Terminated\n")
 }
 
 

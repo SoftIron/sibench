@@ -175,7 +175,8 @@ type Analysis struct {
     /* All response times in ms */
     ResTimeMin uint64   // The fastest reponse we had for a successful operation
     ResTimeMax uint64   // The slowest response we had for a successful operation
-    ResTime95  uint64   // The reponse time by which 95% of our successful operations completed
+    ResTime95  uint64   // The response time by which 95% of our successful operations completed
+    ResTimeAvg uint64   // The average response time for a successful operation
 
     /* Bandwidth is in bits per seconds */
     Bandwidth uint64
@@ -191,14 +192,15 @@ type Analysis struct {
  * This is intended to be used to dump tables of Analyses, and aligns fields nicely for that purpose.
  */
 func (a *Analysis) String() string {
-    return fmt.Sprintf("%-28v   bandwidth: %7vb/s,  successes: %6v,  failures: %6v,  res-min: %5v ms,  res-max: %5v ms,  res-95: %6v ms",
+    return fmt.Sprintf("%-28v   bandwidth: %7vb/s,  ok: %6v,  fail: %6v,  res-min: %5v ms,  res-max: %5v ms,  res-95: %6v ms, res-avg: %6v ms",
         a.Name,
         toUnits(a.Bandwidth),
         a.Successes,
         a.Failures,
         a.ResTimeMin / (1000 * 1000),
         a.ResTimeMax / (1000 * 1000),
-        a.ResTime95  / (1000 * 1000))
+        a.ResTime95  / (1000 * 1000),
+        a.ResTimeAvg / (1000 * 1000))
 }
 
 
@@ -223,6 +225,13 @@ func NewAnalysis(stats []*Stat, name string, job *Job) *Analysis {
         result.ResTimeMax = uint64(good[len(good) - 1].Duration)
         result.ResTime95  = uint64(good[int(float64(len(good)) * 0.95)].Duration)
         result.Bandwidth  = uint64(8 * len(good)) * job.order.ObjectSize / job.runTime
+
+        total := uint64(0)
+        for i, _ := range(good) {
+            total += uint64(good[i].Duration)
+        }
+
+        result.ResTimeAvg = total / uint64(len(good))
     }
 
     return &result
@@ -241,7 +250,7 @@ func AnalyseStats(job *Job, stats []*Stat) []*Analysis {
     stats = filter(stats, rampFilter(job))
 
     phases := []StatPhase{ SP_Write, SP_Read }
-    lineWidth := 151
+    lineWidth := 160
 
     // Produce per-target and per-server analyses
     for _, phase := range phases {
