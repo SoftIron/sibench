@@ -1,3 +1,7 @@
+sibench (0.0.5) buster; urgency=low
+  [ Harry Richardson ]
+  * bandwidth limiting
+ -- Harry Richardson <harry@softiron.com>  Tue, 04 Aug 2020 13:55:00 -0500
 sibench (0.0.2) buster; urgency=low
   [ Harry Richardson ]
   * enable the sibench.service after installation
