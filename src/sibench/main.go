@@ -19,6 +19,7 @@ type Arguments struct {
     Server bool
     S3 bool
     Rados bool
+    Rbd bool
     Cephfs bool
     Run bool
     Verbose bool
@@ -35,6 +36,7 @@ type Arguments struct {
     Bandwidth string
     JsonOutput string
     Targets []string
+    Workers float64
 
     // S3 options
     S3AccessKey string
@@ -60,12 +62,14 @@ func usage() string {
     return `SoftIron Benchmark Tool.
 Usage:
   sibench server     [-v] [-p PORT] [-m DIR]
-  sibench s3 run     [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-b BW] [-j FILE] [--servers SERVERS] <targets> ...
+  sibench s3 run     [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] [--servers SERVERS] <targets> ...
                      [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
-  sibench rados run  [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-b BW] [-j FILE] [--servers SERVERS] <targets> ...
+  sibench rados run  [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
-  sibench cephfs run [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-b BW] [-j FILE] [-m DIR] [--servers SERVERS] <targets> ...
+  sibench cephfs run [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] [-m DIR] [--servers SERVERS] <targets> ...
                      [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
+  sibench rbd run    [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] [--servers SERVERS] <targets> ...
+                     [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
   sibench -h | --help
 
 Options:
@@ -79,6 +83,7 @@ Options:
   -u TIME, --ramp-up TIME      Seconds at the start of each phase where we don't record data.   [default: 5]
   -d TIME, --ramp-down TIME    Seconds at the end of each phase where we don't record data.     [default: 2]
   -j FILE, --json-output FILE  The file to which we write our json results.                     [default: sibench.json]
+  -w FACTOR, --workers FACTOR  Number of workers per server as a factor x number of CPU cores   [default: 1.0]
   -b BW, --bandwidth BW        Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
   --servers SERVERS            A comma-separated list of sibench servers to connect to.         [default: localhost]
   --s3-port PORT               The port on which to connect to S3.                              [default: 7480]
@@ -157,6 +162,10 @@ func validateArguments(args *Arguments) error {
 
     if (args.S3Port < 0) || ( args.S3Port > int(math.MaxUint16)) {
         return fmt.Errorf("S3 Port not in range: %v", args.S3Port)
+    }
+
+    if (args.Workers < 0.1) || (args.Workers > 100.0) {
+        return fmt.Errorf("Worker factor not in range: %v", args.Workers)
     }
 
     var err error
@@ -247,6 +256,7 @@ func startRun(args *Arguments) {
     j.order.RangeEnd = uint64(args.Objects)
     j.order.Targets = args.Targets
     j.order.Bandwidth = args.BandwidthInBytes
+    j.order.WorkerFactor = args.Workers
 
     if args.S3 {
         j.order.ConnectionType = "s3"
@@ -257,9 +267,13 @@ func startRun(args *Arguments) {
         j.order.ConnectionType = "rados"
         j.order.Bucket = args.CephPool
         j.order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
-    } else {
+    } else if args.Cephfs {
         j.order.ConnectionType = "cephfs"
         j.order.Bucket = args.CephDir
+        j.order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
+    } else {
+        j.order.ConnectionType = "rbd"
+        j.order.Bucket = args.CephPool
         j.order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
     }
 

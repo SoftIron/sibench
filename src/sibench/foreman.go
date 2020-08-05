@@ -371,7 +371,7 @@ func (f *Foreman) connect() {
     // Create our workers.
     // We divvy up our object range between them.
 
-    nWorkers := uint64(runtime.NumCPU())
+    nWorkers := uint64(float64(runtime.NumCPU()) * f.order.WorkerFactor)
     f.workerInfos = make([]*WorkerInfo, 0, nWorkers)
 
     rangeStart := f.order.RangeStart

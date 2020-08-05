@@ -104,6 +104,7 @@ type WorkOrder struct {
     JobId uint64                    // Which job this WorkOrder is part of
     ServerName string               // The name we wish the server processing the order to use in stats
     Bandwidth uint64                // Bytes/s limit, or zero for no limit.
+    WorkerFactor float64            // Number of workers to create for each core on a server.
 
     // Object parameters
     Bucket string                   // The storage bucket into which we will write
