@@ -215,7 +215,7 @@ func StartForeman() error {
     var f Foreman
     f.setState(FS_Idle)
 
-    endpoint := fmt.Sprintf(":%v", config.ListenPort)
+    endpoint := fmt.Sprintf(":%v", globalConfig.ListenPort)
     f.tcpControlChannel = make(chan *comms.MessageConnection, 100)
     _, err = comms.ListenTCP(endpoint, comms.MakeEncoderFactory(), f.tcpControlChannel)
     if err != nil {

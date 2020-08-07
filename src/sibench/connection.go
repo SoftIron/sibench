@@ -7,31 +7,33 @@ import "fmt"
  * Connection is the abstraction of different storage backends.  
  */
 type Connection interface {
-    /* Return the target of this conection, as a convenience */
+    /* Return the target of this conection, as a convenience for logging an so forth */
     Target() string
 
-    ListBuckets() ([]string, error)
-    CreateBucket(bucket string) error
-    DeleteBucket(bucket string) error
+    ManagerConnect() error
+    ManagerClose() error
 
-    ListObjects(bucket string) ([]string, error)
-    PutObject(bucket string, key string, contents []byte) error
-    GetObject(bucket string, key string) ([]byte, error)
+    WorkerConnect() error
+    WorkerClose() error
 
-    /* Close the connection */
-    Close()
+    PutObject(key string, contents []byte) error
+    GetObject(key string) ([]byte, error)
 }
 
 
 
 /*
  * Factory function that mints new connections of the appropriate type.
+ *
+ * The config is a string->string map that contains all the type-specific details a Connection
+ * needs (such as username, key, S3 bucket, ceph poo.l..)
  */
-func NewConnection(connectionType string, target string, port uint16, credentials map[string]string) (Connection, error) {
+func NewConnection(connectionType string, target string, config ConnectionConfig) (Connection, error) {
     switch connectionType {
-        case "s3":      return NewS3Connection(target, port, credentials)
-        case "rados":   return NewRadosConnection(target, port, credentials)
-        case "cephfs":  return NewCephFSConnection(target, port, credentials)
+        case "s3":      return NewS3Connection(target, config)
+        case "rados":   return NewRadosConnection(target, config)
+        case "cephfs":  return NewCephFSConnection(target, config)
+        case "rbd":     return NewRBDConnection(target, config)
     }
 
     return nil, fmt.Errorf("Unknown connectionType: %v", connectionType)

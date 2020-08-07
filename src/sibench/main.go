@@ -191,8 +191,8 @@ func validateArguments(args *Arguments) error {
  * Currently this uses just our command line arguments, but it will probably load a json file later on.
  */
 func buildConfig(args *Arguments) error {
-    config.ListenPort = uint16(args.Port)
-    config.MountsDir = args.MountsDir
+    globalConfig.ListenPort = uint16(args.Port)
+    globalConfig.MountsDir = args.MountsDir
     return nil
 }
 
@@ -260,21 +260,29 @@ func startRun(args *Arguments) {
 
     if args.S3 {
         j.order.ConnectionType = "s3"
-        j.order.Bucket = args.S3Bucket
-        j.order.Credentials = map[string]string { "access_key": args.S3AccessKey, "secret_key": args.S3SecretKey }
-        j.order.Port = uint16(args.S3Port)
+        j.order.ConnConfig = ConnectionConfig{
+            "access_key": args.S3AccessKey,
+            "secret_key": args.S3SecretKey,
+            "port": strconv.Itoa(args.S3Port),
+            "bucket": args.S3Bucket }
     } else if args.Rados {
         j.order.ConnectionType = "rados"
-        j.order.Bucket = args.CephPool
-        j.order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
+        j.order.ConnConfig = ConnectionConfig{
+            "username": args.CephUser,
+            "key": args.CephKey,
+            "pool": args.CephPool }
     } else if args.Cephfs {
         j.order.ConnectionType = "cephfs"
-        j.order.Bucket = args.CephDir
-        j.order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
+        j.order.ConnConfig = ConnectionConfig{
+            "username": args.CephUser,
+            "key": args.CephKey,
+            "dir": args.CephDir }
     } else {
         j.order.ConnectionType = "rbd"
-        j.order.Bucket = args.CephPool
-        j.order.Credentials = map[string]string { "username": args.CephUser, "key": args.CephKey }
+        j.order.ConnConfig = ConnectionConfig{
+            "username": args.CephUser,
+            "key": args.CephKey,
+            "pool": args.CephPool }
     }
 
     j.setArguments(args)

@@ -10,114 +10,92 @@ import "github.com/ceph/go-ceph/rados"
 
 
 type RadosConnection struct {
-    target string
+    monitor string
+    config ConnectionConfig
     client *rados.Conn
     ioctx *rados.IOContext  // Handle to an open pool.
-    pool string             // The name of the pool our IO context is bound to.
 }
 
 
-func NewRadosConnection(monitor string, port uint16, credentialMap map[string]string) (*RadosConnection, error) {
-    client, err := rados.NewConnWithUser(credentialMap["username"])
-    if err != nil {
-        return nil, err
-    }
-
-    err = client.SetConfigOption("mon_host", monitor)
-    if err != nil {
-        return nil, err
-    }
-
-    err = client.SetConfigOption("key", credentialMap["key"])
-    if err != nil {
-        return nil, err
-    }
-
-    logger.Infof("Creating rados connection to %v as user %v\n", monitor, credentialMap["username"])
-
-    err = client.Connect()
-    if err != nil {
-        return nil, err
-    }
-
+func NewRadosConnection(target string, config ConnectionConfig) (*RadosConnection, error) {
     var conn RadosConnection
-    conn.target = monitor
-    conn.client = client
-
+    conn.monitor = target
+    conn.config = config
     return &conn, nil
 }
 
 
 func (conn *RadosConnection) Target() string {
-    return conn.target
+    return conn.monitor
 }
 
 
-func (conn *RadosConnection) ListBuckets() ([]string, error) {
-    return conn.client.ListPools()
+func (conn *RadosConnection) ManagerConnect() error {
+    return conn.WorkerConnect()
 }
 
 
-func (conn *RadosConnection) CreateBucket(bucket string) error {
-    // We don't create pools in rados, since we need a lot more information about the cluster
-    // to get things like pgnum correct.  Instead, just verify that the pool already exists.
+func (conn *RadosConnection) ManagerClose() error {
+    return conn.WorkerClose()
+}
 
-    buckets, err := conn.ListBuckets()
+
+func (conn *RadosConnection) WorkerConnect() error {
+    var err error
+    conn.client, err = rados.NewConnWithUser(conn.config["username"])
     if err != nil {
         return err
     }
 
-    for _, b := range buckets {
-        if b == bucket {
-            return nil
+    err = conn.client.SetConfigOption("mon_host", conn.monitor)
+    if err != nil {
+        return err
+    }
+
+    err = conn.client.SetConfigOption("key", conn.config["key"])
+    if err != nil {
+        return err
+    }
+
+    logger.Infof("Creating rados connection to %v as user %v\n", conn.monitor, conn.config["username"])
+
+    err = conn.client.Connect()
+    if err != nil {
+        return err
+    }
+
+    pool := conn.config["pool"]
+
+    // Check the pool we want exists so we can give a decent error message. 
+    pools, err := conn.client.ListPools()
+    found := false
+    for _, p := range pools {
+        if p == pool {
+            found = true
         }
     }
 
-    return fmt.Errorf("Pool needs to exist: %v", bucket)
+    if !found {
+        return fmt.Errorf("No such Ceph pool: %v\n", pool)
+    }
+
+    conn.ioctx, err = conn.client.OpenIOContext(pool)
+    return err
 }
 
 
-func (conn *RadosConnection) DeleteBucket(bucket string) error {
-    // We don't create pools, so we don't delete them either.
+func (conn *RadosConnection) WorkerClose() error {
+    conn.client.Shutdown()
     return nil
 }
 
 
-func (conn *RadosConnection) ListObjects(bucket string) ([]string, error) {
-    err := conn.setPool(bucket)
-    if err != nil {
-        return nil, err
-    }
-
-    var objects []string
-    err = conn.ioctx.ListObjects(func(obj string) {
-        objects = append(objects, obj)
-    })
-
-    if err != nil {
-        return nil, err
-    }
-
-    return objects, nil
-}
-
-
-func (conn *RadosConnection) PutObject(bucket string, key string, contents []byte) error {
-    err := conn.setPool(bucket)
-    if err != nil {
-        return err
-    }
-
+func (conn *RadosConnection) PutObject(key string, contents []byte) error {
     return conn.ioctx.WriteFull(key, contents)
 }
 
 
-func (conn *RadosConnection) GetObject(bucket string, key string) ([]byte, error) {
-    err := conn.setPool(bucket)
-    if err != nil {
-        return nil, err
-    }
-
+func (conn *RadosConnection) GetObject(key string) ([]byte, error) {
     stat, err := conn.ioctx.Stat(key)
     if err != nil {
         return nil, err
@@ -138,30 +116,3 @@ func (conn *RadosConnection) GetObject(bucket string, key string) ([]byte, error
     return buffer, nil
 }
 
-
-func (conn *RadosConnection) Close() {
-    logger.Infof("Closing rados connection to %v\n", conn.Target())
-    conn.client.Shutdown()
-}
-
-
-/* 
- * Makes sure that our IO Context points to the correct pool.
- * If it does, we do nothing.
- * If it points to a different pool, we destroy the current IO context and create a new one.
- */
-func (conn *RadosConnection) setPool(pool string) error {
-    if pool == conn.pool {
-        // Nothing to do.  Our current IO Context points to the correct pool.
-        return nil
-    }
-
-    if conn.ioctx != nil {
-        // Our IO Context points to the wrong pool.  Close it first.
-        conn.ioctx.Destroy()
-    }
-
-    var err error
-    conn.ioctx, err = conn.client.OpenIOContext(pool)
-    return err
-}

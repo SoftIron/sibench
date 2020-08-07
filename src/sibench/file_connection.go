@@ -20,73 +20,39 @@ import "os"
  */
 type FileConnection struct {
     root string
+    dir string
 }
 
 
-func (conn *FileConnection) InitFileConnection(root string) {
-    logger.Debugf("Initialising file connection on %v\n", root)
+func (conn *FileConnection) InitFileConnection(root string, dir string) {
+    logger.Debugf("Initialising file connection on %v with dir %v\n", root, dir)
     conn.root = root
+    conn.dir = dir
 }
 
 
-func (conn *FileConnection) ListBuckets() ([]string, error) {
-    fis, err := ioutil.ReadDir(conn.root)
-    if err != nil {
-        return nil, err
-    }
-
-    var subdirs []string
-    for _, fi := range fis {
-        if fi.IsDir() {
-            subdirs = append(subdirs, fi.Name())
-        }
-    }
-
-    return subdirs, nil
+func (conn *FileConnection) CreateDirectory() error {
+    path := filepath.Join(conn.root, conn.dir)
+    logger.Infof("FileConnection creating directory: %v\n", path)
+    return os.MkdirAll(path, 0644)
 }
 
 
-func (conn *FileConnection) CreateBucket(bucket string) error {
-    logger.Infof("FileConnection creating directory: %v\n", filepath.Join(conn.root, bucket))
-    return os.MkdirAll(filepath.Join(conn.root, bucket), 0644)
+func (conn *FileConnection) DeleteDirectory() error {
+    path := filepath.Join(conn.root, conn.dir)
+    logger.Infof("FileConnection deleting directory: %v\n", path)
+    return os.RemoveAll(path)
 }
 
 
-func (conn *FileConnection) DeleteBucket(bucket string) error {
-    logger.Infof("FileConnection deleting directory: %v\n",filepath.Join(conn.root, bucket))
-    return os.RemoveAll(filepath.Join(conn.root, bucket))
+func (conn *FileConnection) PutObject(key string, contents []byte) error {
+    filename := filepath.Join(conn.root, conn.dir, key)
+    return ioutil.WriteFile(filename, contents, 0644)
 }
 
 
-func (conn *FileConnection) ListObjects(bucket string) ([]string, error) {
-    fis, err := ioutil.ReadDir(filepath.Join(conn.root, bucket))
-    if err != nil {
-        return nil, err
-    }
-
-    var files []string
-    for _, fi := range fis {
-        if !fi.IsDir() {
-            files = append(files, fi.Name())
-        }
-    }
-
-    return files, nil
+func (conn *FileConnection) GetObject(key string) ([]byte, error) {
+    filename := filepath.Join(conn.root, conn.dir, key)
+    return ioutil.ReadFile(filename)
 }
 
-
-func (conn *FileConnection) PutObject(bucket string, key string, contents []byte) error {
-    filename := filepath.Join(conn.root, bucket, key)
-    return  ioutil.WriteFile(filename, contents, 0644)
-}
-
-
-func (conn *FileConnection) GetObject(bucket string, key string) ([]byte, error) {
-    filename := filepath.Join(conn.root, bucket, key)
-    return  ioutil.ReadFile(filename)
-}
-
-
-func (conn *FileConnection) Close() {
-    // Nothing to do here.
-}

@@ -96,6 +96,8 @@ type Stat struct {
 }
 
 
+type ConnectionConfig map[string]string
+
 /* 
  * A WorkOrder contains everything that the foremen needs to do their part of a Job.
  * It is sent as the data for the Connect message.
@@ -107,7 +109,6 @@ type WorkOrder struct {
     WorkerFactor float64            // Number of workers to create for each core on a server.
 
     // Object parameters
-    Bucket string                   // The storage bucket into which we will write
     ObjectSize uint64               // The size of the objects we read and write
     Seed uint64                     // A seed for any PRNGs in use. 
     GeneratorType string            // Which type of Generator we will use to create and verify object data.
@@ -117,7 +118,6 @@ type WorkOrder struct {
     // Connection parameters
     ConnectionType string           // The type of connection: s3, librados etc... 
     Targets []string                // The set of gateways, monitors, metadata servers or whatever we connect to. 
-    Port uint16                     // The port on which we connect to the storage servers.
-    Credentials map[string]string   // ConnectionType-specific key/value pairs for credential info for connecting.
+    ConnConfig ConnectionConfig     // ConnectionType-specific key/value pairs for credential info for connecting.
 }
 

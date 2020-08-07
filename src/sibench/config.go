@@ -2,7 +2,7 @@ package main
 
 
 /* Singleton instance */
-var config Config
+var globalConfig Config
 
 
 /*

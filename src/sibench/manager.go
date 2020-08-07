@@ -37,13 +37,20 @@ func NewManager() *Manager{
 /* Runs a single benchmark on the manager */
 func (m *Manager) Run(j *Job) error {
     m.job = j
+    o := &(m.job.order)
 
-    err := m.createBucket()
+    // Create a connection
+    conn, err := NewConnection(o.ConnectionType, o.Targets[0], o.ConnConfig)
     if err != nil {
         return err
     }
 
-    defer m.deleteBucket()
+    err = conn.ManagerConnect()
+    if err != nil {
+        return err
+    }
+
+    defer conn.ManagerClose()
 
     err = m.connectToServers()
     if err != nil {
@@ -336,54 +343,4 @@ func (m *Manager) disconnectFromServers() {
 
     logger.Infof("Disconnected\n")
 }
-
-
-/* 
- * Create a bucket in which to put/get our benchmark objects. 
- *
- * Note that we do not keep the connection open, even though we'll need a connection later
- * to delete the bucket. This is because the connection may be backed by a mounted filesystem,
- * in which case the sibench servers will also be mounting it.  If one of the servers is on
- * the same host as the manager (as is likely), then we don't want to try to mount it twice at 
- * the same time.
- *
- * (We use the MountManager _within_ a process to prevent multiple mounting, but the manager and
- * the servers are in different processes, and rather than building a cross-process sync 
- * mechanism, it's easier to just drop out connection and recreate it when we come to delete
- * the bucket).
- */
-func (m *Manager) createBucket() error {
-    o := &(m.job.order)
-
-    // Create a connection
-    conn, err := NewConnection(o.ConnectionType, o.Targets[0], o.Port, o.Credentials)
-    if err != nil {
-        return err
-    }
-
-    defer conn.Close()
-    return conn.CreateBucket(m.job.order.Bucket)
-}
-
-
-/* Delete the bucket we use for our benchmark objects */
-func (m *Manager) deleteBucket() {
-    o := &(m.job.order)
-
-    // Create a connection
-    conn, err := NewConnection(o.ConnectionType, o.Targets[0], o.Port, o.Credentials)
-    if err != nil {
-        return
-    }
-
-    defer conn.Close()
-
-    // Delete the bucket.
-    err = conn.DeleteBucket(o.Bucket)
-    if err != nil {
-        logger.Errorf("failure deleting bucket: %v\n", err)
-    }
-}
-
-
 

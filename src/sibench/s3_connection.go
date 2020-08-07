@@ -6,86 +6,108 @@ import "github.com/aws/aws-sdk-go/aws"
 import "github.com/aws/aws-sdk-go/aws/credentials"
 import "github.com/aws/aws-sdk-go/aws/session"
 import "github.com/aws/aws-sdk-go/service/s3"
+import "logger"
 import "io"
 
 
 type S3Connection struct {
-    target string
+    gateway string
+    config ConnectionConfig
+    bucket string
     client *s3.S3
 }
 
 
-func NewS3Connection(gateway string, port uint16, credentialMap map[string]string) (*S3Connection, error) {
-
-    access_key := credentialMap["access_key"]
-    secret_key := credentialMap["secret_key"]
-
-    if access_key == "" {
-        return nil, fmt.Errorf("Access key not provided in credentials")
-    }
-
-    if secret_key == "" {
-        return nil, fmt.Errorf("Secret key not provided in credentials")
-    }
-
-    var creds = credentials.NewStaticCredentials(access_key, secret_key, "")
-    var endpoint = fmt.Sprintf("%v:%v", gateway, port)
-    var config = aws.NewConfig()
-
-    config = config.WithRegion("us-east-1")
-    config = config.WithDisableSSL(true)
-	config = config.WithEndpoint(endpoint)
-	config = config.WithS3ForcePathStyle(true)
-	config = config.WithCredentials(creds)
-
-    // Create an AWS session
-    session, err := session.NewSession()
-    if err != nil {
-        return nil, err
-    }
-
-    fmt.Printf("Creating S3 Connection to %v\n", endpoint)
-
+func NewS3Connection(target string, config ConnectionConfig) (*S3Connection, error) {
     var conn S3Connection
-    conn.client = s3.New(session, config)
-    conn.target = gateway
-
+    conn.gateway = target
+    conn.config = config
+    conn.bucket = config["bucket"]
     return &conn, nil
 }
 
 
 func (conn *S3Connection) Target() string {
-    return conn.target
+    return conn.gateway
 }
 
 
-func (conn *S3Connection) ListBuckets() ([]string, error) {
-	result, err := conn.client.ListBuckets(nil)
+func (conn *S3Connection) ManagerConnect() error {
+    err := conn.WorkerConnect()
     if err != nil {
-        return nil, err
+        return err
     }
 
-    var buckets []string
-	for _, b := range result.Buckets {
-		buckets = append(buckets, aws.StringValue(b.Name))
-	}
-
-	return buckets, err
+    return conn.createBucket(conn.bucket)
 }
 
 
-func (conn *S3Connection) CreateBucket(bucket string) error {
-    fmt.Printf("Creating bucket on %v: %v\n", conn.target, bucket)
+func (conn *S3Connection) ManagerClose() error {
+    err1 := conn.deleteBucket(conn.bucket)
+    err2 := conn.WorkerClose()
+
+    if err1 != nil {
+        return err1
+    }
+
+    return err2
+}
+
+
+func (conn *S3Connection) WorkerConnect() error {
+    access_key := conn.config["access_key"]
+    secret_key := conn.config["secret_key"]
+    port := conn.config["port"]
+
+    if access_key == "" {
+        return fmt.Errorf("Access key not provided in config")
+    }
+
+    if secret_key == "" {
+        return fmt.Errorf("Secret key not provided in config")
+    }
+
+    var creds = credentials.NewStaticCredentials(access_key, secret_key, "")
+    var endpoint = fmt.Sprintf("%v:%v", conn.gateway, port)
+    var awsConfig = aws.NewConfig()
+
+    awsConfig = awsConfig.WithRegion("us-east-1")
+    awsConfig = awsConfig.WithDisableSSL(true)
+	awsConfig = awsConfig.WithEndpoint(endpoint)
+	awsConfig = awsConfig.WithS3ForcePathStyle(true)
+	awsConfig = awsConfig.WithCredentials(creds)
+
+    // Create an AWS session
+    session, err := session.NewSession()
+    if err != nil {
+        return err
+    }
+
+    logger.Infof("Creating S3 Connection to %v\n", endpoint)
+    conn.client = s3.New(session, awsConfig)
+
+    return nil
+}
+
+
+func (conn *S3Connection) WorkerClose() error {
+    // Since S3 is a stateless protocol, there is no Close necessary.
+    return nil
+}
+
+
+func (conn *S3Connection) createBucket(bucket string) error {
+    logger.Infof("Creating bucket on %v: %v\n", conn.gateway, bucket)
 	_, err := conn.client.CreateBucket(&s3.CreateBucketInput{ Bucket: aws.String(bucket) })
 	return err
 }
 
 
-func (conn *S3Connection) DeleteBucket(bucket string) error {
-    fmt.Printf("Deleting bucket on %v: %v\n", conn.target, bucket)
+func (conn *S3Connection) deleteBucket(bucket string) error {
+    logger.Infof("Deleting bucket on %v: %v\n", conn.gateway, bucket)
 
     // We first have to delete the objects in the bucket.
-    err := conn.DeleteObjects(bucket)
+    err := conn.deleteObjects(bucket)
     if err != nil {
         return err
     }
@@ -95,8 +117,20 @@ func (conn *S3Connection) DeleteBucket(bucket string) error {
 }
 
 
-func (conn *S3Connection) DeleteObjects(bucket string) error {
-    objKeys, err := conn.ListObjects(bucket)
+func (conn *S3Connection) listObjects(bucket string) ([]string, error) {
+	result, err := conn.client.ListObjects(&s3.ListObjectsInput{ Bucket: aws.String(bucket) })
+
+    var objects []string
+    for _, o := range result.Contents {
+        objects = append(objects, aws.StringValue(o.Key))
+    }
+
+	return objects, err
+}
+
+
+func (conn *S3Connection) deleteObjects(bucket string) error {
+    objKeys, err := conn.listObjects(bucket)
     if err != nil {
         return  err
     }
@@ -115,24 +149,12 @@ func (conn *S3Connection) DeleteObjects(bucket string) error {
 }
 
 
-func (conn *S3Connection) ListObjects(bucket string) ([]string, error) {
-	result, err := conn.client.ListObjects(&s3.ListObjectsInput{ Bucket: aws.String(bucket) })
-
-    var objects []string
-    for _, o := range result.Contents {
-        objects = append(objects, aws.StringValue(o.Key))
-    }
-
-	return objects, err
-}
-
-
-func (conn *S3Connection) PutObject(bucket string, key string, contents []byte) error {
+func (conn *S3Connection) PutObject(key string, contents []byte) error {
     reader := bytes.NewReader(contents)
 
 	_, err := conn.client.PutObject(&s3.PutObjectInput{
 		Body:   reader,
-		Bucket: &bucket,
+		Bucket: &conn.bucket,
 		Key:    &key,
 	})
 
@@ -140,9 +162,9 @@ func (conn *S3Connection) PutObject(bucket string, key string, contents []byte) 
 }
 
 
-func (conn *S3Connection) GetObject(bucket string, key string) ([]byte, error) {
+func (conn *S3Connection) GetObject(key string) ([]byte, error) {
 
-	obj, err := conn.client.GetObject(&s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	obj, err := conn.client.GetObject(&s3.GetObjectInput{Bucket: aws.String(conn.bucket), Key: aws.String(key)})
     if err != nil {
         return nil, err
     }
@@ -155,9 +177,3 @@ func (conn *S3Connection) GetObject(bucket string, key string) ([]byte, error) {
 
     return buf.Bytes(), nil
 }
-
-
-func (conn *S3Connection) Close() {
-    // Since S3 is a stateless protocol, there is no Close necessary.
-}
-

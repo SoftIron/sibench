@@ -173,7 +173,7 @@ func (w *Worker) eventLoop() {
     logger.Debugf("[worker %v] shutting down\n", w.spec.Id)
 
     for _, conn := range w.connections {
-        conn.Close()
+        conn.WorkerClose()
     }
 }
 
@@ -206,13 +206,18 @@ func (w *Worker) handleOpcode(op Opcode) {
 
 func (w *Worker) connect() {
     for _, t := range w.order.Targets {
-        conn, err := NewConnection(w.order.ConnectionType, t, w.order.Port, w.order.Credentials)
+        conn, err := NewConnection(w.order.ConnectionType, t, w.order.ConnConfig)
+        if err == nil {
+            err = conn.WorkerConnect()
+        }
+
         if err != nil {
             logger.Errorf("[worker %v] failure during connect to %v: %v\n", w.spec.Id, t, err)
             w.setState(WS_Failed)
             w.sendResponse(Op_Connect, err)
             return
         }
+
 
         w.connections = append(w.connections, conn)
     }
@@ -230,7 +235,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
 
     // Actually do the PUT
     start := time.Now()
-    err := conn.PutObject(w.order.Bucket, key, contents)
+    err := conn.PutObject(key, contents)
     end := time.Now()
 
     var s Stat
@@ -290,7 +295,7 @@ func (w *Worker) read() {
 
     // Actually do the GET
     start := time.Now()
-    contents, err := conn.GetObject(w.order.Bucket, key)
+    contents, err := conn.GetObject(key)
     end := time.Now()
 
     var s Stat
