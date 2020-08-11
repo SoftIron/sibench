@@ -107,6 +107,7 @@ type WorkOrder struct {
     ServerName string               // The name we wish the server processing the order to use in stats
     Bandwidth uint64                // Bytes/s limit, or zero for no limit.
     WorkerFactor float64            // Number of workers to create for each core on a server.
+    SkipReadValidation bool         // Whether to skip the validation step when we read objects.
 
     // Object parameters
     ObjectSize uint64               // The size of the objects we read and write

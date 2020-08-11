@@ -310,10 +310,12 @@ func (w *Worker) read() {
         logger.Warnf("[worker %v] failure getting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
         s.Error = SE_OperationFailure
     } else {
-        err = w.generator.Verify(w.order.ObjectSize, key, contents)
-        if err != nil {
-            logger.Warnf("[worker %v] failure verfiying object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
-            s.Error = SE_VerifyFailure
+        if !w.order.SkipReadValidation {
+            err = w.generator.Verify(w.order.ObjectSize, key, contents)
+            if err != nil {
+                logger.Warnf("[worker %v] failure verfiying object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+                s.Error = SE_VerifyFailure
+            }
         }
     }
 

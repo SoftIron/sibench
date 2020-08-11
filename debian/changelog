@@ -1,3 +1,7 @@
+sibench (0.0.10) buster; urgency=low
+  [ Harry Richardson ]
+  * Added the option to skip read validation - aka 'fast-mode'
+ -- Harry Richardson <harry@softiron.com>  Tue, 11 Aug 2020 16:55:00 -0500
 sibench (0.0.9) buster; urgency=low
   [ Harry Richardson ]
   * Bug fix to 0.0.2
