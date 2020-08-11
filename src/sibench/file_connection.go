@@ -5,6 +5,7 @@ import "path/filepath"
 import "logger"
 import "io/ioutil"
 import "os"
+import "syscall"
 
 
 /* 
@@ -47,12 +48,37 @@ func (conn *FileConnection) DeleteDirectory() error {
 
 func (conn *FileConnection) PutObject(key string, contents []byte) error {
     filename := filepath.Join(conn.root, conn.dir, key)
-    return ioutil.WriteFile(filename, contents, 0644)
+
+    fd, err := syscall.Open(filename, syscall.O_WRONLY | syscall.O_CREAT | syscall.O_TRUNC | syscall.O_DIRECT | syscall.O_SYNC, 0644)
+    if err != nil {
+        return err
+    }
+
+    defer syscall.Close(fd)
+
+    for len(contents) > 0 {
+        n, err := syscall.Write(fd, contents)
+        if err == nil {
+            return err
+        }
+
+        contents = contents[n:]
+    }
+
+    return nil
 }
 
 
 func (conn *FileConnection) GetObject(key string) ([]byte, error) {
     filename := filepath.Join(conn.root, conn.dir, key)
-    return ioutil.ReadFile(filename)
-}
 
+    fd, err := syscall.Open(filename, syscall.O_RDONLY | syscall.O_DIRECT | syscall.O_SYNC, 0644)
+    if err != nil {
+        return nil, err
+    }
+
+    defer syscall.Close(fd)
+
+    f := os.NewFile(uintptr(fd), key)
+    return ioutil.ReadAll(f)
+}

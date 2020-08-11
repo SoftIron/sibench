@@ -1,3 +1,7 @@
+sibench (0.0.8) buster; urgency=low
+  [ Harry Richardson ]
+  * Using O_DIRECT and O_SYNC for file operations
+ -- Harry Richardson <harry@softiron.com>  Tue, 11 Aug 2020 13:55:00 -0500
 sibench (0.0.7) buster; urgency=low
   [ Harry Richardson]
   * cephfs
