@@ -3,7 +3,6 @@ package main
 
 import "path/filepath"
 import "logger"
-import "io/ioutil"
 import "os"
 import "syscall"
 
@@ -79,6 +78,25 @@ func (conn *FileConnection) GetObject(key string) ([]byte, error) {
 
     defer syscall.Close(fd)
 
-    f := os.NewFile(uintptr(fd), key)
-    return ioutil.ReadAll(f)
+    var stat syscall.Stat_t
+    err = syscall.Fstat(fd, &stat)
+    if err != nil {
+        return nil, err
+    }
+
+    contents := make([]byte, stat.Size)
+    remaining := stat.Size
+    start := 0
+
+    for remaining > 0 {
+        n, err := syscall.Read(fd, contents[start:])
+        if err != nil {
+            return nil, err
+        }
+
+        start += n
+        remaining -= int64(n)
+    }
+
+    return contents, err
 }
