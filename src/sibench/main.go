@@ -22,10 +22,10 @@ type Arguments struct {
     Rbd bool
     Cephfs bool
     Run bool
-    Verbose bool
     FastMode bool
 
     // Common options
+    Verbosity string
     Port int
     MountsDir string
     Size string
@@ -62,24 +62,24 @@ type Arguments struct {
 func usage() string {
     return `SoftIron Benchmark Tool.
 Usage:
-  sibench server     [-v] [-p PORT] [-m DIR]
-  sibench s3 run     [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+  sibench server     [-v LEVEL] [-p PORT] [-m DIR]
+  sibench s3 run     [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
                      [--servers SERVERS] <targets> ...
                      [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
-  sibench rados run  [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+  sibench rados run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
                      [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
-  sibench cephfs run [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+  sibench cephfs run [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
                      [-m DIR] [--servers SERVERS] <targets> ...
                      [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
-  sibench rbd run    [-v] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+  sibench rbd run    [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
                      [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
   sibench -h | --help
 
 Options:
   -h, --help                   Show full usage
-  -v, --verbose                Turn on debug output.
+  -v LEVEL, --verbosity LEVEL  Turn on debug output at level "off", "debug" or "trace"          [default: off]
   -p PORT, --port PORT         The port on which sibench communicates.                          [default: 5150]
   -m DIR, --mounts-dir DIR     The directory in which we should create any filesystem mounts.   [default: /tmp/sibench_mnt]
   -s SIZE, --size SIZE         Object size to test, in units of K or M.                         [default: 1M]
@@ -187,6 +187,13 @@ func validateArguments(args *Arguments) error {
 
     args.BandwidthInBytes /= 8
 
+    switch args.Verbosity {
+        case "off":
+        case "debug": logger.SetLevel(logger.Debug)
+        case "trace": logger.SetLevel(logger.Trace)
+        default: return fmt.Errorf("Bad verbosity level: %v.  Should be one of off, debug or trace")
+    }
+
     return nil
 }
 
@@ -221,9 +228,8 @@ func main() {
     err = buildConfig(&args)
     dieOnError(err, "Failure building config")
 
-    if args.Verbose {
+    if logger.IsDebug() {
         fmt.Printf("%v\n", prettyPrint(args))
-        logger.SetLevel(logger.Debug)
     }
 
     if args.Server {

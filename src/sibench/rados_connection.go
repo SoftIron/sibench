@@ -57,6 +57,23 @@ func (conn *RadosConnection) WorkerConnect() error {
         return err
     }
 
+    if logger.IsTrace() {
+        err = conn.client.SetConfigOption("debug_rados", "20")
+        if err != nil {
+            return err
+        }
+
+        err = conn.client.SetConfigOption("debug_objecter", "20")
+        if err != nil {
+            return err
+        }
+
+        err = conn.client.SetConfigOption("log_to_stderr", "true")
+        if err != nil {
+            return err
+        }
+    }
+
     logger.Infof("Creating rados connection to %v as user %v\n", conn.monitor, conn.config["username"])
 
     err = conn.client.Connect()
@@ -91,7 +108,10 @@ func (conn *RadosConnection) WorkerClose() error {
 
 
 func (conn *RadosConnection) PutObject(key string, contents []byte) error {
-    return conn.ioctx.WriteFull(key, contents)
+    logger.Tracef("Put rados object %v on %v: start\n", key, conn.monitor)
+    err := conn.ioctx.WriteFull(key, contents)
+    logger.Tracef("Put rados object %v on %v: end\n", key, conn.monitor)
+    return err
 }
 
 

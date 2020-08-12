@@ -9,6 +9,7 @@ const (
     Warn
     Info
     Debug
+    Trace
 )
 
 
@@ -41,6 +42,11 @@ func IsDebug() bool {
 }
 
 
+func IsTrace() bool {
+    return level >= Trace
+}
+
+
 func Errorf(format string, args ...interface{}) {
     if IsError() {
         fmt.Printf("ERROR: " + format, args...)
@@ -69,5 +75,10 @@ func Debugf(format string, args ...interface{}) {
 }
 
 
+func Tracef(format string, args ...interface{}) {
+    if IsTrace() {
+        fmt.Printf(format, args...)
+    }
+}
 
 
