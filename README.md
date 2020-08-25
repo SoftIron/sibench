@@ -30,3 +30,8 @@ The servers are started by systemd, but can be manually run with `sibench server
 
 As mentioned above, the manager is usually invoked by benchmaster, rather than running it directly.
 
+## Tracking down problems
+
+If things aren't working, and it's not immediately obvious why, stop the daemon on one of the servers by running `systemctl stop sibench` and then start the server manually with `sibench server -v trace` which will generate a LOT of debug output.  The `-v trace` option can also be added to the mananger command line in case the issue is there.
+
+(Note that the manager often does a connect to the cluster before the servers - to do things like create an S3 bucket - and so it is quite likely that things like authentication errors show up there first).
