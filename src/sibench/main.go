@@ -13,9 +13,15 @@ import "strconv"
 import "time"
 
 
+/* Variable to be set by the link stageG */
+var Version = "Development build"
+var BuildDate = "not set"
+
+
 /* Struct type into which DocOpt can put our command line options. */
 type Arguments struct {
     // Command selection bools
+    Version bool
     Server bool
     S3 bool
     Rados bool
@@ -62,6 +68,7 @@ type Arguments struct {
 func usage() string {
     return `SoftIron Benchmark Tool.
 Usage:
+  sibench version
   sibench server     [-v LEVEL] [-p PORT] [-m DIR]
   sibench s3 run     [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
                      [--servers SERVERS] <targets> ...
@@ -230,6 +237,11 @@ func main() {
 
     if logger.IsDebug() {
         fmt.Printf("%v\n", prettyPrint(args))
+    }
+
+    if args.Version {
+        fmt.Printf("%v - %v\n", Version, BuildDate)
+        return
     }
 
     if args.Server {

@@ -1,3 +1,6 @@
+sibench (0.0.12) buster; urgency=low
+  [ Harry Richardson ]
+  * Added a version command that prints the build date and git describe info
 sibench (0.0.11) buster; urgency=low
   [ Harry Richardson ]
   * Changed the package to allow more open files to work around librados being lazy.
