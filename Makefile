@@ -7,8 +7,8 @@ all = sibench comms logger
 all:	$(all)
 
 sibench:
-	go get -ldflags "-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" $@
-	go install -ldflags "-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" $@
+	go get -tags nautilus -ldflags "-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" $@
+	go install -tags nautilus -ldflags "-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" $@
 
 comms:
 	go get $@

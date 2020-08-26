@@ -33,7 +33,7 @@ func NewConnection(connectionType string, target string, config ConnectionConfig
         case "s3":      return NewS3Connection(target, config)
         case "rados":   return NewRadosConnection(target, config)
         case "cephfs":  return NewCephFSConnection(target, config)
-        case "rbd":     return NewRBDConnection(target, config)
+        case "rbd":     return NewRbdConnection(target, config)
     }
 
     return nil, fmt.Errorf("Unknown connectionType: %v", connectionType)

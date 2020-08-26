@@ -4,7 +4,9 @@ import "comms"
 import "fmt"
 import "io"
 import "logger"
+import "os"
 import "runtime"
+import "strconv"
 import "time"
 
 
@@ -384,7 +386,13 @@ func (f *Foreman) connect() {
         rangeStride++
     }
 
-    var err error
+    hostname, err := os.Hostname()
+    if err != nil {
+        logger.Errorf("Unable to obtain hostname: %v\n", err)
+        f.fail(err)
+        return
+    }
+
 
     for i := uint64(0); (i < nWorkers) && (err == nil); i++ {
         opChannel := make(chan Opcode, 10)
@@ -404,6 +412,19 @@ func (f *Foreman) connect() {
         if o.RangeEnd > f.order.RangeEnd {
             o.RangeEnd = f.order.RangeEnd
         }
+
+        // Add some worker-specific fields to the connection config, which the worker will use to 
+        // create new connections.  
+
+        o.ConnConfig = make(map[string]string)
+        for k,v := range f.order.ConnConfig {
+            o.ConnConfig[k] = v
+        }
+
+        o.ConnConfig["total_data_size"] = strconv.Itoa(int((o.RangeEnd - o.RangeStart) * o.ObjectSize))
+        o.ConnConfig["hostname"] = hostname
+        o.ConnConfig["worker_id"] = fmt.Sprintf("%v", s.Id)
+        o.ConnConfig["object_size"] = fmt.Sprintf("%v", o.ObjectSize)
 
         w, err := NewWorker(s, &o)
         if err == nil {

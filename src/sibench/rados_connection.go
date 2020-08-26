@@ -6,8 +6,6 @@ import "github.com/ceph/go-ceph/rados"
 
 
 
-/* apt install libcephfs-dev librbd-dev librados-dev */
-
 
 type RadosConnection struct {
     monitor string
@@ -42,66 +40,18 @@ func (conn *RadosConnection) ManagerClose() error {
 
 func (conn *RadosConnection) WorkerConnect() error {
     var err error
-    conn.client, err = rados.NewConnWithUser(conn.config["username"])
+    conn.client, err = NewCephClient(conn.monitor, conn.config)
     if err != nil {
         return err
     }
 
-    err = conn.client.SetConfigOption("mon_host", conn.monitor)
-    if err != nil {
-        return err
-    }
-
-    err = conn.client.SetConfigOption("key", conn.config["key"])
-    if err != nil {
-        return err
-    }
-
-    if logger.IsTrace() {
-        err = conn.client.SetConfigOption("debug_rados", "20")
-        if err != nil {
-            return err
-        }
-
-        err = conn.client.SetConfigOption("debug_objecter", "20")
-        if err != nil {
-            return err
-        }
-
-        err = conn.client.SetConfigOption("log_to_stderr", "true")
-        if err != nil {
-            return err
-        }
-    }
-
-    logger.Infof("Creating rados connection to %v as user %v\n", conn.monitor, conn.config["username"])
-
-    err = conn.client.Connect()
-    if err != nil {
-        return err
-    }
-
-    pool := conn.config["pool"]
-
-    // Check the pool we want exists so we can give a decent error message. 
-    pools, err := conn.client.ListPools()
-    found := false
-    for _, p := range pools {
-        if p == pool {
-            found = true
-        }
-    }
-
-    if !found {
-        return fmt.Errorf("No such Ceph pool: %v\n", pool)
-    }
-
-    conn.ioctx, err = conn.client.OpenIOContext(pool)
+    conn.ioctx, err = conn.client.OpenIOContext(conn.config["pool"])
     return err
 }
 
 
 func (conn *RadosConnection) WorkerClose() error {
+    conn.ioctx.Destroy()
     conn.client.Shutdown()
     return nil
 }
