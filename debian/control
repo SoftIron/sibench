@@ -2,12 +2,12 @@ Source: sibench
 Section: net
 Priority: optional
 Maintainer: Harry Richardson <harry@softiron.com>
-Build-Depends: debhelper (>= 9), golang, librados-dev
+Build-Depends: debhelper (>= 9), golang, librados-dev, librbd-dev (>=14.2.9)
 Standards-Version: 3.9.8
 Homepage: https://git.softiron.com:9987/benchmarking/sibench
 
 Package: sibench
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, librados2, ceph-common
+Depends: ${misc:Depends}, ${shlibs:Depends}, librados2, ceph-common, librbd1
 Description: SoftIron benchmarking facilities
   Alternative to cosbench for S3 benchmarking (and soon librados and file stuff)
