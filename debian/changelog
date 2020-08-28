@@ -1,3 +1,6 @@
+sibench (0.0.13) buster; urgency=low
+  [ Harry Richardson ]
+  * Fixed RBD caching issue
 sibench (0.0.12) buster; urgency=low
   [ Harry Richardson ]
   * Added a version command that prints the build date and git describe info

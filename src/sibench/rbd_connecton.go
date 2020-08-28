@@ -155,7 +155,7 @@ func (conn *RbdConnection) GetObject(key string) ([]byte, error) {
     }
 
     buffer := make([]byte, conn.objectSize)
-    nread, err := conn.image.Read(buffer)
+    nread, err := conn.image.Read2(buffer, rbd.LIBRADOS_OP_FLAG_FADVISE_NOCACHE)
 
 
     if err != nil {
