@@ -10,15 +10,15 @@ import "syscall"
 
 type CephFSConnection struct {
     FileConnection
-    config ConnectionConfig
+    protocol ProtocolConfig
     monitor string
     mountPoint string
 }
 
 
-func NewCephFSConnection(target string, config ConnectionConfig) (*CephFSConnection, error) {
+func NewCephFSConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (*CephFSConnection, error) {
     var conn CephFSConnection
-    conn.config = config
+    conn.protocol = protocol
     conn.monitor = target
     conn.mountPoint = filepath.Join(globalConfig.MountsDir, target)
     return &conn, nil
@@ -69,7 +69,7 @@ func (conn *CephFSConnection) ManagerClose() error {
 
 
 func (conn *CephFSConnection) WorkerConnect() error {
-    logger.Infof("Creating cephfs connection to %v in %v as %v\n", conn.monitor, conn.mountPoint, conn.config["username"])
+    logger.Infof("Creating cephfs connection to %v in %v as %v\n", conn.monitor, conn.mountPoint, conn.protocol["username"])
 
     if mountManager.Acquire(conn.mountPoint) {
         // The mount doesn't exist yet, and we've been told to create it.
@@ -86,11 +86,14 @@ func (conn *CephFSConnection) WorkerConnect() error {
 	    }
 
         // Now do the actual mount
-        options := fmt.Sprintf("name=%v,secret=%v", conn.config["username"], conn.config["key"])
-        logger.Debugf("CephFSConnection mounting: %v\n", options)
+
+        options := fmt.Sprintf("name=%v,secret=%v", conn.protocol["username"], conn.protocol["key"])
+
+        logger.Debugf("CephFSConnection mounting with monitor: %v, mountpoint: %v, options: %v\n", conn.monitor, conn.mountPoint, options)
 
         err = syscall.Mount(conn.monitor + ":/", conn.mountPoint, "ceph", 0, options)
         if err != nil {
+            logger.Errorf("Failure mounting CephFS: %v\n", err)
             mountManager.MountComplete(conn.mountPoint, false)
             return err
         }
@@ -99,7 +102,7 @@ func (conn *CephFSConnection) WorkerConnect() error {
     }
 
     // Tell our FileConnection delegate which directories to use for its root and its dir within that root.
-    conn.InitFileConnection(conn.mountPoint, conn.config["dir"])
+    conn.InitFileConnection(conn.mountPoint, conn.protocol["dir"])
     return nil
 }
 

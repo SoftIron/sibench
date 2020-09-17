@@ -40,13 +40,16 @@ func (m *Manager) Run(j *Job) error {
     o := &(m.job.order)
 
     // Create a connection
-    conn, err := NewConnection(o.ConnectionType, o.Targets[0], o.ConnConfig)
+    var wcc WorkerConnectionConfig
+    conn, err := NewConnection(o.ConnectionType, o.Targets[0], o.ProtocolConfig, wcc)
     if err != nil {
+        logger.Errorf("Failure making new connection\n")
         return err
     }
 
     err = conn.ManagerConnect()
     if err != nil {
+        logger.Errorf("Failure establishing new connection\n")
         return err
     }
 
@@ -54,6 +57,7 @@ func (m *Manager) Run(j *Job) error {
 
     err = m.connectToServers()
     if err != nil {
+        logger.Errorf("Failure connecting to servers")
         return err
     }
 

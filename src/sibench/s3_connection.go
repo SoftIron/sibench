@@ -12,17 +12,17 @@ import "io"
 
 type S3Connection struct {
     gateway string
-    config ConnectionConfig
+    protocol ProtocolConfig
     bucket string
     client *s3.S3
 }
 
 
-func NewS3Connection(target string, config ConnectionConfig) (*S3Connection, error) {
+func NewS3Connection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (*S3Connection, error) {
     var conn S3Connection
     conn.gateway = target
-    conn.config = config
-    conn.bucket = config["bucket"]
+    conn.protocol = protocol
+    conn.bucket = protocol["bucket"]
     return &conn, nil
 }
 
@@ -55,16 +55,16 @@ func (conn *S3Connection) ManagerClose() error {
 
 
 func (conn *S3Connection) WorkerConnect() error {
-    access_key := conn.config["access_key"]
-    secret_key := conn.config["secret_key"]
-    port := conn.config["port"]
+    access_key := conn.protocol["access_key"]
+    secret_key := conn.protocol["secret_key"]
+    port := conn.protocol["port"]
 
     if access_key == "" {
-        return fmt.Errorf("Access key not provided in config")
+        return fmt.Errorf("Access key not provided in protocol")
     }
 
     if secret_key == "" {
-        return fmt.Errorf("Secret key not provided in config")
+        return fmt.Errorf("Secret key not provided in protocol")
     }
 
     var creds = credentials.NewStaticCredentials(access_key, secret_key, "")
@@ -149,7 +149,7 @@ func (conn *S3Connection) deleteObjects(bucket string) error {
 }
 
 
-func (conn *S3Connection) PutObject(key string, contents []byte) error {
+func (conn *S3Connection) PutObject(key string, id uint64, contents []byte) error {
     reader := bytes.NewReader(contents)
 
 	_, err := conn.client.PutObject(&s3.PutObjectInput{
@@ -162,7 +162,7 @@ func (conn *S3Connection) PutObject(key string, contents []byte) error {
 }
 
 
-func (conn *S3Connection) GetObject(key string) ([]byte, error) {
+func (conn *S3Connection) GetObject(key string, id uint64) ([]byte, error) {
 
 	obj, err := conn.client.GetObject(&s3.GetObjectInput{Bucket: aws.String(conn.bucket), Key: aws.String(key)})
     if err != nil {

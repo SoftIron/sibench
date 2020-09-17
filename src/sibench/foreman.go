@@ -6,7 +6,6 @@ import "io"
 import "logger"
 import "os"
 import "runtime"
-import "strconv"
 import "time"
 
 
@@ -413,18 +412,14 @@ func (f *Foreman) connect() {
             o.RangeEnd = f.order.RangeEnd
         }
 
-        // Add some worker-specific fields to the connection config, which the worker will use to 
-        // create new connections.  
-
-        o.ConnConfig = make(map[string]string)
-        for k,v := range f.order.ConnConfig {
-            o.ConnConfig[k] = v
-        }
-
-        o.ConnConfig["total_data_size"] = strconv.Itoa(int((o.RangeEnd - o.RangeStart) * o.ObjectSize))
-        o.ConnConfig["hostname"] = hostname
-        o.ConnConfig["worker_id"] = fmt.Sprintf("%v", s.Id)
-        o.ConnConfig["object_size"] = fmt.Sprintf("%v", o.ObjectSize)
+        s.ConnConfig = WorkerConnectionConfig {
+            Hostname: hostname,
+            WorkerId: s.Id,
+            ObjectSize: o.ObjectSize,
+            ForemanRangeStart: f.order.RangeStart,
+            ForemanRangeEnd: f.order.RangeEnd,
+            WorkerRangeStart: o.RangeStart,
+            WorkerRangeEnd: o.RangeEnd }
 
         w, err := NewWorker(s, &o)
         if err == nil {

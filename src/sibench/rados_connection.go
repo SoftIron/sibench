@@ -9,16 +9,16 @@ import "github.com/ceph/go-ceph/rados"
 
 type RadosConnection struct {
     monitor string
-    config ConnectionConfig
+    protocol ProtocolConfig
     client *rados.Conn
     ioctx *rados.IOContext  // Handle to an open pool.
 }
 
 
-func NewRadosConnection(target string, config ConnectionConfig) (*RadosConnection, error) {
+func NewRadosConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (*RadosConnection, error) {
     var conn RadosConnection
     conn.monitor = target
-    conn.config = config
+    conn.protocol = protocol
     return &conn, nil
 }
 
@@ -40,12 +40,12 @@ func (conn *RadosConnection) ManagerClose() error {
 
 func (conn *RadosConnection) WorkerConnect() error {
     var err error
-    conn.client, err = NewCephClient(conn.monitor, conn.config)
+    conn.client, err = NewCephClient(conn.monitor, conn.protocol)
     if err != nil {
         return err
     }
 
-    conn.ioctx, err = conn.client.OpenIOContext(conn.config["pool"])
+    conn.ioctx, err = conn.client.OpenIOContext(conn.protocol["pool"])
     return err
 }
 
@@ -57,7 +57,7 @@ func (conn *RadosConnection) WorkerClose() error {
 }
 
 
-func (conn *RadosConnection) PutObject(key string, contents []byte) error {
+func (conn *RadosConnection) PutObject(key string, id uint64, contents []byte) error {
     logger.Tracef("Put rados object %v on %v: start\n", key, conn.monitor)
     err := conn.ioctx.WriteFull(key, contents)
     logger.Tracef("Put rados object %v on %v: end\n", key, conn.monitor)
@@ -65,7 +65,7 @@ func (conn *RadosConnection) PutObject(key string, contents []byte) error {
 }
 
 
-func (conn *RadosConnection) GetObject(key string) ([]byte, error) {
+func (conn *RadosConnection) GetObject(key string, id uint64) ([]byte, error) {
     stat, err := conn.ioctx.Stat(key)
     if err != nil {
         return nil, err

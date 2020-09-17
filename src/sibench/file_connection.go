@@ -45,7 +45,7 @@ func (conn *FileConnection) DeleteDirectory() error {
 }
 
 
-func (conn *FileConnection) PutObject(key string, contents []byte) error {
+func (conn *FileConnection) PutObject(key string, id uint64, contents []byte) error {
     filename := filepath.Join(conn.root, conn.dir, key)
 
     fd, err := syscall.Open(filename, syscall.O_WRONLY | syscall.O_CREAT | syscall.O_TRUNC | syscall.O_DIRECT | syscall.O_SYNC, 0644)
@@ -68,7 +68,7 @@ func (conn *FileConnection) PutObject(key string, contents []byte) error {
 }
 
 
-func (conn *FileConnection) GetObject(key string) ([]byte, error) {
+func (conn *FileConnection) GetObject(key string, id uint64) ([]byte, error) {
     filename := filepath.Join(conn.root, conn.dir, key)
 
     fd, err := syscall.Open(filename, syscall.O_RDONLY | syscall.O_DIRECT | syscall.O_SYNC, 0644)

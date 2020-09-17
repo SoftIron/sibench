@@ -15,7 +15,7 @@ import "github.com/ceph/go-ceph/rados"
  * and RbdConnection both use this low-level connection to provide the sibench connection
  * functionality.
  */
-func NewCephClient(monitor string, config ConnectionConfig) (*rados.Conn, error) {
+func NewCephClient(monitor string, config ProtocolConfig) (*rados.Conn, error) {
     client, err := rados.NewConnWithUser(config["username"])
     if err != nil {
         return nil, err

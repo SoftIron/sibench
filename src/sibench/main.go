@@ -10,6 +10,7 @@ import "os"
 import "regexp"
 import "strings"
 import "strconv"
+import "syscall"
 import "time"
 
 
@@ -27,6 +28,7 @@ type Arguments struct {
     Rados bool
     Rbd bool
     Cephfs bool
+    Block bool
     Run bool
     FastMode bool
 
@@ -57,6 +59,9 @@ type Arguments struct {
     CephKey  string
     CephDir  string
 
+    // Block options
+    BlockDevice string
+
     // Synthesized options
     Bucket string
     BandwidthInBytes uint64
@@ -82,6 +87,10 @@ Usage:
   sibench rbd run    [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
                      [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
+  sibench block run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+                     [--servers SERVERS] 
+                     [--block-device DEVICE]
+
   sibench -h | --help
 
 Options:
@@ -107,6 +116,7 @@ Options:
   --ceph-user USER             The ceph username we use.                                        [default: admin]
   --ceph-key KEY               The secret key belonging to the ceph user.
   --ceph-dir DIR               The CephFS directory which we should use for a benchmark.        [default: sibench]
+  --block-device DEVICE        The block device to use for a benchmark.                         [default: /tmp/sibench_block]
 `
 }
 
@@ -218,6 +228,11 @@ func buildConfig(args *Arguments) error {
 
 
 func main() {
+    err := syscall.Mount("od1:/", "/tmp/od1", "ceph", 0, "name=admin,secret=AQBoS1pf/FlYDBAAcuOxXg9KbbW9b2BhTZPrRg==")
+    if err != nil {
+        fmt.Printf("Boo: %v\n", err)
+    }
+
     // Error should never happen outside of development, since docopt is complaining that our usage string has bad syntax.
     opts, err := docopt.ParseDoc(usage())
     dieOnError(err, "Error parsing arguments")
@@ -285,29 +300,32 @@ func startRun(args *Arguments) {
 
     if args.S3 {
         j.order.ConnectionType = "s3"
-        j.order.ConnConfig = ConnectionConfig{
+        j.order.ProtocolConfig = ProtocolConfig {
             "access_key": args.S3AccessKey,
             "secret_key": args.S3SecretKey,
             "port": strconv.Itoa(args.S3Port),
             "bucket": args.S3Bucket }
     } else if args.Rados {
         j.order.ConnectionType = "rados"
-        j.order.ConnConfig = ConnectionConfig{
+        j.order.ProtocolConfig = ProtocolConfig {
             "username": args.CephUser,
             "key": args.CephKey,
             "pool": args.CephPool }
     } else if args.Cephfs {
         j.order.ConnectionType = "cephfs"
-        j.order.ConnConfig = ConnectionConfig{
+        j.order.ProtocolConfig = ProtocolConfig {
             "username": args.CephUser,
             "key": args.CephKey,
             "dir": args.CephDir }
-    } else {
+    } else if args.Rbd {
         j.order.ConnectionType = "rbd"
-        j.order.ConnConfig = ConnectionConfig{
+        j.order.ProtocolConfig = ProtocolConfig {
             "username": args.CephUser,
             "key": args.CephKey,
             "pool": args.CephPool }
+    } else if args.Block {
+        j.order.ConnectionType = "block"
+        j.order.Targets = append(j.order.Targets, args.BlockDevice)
     }
 
     j.setArguments(args)

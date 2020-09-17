@@ -4,26 +4,23 @@ import "fmt"
 import "logger"
 import "github.com/ceph/go-ceph/rados"
 import "github.com/ceph/go-ceph/rbd"
-import "strconv"
 
 
 type RbdConnection struct {
     monitor string
-    config ConnectionConfig
+    protocol ProtocolConfig
+    worker WorkerConnectionConfig
     client *rados.Conn
     ioctx *rados.IOContext
     image *rbd.Image
-    objectSize int64
-    objectMap map[string]int64
-    nextIndex int64
 }
 
 
-func NewRbdConnection(target string, config ConnectionConfig) (*RbdConnection, error) {
+func NewRbdConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (*RbdConnection, error) {
     var conn RbdConnection
     conn.monitor = target
-    conn.config = config
-    conn.objectMap = make(map[string]int64)
+    conn.protocol = protocol
+    conn.worker = worker
     return &conn, nil
 }
 
@@ -35,12 +32,12 @@ func (conn *RbdConnection) Target() string {
 
 func (conn *RbdConnection) ManagerConnect() error {
     var err error
-    conn.client, err = NewCephClient(conn.monitor, conn.config)
+    conn.client, err = NewCephClient(conn.monitor, conn.protocol)
     if err != nil {
         return err
     }
 
-    conn.ioctx, err = conn.client.OpenIOContext(conn.config["pool"])
+    conn.ioctx, err = conn.client.OpenIOContext(conn.protocol["pool"])
     return err
 }
 
@@ -60,20 +57,10 @@ func (conn *RbdConnection) WorkerConnect() error {
 
     // The Manager just tested to make sure it could connect, and that the pool exists (so 
     // we can fail fast if there's a problem).  The workers have to create an RBD image to
-    // use.  The connection config map know how much data we will be managing.
+    // use.  The connection protocol map know how much data we will be managing.
 
-    conn.objectSize, err = strconv.ParseInt(conn.config["object_size"], 10, 64)
-    if err != nil {
-        return nil
-    }
-
-    dataSize, err := strconv.ParseInt(conn.config["total_data_size"], 10, 64)
-    if err != nil {
-        return err
-    }
-
-    imageSize := uint64(dataSize)
-    imageName := fmt.Sprintf("sibench-%v-%v", conn.config["hostname"], conn.config["worker_id"])
+    imageSize := uint64((conn.worker.WorkerRangeEnd - conn.worker.WorkerRangeStart) * conn.worker.ObjectSize)
+    imageName := fmt.Sprintf("sibench-%v-%v", conn.worker.Hostname, conn.worker.WorkerId)
     imageOrder := 22 // 1 << 22 gives a 4MB object size
 
     logger.Infof("Creating rbd image - name: %v, size: %v, order: %v\n", imageName, imageSize, imageOrder)
@@ -108,22 +95,15 @@ func (conn *RbdConnection) WorkerClose() error {
 /* 
  * Helper function to determine an object's offset into the image from an object key 
  */
-func (conn *RbdConnection) objectOffset(key string) int64 {
-    index, ok := conn.objectMap[key]
-    if !ok {
-        index = conn.nextIndex
-        conn.objectMap[key] = index
-        conn.nextIndex++
-    }
-
-    return index * conn.objectSize
+func (conn *RbdConnection) objectOffset(id uint64) int64 {
+    return int64((id - conn.worker.WorkerRangeStart) * conn.worker.ObjectSize)
 }
 
 
-func (conn *RbdConnection) PutObject(key string, contents []byte) error {
+func (conn *RbdConnection) PutObject(key string, id uint64, contents []byte) error {
     logger.Tracef("Put rados object %v on %v: start\n", key, conn.monitor)
 
-    offset := conn.objectOffset(key)
+    offset := conn.objectOffset(id)
     _, err := conn.image.Seek(offset, rbd.SeekSet)
     if err != nil {
         return err
@@ -137,8 +117,8 @@ func (conn *RbdConnection) PutObject(key string, contents []byte) error {
         return err
     }
 
-    if int64(nwrite) != conn.objectSize {
-        return fmt.Errorf("Short write: expected %v bytes, but got %v", conn.objectSize, nwrite)
+    if uint64(nwrite) != conn.worker.ObjectSize {
+        return fmt.Errorf("Short write: expected %v bytes, but got %v", conn.worker.ObjectSize, nwrite)
     }
 
     err = conn.image.Flush()
@@ -147,14 +127,14 @@ func (conn *RbdConnection) PutObject(key string, contents []byte) error {
 
 
 
-func (conn *RbdConnection) GetObject(key string) ([]byte, error) {
-    offset := conn.objectOffset(key)
+func (conn *RbdConnection) GetObject(key string, id uint64) ([]byte, error) {
+    offset := conn.objectOffset(id)
     _, err := conn.image.Seek(offset, rbd.SeekSet)
     if err != nil {
         return nil, err
     }
 
-    buffer := make([]byte, conn.objectSize)
+    buffer := make([]byte, conn.worker.ObjectSize)
     nread, err := conn.image.Read2(buffer, rbd.LIBRADOS_OP_FLAG_FADVISE_NOCACHE)
 
 
@@ -162,8 +142,8 @@ func (conn *RbdConnection) GetObject(key string) ([]byte, error) {
         return nil, err
     }
 
-    if int64(nread) != conn.objectSize {
-        return nil, fmt.Errorf("Short read: wanted %v bytes, but got %v", conn.objectSize, nread)
+    if uint64(nread) != conn.worker.ObjectSize {
+        return nil, fmt.Errorf("Short read: wanted %v bytes, but got %v", conn.worker.ObjectSize, nread)
     }
 
     return buffer, nil

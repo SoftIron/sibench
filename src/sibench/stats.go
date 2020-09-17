@@ -239,6 +239,19 @@ func NewAnalysis(stats []*Stat, name string, job *Job) *Analysis {
 
 
 /*
+ * Limit a string to a particular length.  Longer strings will be truncated and '...' appended to them
+ * to indiate that the truncation has taken place.
+ */
+func limit(s string, length int) string {
+    if len(s) <= length {
+        return s
+    }
+
+    return string(s[:length - 1]) + "..."
+}
+
+
+/*
  * Do the maths for a slice full of detailed stats.
  * We return a slice of various different Analyses that we create.
  * As a side-effect, we also currently print the Analyses to the console.
@@ -259,14 +272,14 @@ func AnalyseStats(job *Job, stats []*Stat) []*Analysis {
 
         for _, t := range job.order.Targets {
             tstats := filter(pstats, targetFilter(t))
-            a := NewAnalysis(tstats, "Target[" + t + "] " + phase.ToString(), job)
+            a := NewAnalysis(tstats, "Target[" + limit(t, 12) + "] " + phase.ToString(), job)
             results = append(results, a)
             fmt.Printf("%v\n", a.String())
         }
 
         for _, s := range job.servers {
             sstats := filter(pstats, serverFilter(s))
-            a := NewAnalysis(sstats, "Server[" + s + "] " + phase.ToString(), job)
+            a := NewAnalysis(sstats, "Server[" + limit(s, 12) + "] " + phase.ToString(), job)
             results = append(results, a)
             fmt.Printf("%v\n", a.String())
         }

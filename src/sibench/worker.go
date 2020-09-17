@@ -93,6 +93,7 @@ type WorkerResponse struct {
 /* The arguments used to construct a worker.  They have been bundled into a struct purely for readability. */
 type WorkerSpec struct {
     Id uint64
+    ConnConfig WorkerConnectionConfig
     OpChannel <-chan Opcode
     ResponseChannel chan<- *WorkerResponse
     StatChannel chan<- *Stat
@@ -206,7 +207,7 @@ func (w *Worker) handleOpcode(op Opcode) {
 
 func (w *Worker) connect() {
     for _, t := range w.order.Targets {
-        conn, err := NewConnection(w.order.ConnectionType, t, w.order.ConnConfig)
+        conn, err := NewConnection(w.order.ConnectionType, t, w.order.ProtocolConfig, w.spec.ConnConfig)
         if err == nil {
             err = conn.WorkerConnect()
         }
@@ -235,7 +236,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
 
     // Actually do the PUT
     start := time.Now()
-    err := conn.PutObject(key, contents)
+    err := conn.PutObject(key, w.objectIndex, contents)
     end := time.Now()
 
     var s Stat
@@ -295,7 +296,7 @@ func (w *Worker) read() {
 
     // Actually do the GET
     start := time.Now()
-    contents, err := conn.GetObject(key)
+    contents, err := conn.GetObject(key, w.objectIndex)
     end := time.Now()
 
     var s Stat
