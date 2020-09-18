@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 import "logger"
+import "net"
 import "os"
 import "path/filepath"
 import "syscall"
@@ -85,13 +86,21 @@ func (conn *CephFSConnection) WorkerConnect() error {
 		    }
 	    }
 
+        // The Mount system call can't handle names, so do a lookup first.
+
+        monitor_ips, err := net.LookupHost(conn.monitor)
+        if err != nil {
+            logger.Errorf("Failure resolving %v: %v\n", conn.monitor, err)
+            mountManager.MountComplete(conn.mountPoint, false)
+            return err
+        }
+
         // Now do the actual mount
 
         options := fmt.Sprintf("name=%v,secret=%v", conn.protocol["username"], conn.protocol["key"])
+        logger.Debugf("CephFSConnection mounting with monitor: %v, mountpoint: %v, options: %v\n", monitor_ips[0], conn.mountPoint, options)
 
-        logger.Debugf("CephFSConnection mounting with monitor: %v, mountpoint: %v, options: %v\n", conn.monitor, conn.mountPoint, options)
-
-        err = syscall.Mount(conn.monitor + ":/", conn.mountPoint, "ceph", 0, options)
+        err = syscall.Mount(monitor_ips[0] + ":/", conn.mountPoint, "ceph", 0, options)
         if err != nil {
             logger.Errorf("Failure mounting CephFS: %v\n", err)
             mountManager.MountComplete(conn.mountPoint, false)
