@@ -44,7 +44,7 @@ const(
  */
 type ForemanGenericResponse struct {
     Hostname string
-    Error error
+    Error string
 }
 
 

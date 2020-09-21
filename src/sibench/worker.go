@@ -86,7 +86,7 @@ const (
 type WorkerResponse struct {
     WorkerId uint64
     Op Opcode
-    Error  error
+    Error error
 }
 
 

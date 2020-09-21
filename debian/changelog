@@ -1,3 +1,6 @@
+sibench (0.0.15) buster; urgency=low
+  [ Harry Richardson ]
+  * Added block device support
 sibench (0.0.14) buster; urgency=low
   [ Harry Richardson ]
   * Building correctly on docker

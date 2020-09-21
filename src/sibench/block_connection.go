@@ -55,7 +55,7 @@ func (conn *BlockConnection) WorkerConnect() error {
 
     minSize := (conn.worker.ForemanRangeEnd - conn.worker.ForemanRangeStart) * conn.worker.ObjectSize
     if offset < int64(minSize) {
-        return fmt.Errorf("Block device %v too small: only %v when we need %v", conn.device, offset, minSize)
+        return fmt.Errorf("Block device %v too small: only %v bytes when we need %v", conn.device, offset, minSize)
     }
 
     return nil

@@ -197,6 +197,9 @@ type Foreman struct {
     /* How many workers have yet to respond to the last opcode we sent them */
     pendingResponses int
 
+    /* The first error we see when receiving responses from our workers */
+    responseError error
+
     /* Our current state. */
     state foremanState
 }
@@ -348,11 +351,14 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
     }
 
     f.pendingResponses--
+    if f.responseError == nil {
+        f.responseError = resp.Error
+    }
 
     if f.pendingResponses == 0 {
         // This was the last worker to complete the op.
         f.setState(nextState)
-        f.sendResponseToManager(resp.Op, nil)
+        f.sendResponseToManager(resp.Op, f.responseError)
     }
 }
 
@@ -451,11 +457,13 @@ func (f *Foreman) sendResponseToManager(op Opcode, err error) {
         return
     }
 
-    logger.Debugf("Send response to manager: %v, %v\n", op, err)
-
     var resp ForemanGenericResponse
     resp.Hostname = f.order.ServerName
-    resp.Error = err
+    if err != nil {
+        resp.Error = err.Error()
+    }
+
+    logger.Debugf("Send response to manager: %v, %v\n", op, resp)
 
     f.tcpConnection.Send(string(op), &resp)
 }
@@ -467,6 +475,7 @@ func (f *Foreman) sendOpcodeToWorkers(op Opcode) {
 
     // When we send out this message, we expect to see each of our workers acknowledge it.
     f.pendingResponses = len(f.workerInfos)
+    f.responseError = nil
 
     for _, wi := range f.workerInfos {
         wi.OpChannel <- op

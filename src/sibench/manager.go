@@ -246,6 +246,13 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
         op := Opcode(msg.ID())
 
         if op == expectedOp {
+            var resp ForemanGenericResponse
+            msg.Data(&resp)
+            if resp.Error != "" {
+                logger.Errorf("Failure on %v: %v\n", resp.Hostname, resp.Error)
+                os.Exit(-1)
+            }
+
             pending--
             if pending == 0 {
                 logger.Debugf("Finished waiting for %v\n", op)
