@@ -228,11 +228,6 @@ func buildConfig(args *Arguments) error {
 
 
 func main() {
-    err := syscall.Mount("od1:/", "/tmp/od1", "ceph", 0, "name=admin,secret=AQBoS1pf/FlYDBAAcuOxXg9KbbW9b2BhTZPrRg==")
-    if err != nil {
-        fmt.Printf("Boo: %v\n", err)
-    }
-
     // Error should never happen outside of development, since docopt is complaining that our usage string has bad syntax.
     opts, err := docopt.ParseDoc(usage())
     dieOnError(err, "Error parsing arguments")
