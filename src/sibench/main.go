@@ -10,7 +10,6 @@ import "os"
 import "regexp"
 import "strings"
 import "strconv"
-import "syscall"
 import "time"
 
 
