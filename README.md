@@ -6,11 +6,11 @@ experience numerous difficulties with that software.
 Currently sibench supports the following protocols:
 * S3
 * Rados
+* RBD
 * CephFS
+* Block devices
 
 It has the scaffolding in place for filesystem-based protocols, so we should soon be adding support for:
-* RBD
-* iSCSI
 * Samba
 * NFS
 
@@ -21,6 +21,12 @@ The manager process is not a daemon: it is a simple process that is started, run
 to run as a daemon with a job queue (in the manner of Cosbench), but that depends on how, or if, we dedide to make it part of the management console.
 
 Whilst sibench can be run directly, it is more usual to use the benchmaster application to drive it.  (See https://git.softiron.com:9987/benchmarking/benchmaster for more details), since that adds the ability to push results to google sheets, run sweeps across parameter ranges and so forth.  (It also allows the use of different backends, and can drive Cosbench too).  It also manages creation of users, keys and so forth.
+
+## ISCSI
+
+ISCSI can be benchmarked using the block device option.  Each server will need to have its own ISCSI image mounted as block device, each using the same name (most easily accomplished using a link from, say, /tmp/sibench-iscsi to /dev/dm-0, or wherever it was mounted by multipathd).  
+
+The easiest way to accomplish this is to use benchmaster, since that can setup and teardown iscsi mounts (including creating the RBD images to back them, and handling the multipath stuff for you).
 
 ## Starting the servers
 
