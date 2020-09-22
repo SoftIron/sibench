@@ -1,4 +1,7 @@
-sibench (0.0.15) buster; urgency=low
+sibench (0.0.16) buster; urgency=low
+  [ Harry Richardson ]
+  * Removed mount test accidentally left in code
+  sibench (0.0.15) buster; urgency=low
   [ Harry Richardson ]
   * Added block device support
 sibench (0.0.14) buster; urgency=low
