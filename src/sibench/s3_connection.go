@@ -177,3 +177,8 @@ func (conn *S3Connection) GetObject(key string, id uint64) ([]byte, error) {
 
     return buf.Bytes(), nil
 }
+
+
+func (conn *S3Connection) InvalidateCache() error {
+    return nil
+}

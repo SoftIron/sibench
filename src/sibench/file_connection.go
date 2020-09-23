@@ -100,3 +100,8 @@ func (conn *FileConnection) GetObject(key string, id uint64) ([]byte, error) {
 
     return contents, err
 }
+
+func (conn *FileConnection) InvalidateCache() error {
+    return nil
+}
+

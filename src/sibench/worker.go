@@ -277,6 +277,7 @@ func (w *Worker) write() {
 func (w *Worker) prepare() {
     // See if we've prepared a whole cycle of objects.
     if w.cycle > 0 {
+        w.invalidateConnectionCaches()
         w.setState(WS_PrepareDone)
         w.sendResponse(Op_Prepare, nil)
         return
@@ -327,6 +328,7 @@ func (w *Worker) read() {
     w.objectIndex++
     if w.objectIndex >= w.order.RangeEnd {
         w.objectIndex = w.order.RangeStart
+        w.invalidateConnectionCaches()
     }
 
     // Advance our connection index ready for next time
@@ -391,3 +393,12 @@ func (w *Worker) setState(state workerState) {
     w.state = state
 }
 
+
+/*
+ * Tell all of our connections to invalidate their caches 
+ */
+func (w* Worker) invalidateConnectionCaches() {
+    for _, conn := range w.connections {
+        conn.InvalidateCache()
+    }
+}

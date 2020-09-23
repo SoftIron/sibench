@@ -19,16 +19,17 @@ type Connection interface {
     /* 
      * Both Key and ID uniquely identify the same object.
      *
-     * Key and ID are redundant, but we provide both so that we don't need to do any string
-     * operations inside Put or Get.  String ops are slow, and we don't want to compromise
-     * our timing by incuding them. 
+     * FileSystems tend to want string-based keys.  Block devices usually want to use
+     * offsets, which are more easily calculated directly from an integer ID number.
      *
-     * Things like FileSystems tend to want string-based keys.  Block devices usually just use
-     * offsets, which are more easily calculated directly from an ID number.
+     * Key and ID are redundant, but we provide both so that we don't need to do any string
+     * operations inside Put or Get.
      */
 
     PutObject(key string, id uint64, contents []byte) error
     GetObject(key string, id uint64) ([]byte, error)
+
+    InvalidateCache() error
 }
 
 

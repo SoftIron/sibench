@@ -150,3 +150,6 @@ func (conn *RbdConnection) GetObject(key string, id uint64) ([]byte, error) {
 }
 
 
+func (conn *RbdConnection) InvalidateCache() error {
+    return conn.image.InvalidateCache()
+}

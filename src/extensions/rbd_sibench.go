@@ -74,3 +74,13 @@ func (image *Image) Read2(data []byte, op_flags int) (int, error) {
 
 	return ret, nil
 }
+
+
+func (image *Image) InvalidateCache() error {
+	ret := int(C.rbd_invalidate_cache(image.image))
+	if ret < 0 {
+		return rbdError(ret)
+	}
+
+    return nil
+}

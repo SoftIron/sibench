@@ -86,3 +86,8 @@ func (conn *RadosConnection) GetObject(key string, id uint64) ([]byte, error) {
     return buffer, nil
 }
 
+
+func (conn *RadosConnection) InvalidateCache() error {
+    return nil
+}
+

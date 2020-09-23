@@ -97,7 +97,6 @@ func (conn *BlockConnection) PutObject(key string, id uint64, contents []byte) e
 }
 
 
-
 func (conn *BlockConnection) GetObject(key string, id uint64) ([]byte, error) {
     offset := conn.objectOffset(id)
     logger.Tracef("Get block object %v on %v with size %v and offset %v\n", key, conn.device, conn.worker.ObjectSize, offset)
@@ -121,4 +120,6 @@ func (conn *BlockConnection) GetObject(key string, id uint64) ([]byte, error) {
 }
 
 
-
+func (conn *BlockConnection) InvalidateCache() error {
+    return nil
+}
