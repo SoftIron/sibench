@@ -255,9 +255,11 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
 
             pending--
             if pending == 0 {
-                logger.Debugf("Finished waiting for %v\n", op)
+                logger.Debugf("Received %v, finished waiting\n", op)
                 return
             }
+
+            logger.Debugf("Received %v, still waiting for %v more\n", op, pending)
         } else if op != Op_StatSummary {
             logger.Errorf("Unexpected Opcode received: expected %v but got %v\n", expectedOp, op)
             os.Exit(-1)

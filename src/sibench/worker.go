@@ -260,7 +260,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     if w.objectIndex >= w.order.RangeEnd {
         w.objectIndex = w.order.RangeStart
         w.cycle++
-        logger.Debugf("[worker %v] advancing cycle to %v\n", w.spec.Id, w.cycle)
+        logger.Tracef("[worker %v] advancing cycle to %v\n", w.spec.Id, w.cycle)
     }
 
     // Advance our connection index ready for next time

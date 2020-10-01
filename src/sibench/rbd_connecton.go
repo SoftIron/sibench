@@ -34,10 +34,13 @@ func (conn *RbdConnection) ManagerConnect() error {
     var err error
     conn.client, err = NewCephClient(conn.monitor, conn.protocol)
     if err != nil {
-        return err
+        return fmt.Errorf("Failure creating new ceph client: %v", err)
     }
 
     conn.ioctx, err = conn.client.OpenIOContext(conn.protocol["pool"])
+    if err != nil {
+        return fmt.Errorf("Failure opening IO context to RBD for pool %v: %v", conn.protocol["pool"], err)
+    }
     return err
 }
 
@@ -61,20 +64,38 @@ func (conn *RbdConnection) WorkerConnect() error {
 
     imageSize := uint64((conn.worker.WorkerRangeEnd - conn.worker.WorkerRangeStart) * conn.worker.ObjectSize)
     imageName := fmt.Sprintf("sibench-%v-%v", conn.worker.Hostname, conn.worker.WorkerId)
-    imageOrder := 22 // 1 << 22 gives a 4MB object size
+    imageOrder := uint64(22) // 1 << 22 gives a 4MB object size
+
+    options := rbd.NewRbdImageOptions()
+    defer options.Destroy()
+
+    err = options.SetUint64(rbd.ImageOptionOrder, imageOrder)
+    if err != nil {
+        return fmt.Errorf("Failure setting ImageOrder option for RBD Image: %v", err)
+    }
+
+    datapool := conn.protocol["datapool"]
+    if datapool != "" {
+        logger.Debugf("Setting RBD data pool to %v\n", datapool)
+        err = options.SetString(rbd.ImageOptionDataPool, datapool)
+        if err != nil {
+            return fmt.Errorf("Failure setting DataPool option for RBD Image: %v", err)
+        }
+    }
 
     logger.Infof("Creating rbd image - name: %v, size: %v, order: %v\n", imageName, imageSize, imageOrder)
 
-    conn.image, err = rbd.Create(conn.ioctx, imageName, imageSize, imageOrder)
+    //conn.image, err = rbd.Create(conn.ioctx, imageName, imageSize, imageOrder)
+    err = rbd.CreateImage(conn.ioctx, imageName, imageSize, options)
     if err != nil {
-        return err
+        return fmt.Errorf("Failure creating RBD image %v: %v", imageName, err)
     }
 
     openImage, err := rbd.OpenImage(conn.ioctx, imageName, "")
     if err != nil {
         conn.image.Remove()
         conn.image = nil
-        return err
+        return fmt.Errorf("Failure opening RBD image %v: %v", imageName, err)
     }
 
     conn.image = openImage
@@ -106,7 +127,7 @@ func (conn *RbdConnection) PutObject(key string, id uint64, contents []byte) err
     offset := conn.objectOffset(id)
     _, err := conn.image.Seek(offset, rbd.SeekSet)
     if err != nil {
-        return err
+        return fmt.Errorf("Failure in PutObject for RBD: %v", err)
     }
 
     nwrite, err := conn.image.Write(contents)
@@ -114,11 +135,11 @@ func (conn *RbdConnection) PutObject(key string, id uint64, contents []byte) err
     logger.Tracef("Put rados object %v on %v: end\n", key, conn.monitor)
 
     if err != nil {
-        return err
+        return fmt.Errorf("Failure in RBD image write: %v", err)
     }
 
     if uint64(nwrite) != conn.worker.ObjectSize {
-        return fmt.Errorf("Short write: expected %v bytes, but got %v", conn.worker.ObjectSize, nwrite)
+        return fmt.Errorf("Short write in RBD PutObject: expected %v bytes, but got %v", conn.worker.ObjectSize, nwrite)
     }
 
     err = conn.image.Flush()
@@ -131,15 +152,14 @@ func (conn *RbdConnection) GetObject(key string, id uint64) ([]byte, error) {
     offset := conn.objectOffset(id)
     _, err := conn.image.Seek(offset, rbd.SeekSet)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("Failure in RBD image seek: %v", err)
     }
 
     buffer := make([]byte, conn.worker.ObjectSize)
     nread, err := conn.image.Read2(buffer, rbd.LIBRADOS_OP_FLAG_FADVISE_NOCACHE)
 
-
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("Failure in RBD image read: %v", err)
     }
 
     if uint64(nread) != conn.worker.ObjectSize {
