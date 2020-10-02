@@ -1,11 +1,14 @@
+sibench (0.0.19) buster; urgency=low
+  [ Harry Richardson ]
+  * RBD now supports EC datapools
+  * Added support for a locally-mounted filesystem
 sibench (0.0.18) buster; urgency=low
   [ Harry Richardson ]
   * Invalidate cache before starting a read cycle - only affects RBD at present
-  sibench (0.0.16) buster; urgency=low
 sibench (0.0.17) buster; urgency=low
   [ Harry Richardson ]
   * Removed spurious import
-  sibench (0.0.16) buster; urgency=low
+sibench (0.0.16) buster; urgency=low
   [ Harry Richardson ]
   * Removed mount test accidentally left in code
   sibench (0.0.15) buster; urgency=low

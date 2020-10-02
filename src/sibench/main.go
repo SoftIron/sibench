@@ -28,6 +28,7 @@ type Arguments struct {
     Rbd bool
     Cephfs bool
     Block bool
+    File bool
     Run bool
     FastMode bool
 
@@ -54,13 +55,16 @@ type Arguments struct {
 
     // Rados and/or CephFS options
     CephPool     string
-    CephDataPool string
+    CephDatapool string
     CephUser     string
     CephKey      string
     CephDir      string
 
     // Block options
     BlockDevice string
+
+    // File options
+    FileDir string
 
     // Synthesized options
     Bucket string
@@ -86,11 +90,13 @@ Usage:
                      [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
   sibench rbd run    [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
                      [--servers SERVERS] <targets> ...
-                     [--ceph-pool POOL] [--ceph-data-pool POOL] [--ceph-user USER] (--ceph-key KEY)
+                     [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)
   sibench block run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
                      [--servers SERVERS] 
                      [--block-device DEVICE]
-
+  sibench file run   [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+                     [--servers SERVERS] 
+                     [--file-dir DIR]
   sibench -h | --help
 
 Options:
@@ -113,11 +119,12 @@ Options:
   --s3-access-key KEY          S3 access key.
   --s3-secret-key KEY          S3 secret key.
   --ceph-pool POOL             The pool we use for benchmarking.                                [default: sibench]
-  --ceph-data-pool POOL        Optional pool used for RBD.  If set, ceph-pool is for metadata 
+  --ceph-datapool POOL         Optional pool used for RBD.  If set, ceph-pool is for metadata 
   --ceph-user USER             The ceph username we use.                                        [default: admin]
   --ceph-key KEY               The secret key belonging to the ceph user.
   --ceph-dir DIR               The CephFS directory which we should use for a benchmark.        [default: sibench]
   --block-device DEVICE        The block device to use for a benchmark.                         [default: /tmp/sibench_block]
+  --file-dir DIR               The directory to use (must already exist).
 `
 }
 
@@ -319,10 +326,13 @@ func startRun(args *Arguments) {
             "username": args.CephUser,
             "key": args.CephKey,
             "pool": args.CephPool,
-            "datapool": args.CephDataPool }
+            "datapool": args.CephDatapool }
     } else if args.Block {
         j.order.ConnectionType = "block"
         j.order.Targets = append(j.order.Targets, args.BlockDevice)
+    } else if args.File {
+        j.order.ConnectionType = "file"
+        j.order.Targets = append(j.order.Targets, args.FileDir)
     }
 
     j.setArguments(args)

@@ -10,7 +10,7 @@ import "syscall"
 
 
 type CephFSConnection struct {
-    FileConnection
+    FileConnectionBase
     protocol ProtocolConfig
     monitor string
     mountPoint string
@@ -111,7 +111,7 @@ func (conn *CephFSConnection) WorkerConnect() error {
     }
 
     // Tell our FileConnection delegate which directories to use for its root and its dir within that root.
-    conn.InitFileConnection(conn.mountPoint, conn.protocol["dir"])
+    conn.InitFileConnectionBase(conn.mountPoint, conn.protocol["dir"])
     return nil
 }
 

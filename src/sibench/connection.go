@@ -66,6 +66,7 @@ func NewConnection(connectionType string, target string, protocolConfig Protocol
         case "cephfs":  return NewCephFSConnection(target, protocolConfig, workerConfig)
         case "rbd":     return NewRbdConnection(target, protocolConfig, workerConfig)
         case "block":   return NewBlockConnection(target, protocolConfig, workerConfig)
+        case "file":    return NewFileConnection(target, protocolConfig, workerConfig)
     }
 
     return nil, fmt.Errorf("Unknown connectionType: %v", connectionType)

@@ -2,106 +2,72 @@ package main
 
 
 import "path/filepath"
+import "fmt"
 import "logger"
 import "os"
-import "syscall"
 
 
-/* 
- * An abstract connection backed by a local file system.  
+/*
+ * FileConnection is the connection to use when talking to a filesystem that is already locally mounted.
  *
- * It is initialised with a root: a directory under which all operations take place.  This
- * is likely to be the directory where a remote filesystem has been mounted (where the 
- * remote filesystem is backed by the cluster under test), but it could be any dir really.
- *
- * FileConnection is not intented to be used directly, but wrapped in a parent Connection
- * that know how to create and tear-down the mount (such as CephFSConnection).   As such
- * it doesn't have the ususal connection constructor, or a Target() function.
+ * FileConnectionBase is the code that is used to talk to a filesystem after it has been set up.  It exists
+ * because things like CephFSConnection do the mounting automatically, and then use the FileConnectionBase
+ * to do the work.
  */
 type FileConnection struct {
-    root string
-    dir string
+    FileConnectionBase
 }
 
 
-func (conn *FileConnection) InitFileConnection(root string, dir string) {
-    logger.Debugf("Initialising file connection on %v with dir %v\n", root, dir)
-    conn.root = root
-    conn.dir = dir
+func NewFileConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (*FileConnection, error) {
+    var conn FileConnection
+    conn.InitFileConnectionBase("/", target)
+    return &conn, nil
 }
 
 
-func (conn *FileConnection) CreateDirectory() error {
+func (conn *FileConnection) Target() string {
     path := filepath.Join(conn.root, conn.dir)
-    logger.Infof("FileConnection creating directory: %v\n", path)
-    return os.MkdirAll(path, 0644)
+    return path
 }
 
 
-func (conn *FileConnection) DeleteDirectory() error {
+func (conn *FileConnection) ManagerConnect() error {
+    return nil
+}
+
+
+func (conn *FileConnection) ManagerClose() error {
+    return nil
+}
+
+
+func (conn *FileConnection) WorkerConnect() error {
     path := filepath.Join(conn.root, conn.dir)
-    logger.Infof("FileConnection deleting directory: %v\n", path)
-    return os.RemoveAll(path)
-}
+    logger.Infof("Creating file connection to %v\n", path)
 
-
-func (conn *FileConnection) PutObject(key string, id uint64, contents []byte) error {
-    filename := filepath.Join(conn.root, conn.dir, key)
-
-    fd, err := syscall.Open(filename, syscall.O_WRONLY | syscall.O_CREAT | syscall.O_TRUNC | syscall.O_DIRECT | syscall.O_SYNC, 0644)
+    // Check the directory is exists.
+    info, err := os.Stat(path);
     if err != nil {
-        return err
-    }
-
-    defer syscall.Close(fd)
-
-    for len(contents) > 0 {
-        n, err := syscall.Write(fd, contents)
-        if err == nil {
-            return err
+        if os.IsNotExist(err) {
+            return fmt.Errorf("FileConnection unable to start - directory does not exist: %v", path)
         }
 
-        contents = contents[n:]
+        return fmt.Errorf("FileConnection Unable to start - can't stat directory %v: %v", path, err)
+    }
+
+    if !info.Mode().IsDir() {
+        return fmt.Errorf("FileConnection unable to start - not a directory: %v", path)
     }
 
     return nil
 }
 
 
-func (conn *FileConnection) GetObject(key string, id uint64) ([]byte, error) {
-    filename := filepath.Join(conn.root, conn.dir, key)
-
-    fd, err := syscall.Open(filename, syscall.O_RDONLY | syscall.O_DIRECT | syscall.O_SYNC, 0644)
-    if err != nil {
-        return nil, err
-    }
-
-    defer syscall.Close(fd)
-
-    var stat syscall.Stat_t
-    err = syscall.Fstat(fd, &stat)
-    if err != nil {
-        return nil, err
-    }
-
-    contents := make([]byte, stat.Size)
-    remaining := stat.Size
-    start := 0
-
-    for remaining > 0 {
-        n, err := syscall.Read(fd, contents[start:])
-        if err != nil {
-            return nil, err
-        }
-
-        start += n
-        remaining -= int64(n)
-    }
-
-    return contents, err
-}
-
-func (conn *FileConnection) InvalidateCache() error {
+func (conn *FileConnection) WorkerClose() error {
+    path := filepath.Join(conn.root, conn.dir)
+    logger.Infof("Closing file connection to %v\n", path)
     return nil
 }
+
 

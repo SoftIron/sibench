@@ -76,16 +76,13 @@ func (conn *RbdConnection) WorkerConnect() error {
 
     datapool := conn.protocol["datapool"]
     if datapool != "" {
-        logger.Debugf("Setting RBD data pool to %v\n", datapool)
         err = options.SetString(rbd.ImageOptionDataPool, datapool)
         if err != nil {
             return fmt.Errorf("Failure setting DataPool option for RBD Image: %v", err)
         }
     }
 
-    logger.Infof("Creating rbd image - name: %v, size: %v, order: %v\n", imageName, imageSize, imageOrder)
-
-    //conn.image, err = rbd.Create(conn.ioctx, imageName, imageSize, imageOrder)
+    logger.Infof("Creating rbd image - name: %v, size: %v, order: %v, datapool: \"%v\"\n", imageName, imageSize, imageOrder, datapool)
     err = rbd.CreateImage(conn.ioctx, imageName, imageSize, options)
     if err != nil {
         return fmt.Errorf("Failure creating RBD image %v: %v", imageName, err)
