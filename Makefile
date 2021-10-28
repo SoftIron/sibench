@@ -29,7 +29,7 @@ test:
 	go test -v ./...
 
 clean:
-	go clean ./...
+	go clean ./... || true
 	rm -f bin/*
 
 .PHONY: rbd comms sibench logger test clean
