@@ -2,7 +2,7 @@ Source: sibench
 Section: net
 Priority: optional
 Maintainer: Harry Richardson <harry@softiron.com>
-Build-Depends: debhelper (>= 9), golang, librados-dev, librbd-dev (>=14.2.9)
+Build-Depends: debhelper (>= 9), golang-1.16, golang-1.16-go, librados-dev, librbd-dev (>=14.2.9)
 Standards-Version: 3.9.8
 Homepage: https://git.softiron.com:9987/benchmarking/sibench
 
