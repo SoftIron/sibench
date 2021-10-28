@@ -131,7 +131,7 @@ func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
     w.setState(WS_Init)
 
     var err error
-    w.generator, err = CreateGenerator(order.GeneratorType, order.Seed)
+    w.generator, err = CreateGenerator(order.GeneratorType, order.Seed, order.GeneratorConfig)
     if err != nil {
         logger.Errorf("[worker %v] failure during creation: %v\n", spec.Id, err)
         return nil, err

@@ -97,6 +97,7 @@ type Stat struct {
 
 
 type ProtocolConfig map[string]string
+type GeneratorConfig map[string]string
 
 /* 
  * A WorkOrder contains everything that the foremen needs to do their part of a Job.
@@ -119,6 +120,7 @@ type WorkOrder struct {
     // Connection parameters
     ConnectionType string           // The type of connection: s3, librados etc... 
     Targets []string                // The set of gateways, monitors, metadata servers or whatever we connect to. 
-    ProtocolConfig ProtocolConfig   // Protocol-specific key/value pairs for credential info for making new connection.s
+    ProtocolConfig ProtocolConfig   // Protocol-specific key/value pairs for credential info for making new connection.
+    GeneratorConfig GeneratorConfig // Generator-specific key/value pairs.
 }
 

@@ -36,9 +36,10 @@ type Generator interface {
 /* 
  * Factory function that mints new generators.
  */
-func CreateGenerator(generatorType string, seed uint64) (Generator, error) {
+func CreateGenerator(generatorType string, seed uint64, config GeneratorConfig) (Generator, error) {
     switch generatorType {
-        case "prng": return CreatePrngGenerator(seed), nil
+        case "prng": return CreatePrngGenerator(seed, config)
+        case "slice": return CreateSliceGenerator(seed, config)
     }
 
     return nil, fmt.Errorf("Unknown generatorType: %v", generatorType)

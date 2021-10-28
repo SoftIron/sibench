@@ -7,10 +7,12 @@ all = rbd sibench comms logger
 all:	$(all)
 
 sibench:
+	go env -w GO111MODULE=off
 	go get -tags nautilus -ldflags "-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" $@
 	go install -tags nautilus -ldflags "-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" $@
 
 rbd:
+	go env -w GO111MODULE=off
 	go get -tags nautilus github.com/ceph/go-ceph/rbd
 	cp src/extensions/rbd_sibench.go src/github.com/ceph/go-ceph/rbd/rbd_sibench.go
 	go install -tags nautilus github.com/ceph/go-ceph/rbd

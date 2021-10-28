@@ -66,6 +66,12 @@ type Arguments struct {
     // File options
     FileDir string
 
+    // Generator options
+    Generator string
+    SliceDir string
+    SliceSize int
+    SliceCount int
+
     // Synthesized options
     Bucket string
     BandwidthInBytes uint64
@@ -80,21 +86,27 @@ Usage:
   sibench version
   sibench server     [-v LEVEL] [-p PORT] [-m DIR]
   sibench s3 run     [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+                     [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] <targets> ...
                      [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
   sibench rados run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+                     [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
   sibench cephfs run [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+                     [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [-m DIR] [--servers SERVERS] <targets> ...
                      [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
   sibench rbd run    [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+                     [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)
   sibench block run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+                     [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] 
                      [--block-device DEVICE]
   sibench file run   [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+                     [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] 
                      [--file-dir DIR]
   sibench -h | --help
@@ -113,18 +125,22 @@ Options:
   -w FACTOR, --workers FACTOR  Number of workers per server as a factor x number of CPU cores   [default: 1.0]
   -f, --fast-mode              Disable validation on reads (for when sibench CPU is a limit).
   -b BW, --bandwidth BW        Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
+  -g GEN, --generator GEN      Which object generator to use: "prng" or "slice"                 [default: prng]
   --servers SERVERS            A comma-separated list of sibench servers to connect to.         [default: localhost]
   --s3-port PORT               The port on which to connect to S3.                              [default: 7480]
   --s3-bucket BUCKET           The name of the bucket we wish to use for S3 operations.         [default: sibench]
   --s3-access-key KEY          S3 access key.
   --s3-secret-key KEY          S3 secret key.
   --ceph-pool POOL             The pool we use for benchmarking.                                [default: sibench]
-  --ceph-datapool POOL         Optional pool used for RBD.  If set, ceph-pool is for metadata 
+  --ceph-datapool POOL         Optional pool used for RBD.  If set, ceph-pool is for metadata. 
   --ceph-user USER             The ceph username we use.                                        [default: admin]
   --ceph-key KEY               The secret key belonging to the ceph user.
   --ceph-dir DIR               The CephFS directory which we should use for a benchmark.        [default: sibench]
   --block-device DEVICE        The block device to use for a benchmark.                         [default: /tmp/sibench_block]
   --file-dir DIR               The directory to use (must already exist).
+  --slice-dir DIR              The directory of files to be sliced up to form new workload objects.
+  --slice-count COUNT          The number of slices to construct for workload generation        [default: 10000]
+  --slice-size BYTES           The size of each slice in bytes.                                 [default: 4096]
 `
 }
 
@@ -137,6 +153,15 @@ func prettyPrint(i interface{}) string {
     }
 
     return string(j)
+}
+
+
+/*
+ * Quit with an error message.
+ */
+func die(format string, a ...interface{}) {
+    fmt.Printf(format, a)
+    os.Exit(-1)
 }
 
 
@@ -243,7 +268,7 @@ func main() {
     // Error should never happen outside of development, since docopt is complaining that our type bindings are wrong.
     var args Arguments
     err = opts.Bind(&args)
-    dieOnError(err, "Failure binding argsig")
+    dieOnError(err, "Failure binding arguments")
 
     // This can error on bad user input.
     err = validateArguments(&args)
@@ -293,46 +318,71 @@ func startRun(args *Arguments) {
     j.order.JobId = 1
     j.order.ObjectSize = args.SizeInBytes
     j.order.Seed = uint64(time.Now().Unix())
-    j.order.GeneratorType = "prng"
     j.order.RangeStart = 0
     j.order.RangeEnd = uint64(args.Objects)
     j.order.Targets = args.Targets
     j.order.Bandwidth = args.BandwidthInBytes
     j.order.WorkerFactor = args.Workers
     j.order.SkipReadValidation = args.FastMode
+    j.order.GeneratorType = args.Generator
 
-    if args.S3 {
-        j.order.ConnectionType = "s3"
-        j.order.ProtocolConfig = ProtocolConfig {
-            "access_key": args.S3AccessKey,
-            "secret_key": args.S3SecretKey,
-            "port": strconv.Itoa(args.S3Port),
-            "bucket": args.S3Bucket }
-    } else if args.Rados {
-        j.order.ConnectionType = "rados"
-        j.order.ProtocolConfig = ProtocolConfig {
-            "username": args.CephUser,
-            "key": args.CephKey,
-            "pool": args.CephPool }
-    } else if args.Cephfs {
-        j.order.ConnectionType = "cephfs"
-        j.order.ProtocolConfig = ProtocolConfig {
-            "username": args.CephUser,
-            "key": args.CephKey,
-            "dir": args.CephDir }
-    } else if args.Rbd {
-        j.order.ConnectionType = "rbd"
-        j.order.ProtocolConfig = ProtocolConfig {
-            "username": args.CephUser,
-            "key": args.CephKey,
-            "pool": args.CephPool,
-            "datapool": args.CephDatapool }
-    } else if args.Block {
-        j.order.ConnectionType = "block"
-        j.order.Targets = append(j.order.Targets, args.BlockDevice)
-    } else if args.File {
-        j.order.ConnectionType = "file"
-        j.order.Targets = append(j.order.Targets, args.FileDir)
+    // Determine our generator configuration.
+    switch args.Generator {
+        case "prng":
+            j.order.GeneratorConfig = GeneratorConfig {}
+
+        case "slice":
+            j.order.GeneratorConfig = GeneratorConfig {
+                "dir": args.SliceDir,
+                "size": strconv.Itoa(int(args.SliceSize)),
+                "count": strconv.Itoa(int(args.SliceCount)) }
+
+        default:
+            die("Unknown generator type %v.  Expected one of [prng, slice]")
+    }
+
+    // Detemrine our protocol configuration
+    switch {
+        case args.S3:
+            j.order.ConnectionType = "s3"
+            j.order.ProtocolConfig = ProtocolConfig {
+                "access_key": args.S3AccessKey,
+                "secret_key": args.S3SecretKey,
+                "port": strconv.Itoa(args.S3Port),
+                "bucket": args.S3Bucket }
+
+        case args.Rados:
+            j.order.ConnectionType = "rados"
+            j.order.ProtocolConfig = ProtocolConfig {
+                "username": args.CephUser,
+                "key": args.CephKey,
+                "pool": args.CephPool }
+
+        case args.Cephfs:
+            j.order.ConnectionType = "cephfs"
+            j.order.ProtocolConfig = ProtocolConfig {
+                "username": args.CephUser,
+                "key": args.CephKey,
+                "dir": args.CephDir }
+
+        case args.Rbd:
+            j.order.ConnectionType = "rbd"
+            j.order.ProtocolConfig = ProtocolConfig {
+                "username": args.CephUser,
+                "key": args.CephKey,
+                "pool": args.CephPool,
+                "datapool": args.CephDatapool }
+
+        case args.Block:
+            j.order.ConnectionType = "block"
+            j.order.Targets = append(j.order.Targets, args.BlockDevice)
+
+        case args.File:
+            j.order.ConnectionType = "file"
+            j.order.Targets = append(j.order.Targets, args.FileDir)
+
+        default:
+            die("No protocol specified")
     }
 
     j.setArguments(args)

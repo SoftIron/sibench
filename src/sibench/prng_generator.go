@@ -21,10 +21,12 @@ type PrngGenerator struct {
 
 
 
-func CreatePrngGenerator(seed uint64) *PrngGenerator {
+func CreatePrngGenerator(seed uint64, config GeneratorConfig) (*PrngGenerator, error) {
+    // PrngGenerator takes no configuration parameters.
+
     var pg PrngGenerator
     pg.seed = seed
-    return &pg
+    return &pg, nil
 }
 
 
