@@ -10,8 +10,9 @@ import "os"
 import "path"
 import "strconv"
 
+
 /*
- * SliceGenerator is a generator which biulds workloads from existing files.  It aims to reproduce
+ * SliceGenerator is a generator which builds workloads from existing files.  It aims to reproduce
  * the compressibility of those files, whilst still creating an effectively infinite supply of 
  * different objects.
  *
@@ -31,14 +32,13 @@ import "strconv"
  * read operation by reading the seed from the first few bytes, and then recreating the object we
  * would expect.
  */
-
-
 type SliceGenerator struct {
     prng *rand.Rand
     sliceCount int
     sliceSize int
     slices [][]byte
 }
+
 
 
 func CreateSliceGenerator(seed uint64, config GeneratorConfig) (*SliceGenerator, error) {
@@ -67,7 +67,7 @@ func CreateSliceGenerator(seed uint64, config GeneratorConfig) (*SliceGenerator,
 		info, err := e.Info()
 		if err != nil {
             return nil, fmt.Errorf("Unable to stat %v/%v: %v", dirname, e.Name(), err)
-		}
+        }
 
         if info.Mode().IsRegular() {
             infos = append(infos, info)
