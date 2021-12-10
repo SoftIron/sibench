@@ -21,7 +21,7 @@ type FileConnection struct {
 
 func NewFileConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (*FileConnection, error) {
     var conn FileConnection
-    conn.InitFileConnectionBase("/", target)
+    conn.InitFileConnectionBase(".", target)
     return &conn, nil
 }
 
