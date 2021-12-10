@@ -5,7 +5,6 @@ import "logger"
 import "net"
 import "os"
 import "path/filepath"
-import "syscall"
 
 
 
@@ -100,7 +99,7 @@ func (conn *CephFSConnection) WorkerConnect() error {
         options := fmt.Sprintf("name=%v,secret=%v", conn.protocol["username"], conn.protocol["key"])
         logger.Debugf("CephFSConnection mounting with monitor: %v, mountpoint: %v, options: %v\n", monitor_ips[0], conn.mountPoint, options)
 
-        err = syscall.Mount(monitor_ips[0] + ":/", conn.mountPoint, "ceph", 0, options)
+        err = Mount(monitor_ips[0] + ":/", conn.mountPoint, "ceph", 0, options)
         if err != nil {
             logger.Errorf("Failure mounting CephFS: %v\n", err)
             mountManager.MountComplete(conn.mountPoint, false)
@@ -121,7 +120,7 @@ func (conn *CephFSConnection) WorkerClose() error {
 
     if mountManager.Release(conn.mountPoint) {
         logger.Debugf("Unmounting %v\n", conn.mountPoint)
-        syscall.Unmount(conn.mountPoint, 0)
+        Unmount(conn.mountPoint, 0)
         mountManager.UnmountComplete(conn.mountPoint)
     }
 

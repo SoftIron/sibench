@@ -48,15 +48,15 @@ func (conn *FileConnectionBase) DeleteDirectory() error {
 func (conn *FileConnectionBase) PutObject(key string, id uint64, contents []byte) error {
     filename := filepath.Join(conn.root, conn.dir, key)
 
-    fd, err := syscall.Open(filename, syscall.O_WRONLY | syscall.O_CREAT | syscall.O_TRUNC | syscall.O_DIRECT | syscall.O_SYNC, 0644)
+    fd, err := Open(filename, syscall.O_WRONLY | syscall.O_CREAT | syscall.O_TRUNC, 0644)
     if err != nil {
         return err
     }
 
-    defer syscall.Close(fd)
+    defer fd.Close()
 
     for len(contents) > 0 {
-        n, err := syscall.Write(fd, contents)
+        n, err := fd.Write(contents)
         if err == nil {
             return err
         }
@@ -71,25 +71,23 @@ func (conn *FileConnectionBase) PutObject(key string, id uint64, contents []byte
 func (conn *FileConnectionBase) GetObject(key string, id uint64) ([]byte, error) {
     filename := filepath.Join(conn.root, conn.dir, key)
 
-    fd, err := syscall.Open(filename, syscall.O_RDONLY | syscall.O_DIRECT | syscall.O_SYNC, 0644)
+    fd, err := Open(filename, syscall.O_RDONLY, 0644)
     if err != nil {
         return nil, err
     }
 
-    defer syscall.Close(fd)
+    defer fd.Close()
 
-    var stat syscall.Stat_t
-    err = syscall.Fstat(fd, &stat)
+    remaining, err := fd.Size()
     if err != nil {
         return nil, err
     }
 
-    contents := make([]byte, stat.Size)
-    remaining := stat.Size
+    contents := make([]byte, remaining)
     start := 0
 
     for remaining > 0 {
-        n, err := syscall.Read(fd, contents[start:])
+        n, err := fd.Read(contents[start:])
         if err != nil {
             return nil, err
         }

@@ -11,7 +11,7 @@ type BlockConnection struct {
     device string
     protocol ProtocolConfig
     worker WorkerConnectionConfig
-    fd int
+    fd FileDescriptor           // either an int or a windows.Handle
 }
 
 
@@ -42,13 +42,13 @@ func (conn *BlockConnection) ManagerClose() error {
 func (conn *BlockConnection) WorkerConnect() error {
     var err error
 
-    conn.fd, err = syscall.Open(conn.device, syscall.O_RDWR | syscall.O_DIRECT | syscall.O_SYNC, 0644)
+    conn.fd, err = Open(conn.device, syscall.O_RDWR, 0644)
     if err != nil {
         conn.fd = 0
         return err
     }
 
-    offset, err := syscall.Seek(conn.fd, 0, io.SeekEnd)
+    offset, err := conn.fd.Seek(0, io.SeekEnd)
     if err != nil {
         return err
     }
@@ -63,11 +63,7 @@ func (conn *BlockConnection) WorkerConnect() error {
 
 
 func (conn *BlockConnection) WorkerClose() error {
-    if conn.fd != 0 {
-        return syscall.Close(conn.fd)
-    }
-
-    return nil
+    return conn.fd.Close()
 }
 
 
@@ -84,7 +80,7 @@ func (conn *BlockConnection) PutObject(key string, id uint64, contents []byte) e
     logger.Tracef("Put block object %v on %v with size %v and offset %v\n", id, conn.device, len(contents), offset)
 
     for len(contents) > 0 {
-        n, err := syscall.Pwrite(conn.fd, contents, offset)
+        n, err := conn.fd.Pwrite(contents, offset)
         if err == nil {
             return err
         }
@@ -106,7 +102,7 @@ func (conn *BlockConnection) GetObject(key string, id uint64) ([]byte, error) {
     start := 0
 
     for remaining > 0 {
-        n, err := syscall.Pread(conn.fd, contents[start:], offset)
+        n, err := conn.fd.Pread(contents[start:], offset)
         if err != nil {
             return nil, err
         }

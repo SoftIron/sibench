@@ -1,6 +1,7 @@
 package main
 
 import "fmt"
+import "runtime"
 
 
 /* 
@@ -60,11 +61,16 @@ type WorkerConnectionConfig struct {
  * for to make a new connection.
  */
 func NewConnection(connectionType string, target string, protocolConfig ProtocolConfig, workerConfig WorkerConnectionConfig) (Connection, error) {
+    if runtime.GOOS == "linux" {
+        switch connectionType {
+            case "rados":   return NewRadosConnection(target, protocolConfig, workerConfig)
+            case "cephfs":  return NewCephFSConnection(target, protocolConfig, workerConfig)
+            case "rbd":     return NewRbdConnection(target, protocolConfig, workerConfig)
+        }
+    }
+        
     switch connectionType {
         case "s3":      return NewS3Connection(target, protocolConfig, workerConfig)
-        case "rados":   return NewRadosConnection(target, protocolConfig, workerConfig)
-        case "cephfs":  return NewCephFSConnection(target, protocolConfig, workerConfig)
-        case "rbd":     return NewRbdConnection(target, protocolConfig, workerConfig)
         case "block":   return NewBlockConnection(target, protocolConfig, workerConfig)
         case "file":    return NewFileConnection(target, protocolConfig, workerConfig)
     }

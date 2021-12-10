@@ -11,6 +11,7 @@ import "regexp"
 import "strings"
 import "strconv"
 import "time"
+import "runtime"
 
 
 /* Variable to be set by the link stageG */
@@ -81,14 +82,17 @@ type Arguments struct {
 
 /* Return a usage string for DocOpt argument parsing. */
 func usage() string {
-    return `SoftIron Benchmark Tool.
+    s := `SoftIron Benchmark Tool.
 Usage:
   sibench version
   sibench server     [-v LEVEL] [-p PORT] [-m DIR]
   sibench s3 run     [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] <targets> ...
-                     [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
+                     [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)`
+
+    if runtime.GOOS == "linux" {
+        s += ` 
   sibench rados run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] <targets> ...
@@ -100,7 +104,10 @@ Usage:
   sibench rbd run    [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] <targets> ...
-                     [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)
+                     [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)`
+    }
+
+    s += ` 
   sibench block run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--servers SERVERS] 
@@ -142,6 +149,7 @@ Options:
   --slice-count COUNT          The number of slices to construct for workload generation        [default: 10000]
   --slice-size BYTES           The size of each slice in bytes.                                 [default: 4096]
 `
+    return s
 }
 
 
