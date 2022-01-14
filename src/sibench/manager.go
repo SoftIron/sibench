@@ -5,6 +5,8 @@ import "fmt"
 import "io"
 import "logger"
 import "os"
+import "os/signal"
+import "syscall"
 import "time"
 
 
@@ -24,6 +26,8 @@ type Manager struct {
     msgConns []*comms.MessageConnection
     msgChannel chan *comms.ReceivedMessageInfo
     connToServerName map[*comms.MessageConnection]string
+    sigChan chan os.Signal
+    isInterrupted bool
 }
 
 
@@ -61,8 +65,14 @@ func (m *Manager) Run(j *Job) error {
         return err
     }
 
+    defer m.disconnectFromServers()
+
     m.sendJobToServers()
     phaseTime := j.runTime + j.rampUp + j.rampDown
+
+    // Register for interrupts before we do the actual work
+    m.sigChan = make(chan os.Signal, 1)
+    signal.Notify(m.sigChan, syscall.SIGINT, syscall.SIGTERM)
 
     // Write
     logger.Infof("\n----------------------- WRITE -----------------------------\n")
@@ -86,8 +96,6 @@ func (m *Manager) Run(j *Job) error {
     logger.Infof("\n")
     m.sendOpToServers(Op_Terminate, true)
 
-    defer m.disconnectFromServers()
-
     return nil
 }
 
@@ -97,6 +105,10 @@ func (m *Manager) Run(j *Job) error {
  * If waitForResponse is true, then we block until all the servers have responded.
  */
 func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
+    if m.isInterrupted && (op != Op_Terminate) {
+        return
+    }
+
     logger.Debugf("Sending: %v\n", op)
 
     // Send our request.
@@ -121,42 +133,53 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
  * We return the stats we obtain this way.
  */
 func (m* Manager) drainStats() {
+    if m.isInterrupted {
+        return
+    }
+
     m.sendOpToServers(Op_StatDetails, false)
 
     count := 0
     pending := len(m.msgConns)
 
     for {
-        msgInfo := <-m.msgChannel
-        if msgInfo.Error != nil {
-            logger.Errorf("Failure: %v\n", msgInfo.Error)
-            os.Exit(-1)
-        }
-
-        msg := msgInfo.Message
-        op := Opcode(msg.ID())
-
-        // We can ignore anything except StatDetail
-
-        switch op {
-            case Op_StatDetails:
-                s := new(Stat)
-                msg.Data(s)
-                m.job.addStat(s)
-                count++
-
-            case Op_StatDetailsDone:
-                pending--
-                if pending == 0 {
-                    return
+        select {
+            case msgInfo := <-m.msgChannel:
+                if msgInfo.Error != nil {
+                    logger.Errorf("Failure: %v\n", msgInfo.Error)
+                    os.Exit(-1)
                 }
 
-            case Op_StatSummary:
-                // Ignore this - we just received one a bit later than expected.
+                msg := msgInfo.Message
+                op := Opcode(msg.ID())
 
-            default:
-                logger.Errorf("Unexpected opcode: %v\n", op)
-                os.Exit(-1)
+                // We can ignore anything except StatDetail
+
+                switch op {
+                    case Op_StatDetails:
+                        s := new(Stat)
+                        msg.Data(s)
+                        m.job.addStat(s)
+                        count++
+
+                    case Op_StatDetailsDone:
+                        pending--
+                        if pending == 0 {
+                            return
+                        }
+
+                    case Op_StatSummary:
+                        // Ignore this - we just received one a bit later than expected.
+
+                    default:
+                        logger.Errorf("Unexpected opcode: %v\n", op)
+                        os.Exit(-1)
+                }
+
+            case <-m.sigChan:
+                logger.Infof("Interrupting stats collection and waiting to shut down\n")
+                m.isInterrupted = true
+                return
         }
     }
 }
@@ -170,6 +193,10 @@ func (m* Manager) drainStats() {
  * see what the system is doing.
  */
 func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
+    if m.isInterrupted {
+        return
+    }
+
     m.sendOpToServers(startOp, true)
     m.sendOpToServers(Op_StatSummaryStart, true)
 
@@ -217,6 +244,12 @@ func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
                 ticker.Stop()
                 m.sendOpToServers(Op_StatSummaryStop, true)
                 m.sendOpToServers(stopOp, true)
+                return
+
+            case <-m.sigChan:
+                logger.Infof("Interrupting job and waiting to shut down\n")
+                ticker.Stop()
+                m.isInterrupted = true
                 return
         }
     }

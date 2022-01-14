@@ -290,17 +290,15 @@ func main() {
         fmt.Printf("%v\n", prettyPrint(args))
     }
 
-    if args.Version {
-        fmt.Printf("%v - %v\n", Version, BuildDate)
-        return
-    }
+    switch {
+        case args.Version:
+            fmt.Printf("%v - %v\n", Version, BuildDate)
 
-    if args.Server {
-        startServer(&args)
-    }
+        case args.Server:
+            startServer(&args)
 
-    if args.Run {
-        startRun(&args)
+        case args.Run:
+            startRun(&args)
     }
 }
 
