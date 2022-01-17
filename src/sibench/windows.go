@@ -2,15 +2,14 @@
 
 package main
 
-import (
-	"fmt"
-	"runtime"
-	"unsafe"
+import "fmt"
+import"runtime"
+import "unsafe"
+import "golang.org/x/sys/windows"
 
-	"golang.org/x/sys/windows"
-)
 
 type FileDescriptor windows.Handle
+
 
 func Open(path string, mode int, perm uint32) (FileDescriptor, error) {
 	// Copy stdlib windows implementation of this just to add the
@@ -30,12 +29,9 @@ func Open(path string, mode int, perm uint32) (FileDescriptor, error) {
 	var access uint32
 
 	switch mode & (windows.O_RDONLY | windows.O_WRONLY | windows.O_RDWR) {
-	case windows.O_RDONLY:
-		access = windows.GENERIC_READ
-	case windows.O_WRONLY:
-		access = windows.GENERIC_WRITE
-	case windows.O_RDWR:
-		access = windows.GENERIC_READ | windows.GENERIC_WRITE
+        case windows.O_RDONLY:  access = windows.GENERIC_READ
+        case windows.O_WRONLY:  access = windows.GENERIC_WRITE
+        case windows.O_RDWR:    access = windows.GENERIC_READ | windows.GENERIC_WRITE
 	}
 
 	if mode&windows.O_CREAT != 0 {
@@ -59,16 +55,20 @@ func Open(path string, mode int, perm uint32) (FileDescriptor, error) {
 	var createmode uint32
 
 	switch {
-	case mode&(windows.O_CREAT|windows.O_EXCL) == (windows.O_CREAT | windows.O_EXCL):
-		createmode = windows.CREATE_NEW
-	case mode&(windows.O_CREAT|windows.O_TRUNC) == (windows.O_CREAT | windows.O_TRUNC):
-		createmode = windows.CREATE_ALWAYS
-	case mode&windows.O_CREAT == windows.O_CREAT:
-		createmode = windows.OPEN_ALWAYS
-	case mode&windows.O_TRUNC == windows.O_TRUNC:
-		createmode = windows.TRUNCATE_EXISTING
-	default:
-		createmode = windows.OPEN_EXISTING
+        case mode&(windows.O_CREAT | windows.O_EXCL) == (windows.O_CREAT | windows.O_EXCL):
+            createmode = windows.CREATE_NEW
+
+        case mode&(windows.O_CREAT | windows.O_TRUNC) == (windows.O_CREAT | windows.O_TRUNC):
+            createmode = windows.CREATE_ALWAYS
+
+        case mode&windows.O_CREAT == windows.O_CREAT:
+            createmode = windows.OPEN_ALWAYS
+
+        case mode&windows.O_TRUNC == windows.O_TRUNC:
+            createmode = windows.TRUNCATE_EXISTING
+
+        default:
+            createmode = windows.OPEN_EXISTING
 	}
 
 	var attrs uint32 = windows.FILE_ATTRIBUTE_NORMAL
@@ -83,6 +83,7 @@ func Open(path string, mode int, perm uint32) (FileDescriptor, error) {
 	return FileDescriptor(fd), err
 }
 
+
 func (fd FileDescriptor) Size() (int64, error) {
 	var stat windows.ByHandleFileInformation
 
@@ -94,13 +95,16 @@ func (fd FileDescriptor) Size() (int64, error) {
 	return int64(stat.FileSizeHigh)<<32 | int64(stat.FileSizeLow), nil
 }
 
+
 func (fd FileDescriptor) Seek(offset int64, whence int) (int64, error) {
 	return windows.Seek(windows.Handle(fd), offset, whence)
 }
 
+
 func (fd FileDescriptor) Read(p []byte) (int, error) {
 	return windows.Read(windows.Handle(fd), p)
 }
+
 
 func (fd FileDescriptor) Pread(p []byte, offset int64) (int, error) {
 	var o windows.Overlapped
@@ -114,9 +118,11 @@ func (fd FileDescriptor) Pread(p []byte, offset int64) (int, error) {
 	return int(n), err
 }
 
+
 func (fd FileDescriptor) Write(p []byte) (int, error) {
 	return windows.Write(windows.Handle(fd), p)
 }
+
 
 func (fd FileDescriptor) Pwrite(p []byte, offset int64) (int, error) {
 	var o windows.Overlapped
@@ -130,21 +136,26 @@ func (fd FileDescriptor) Pwrite(p []byte, offset int64) (int, error) {
 	return int(done), err
 }
 
+
 func (fd FileDescriptor) Close() error {
 	return windows.Close(windows.Handle(fd))
 }
+
 
 func Mount(source string, target string, fstype string, flags uintptr, data string) error {
 	return fmt.Errorf("Mount not implemented on %q", runtime.GOOS)
 }
 
+
 func Unmount(path string, flags int) error {
 	return fmt.Errorf("Unmount not implemented on %q", runtime.GOOS)
 }
 
+
 func NewRadosConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (Connection, error) {
 	return nil, fmt.Errorf("rados not implemented on %q", runtime.GOOS)
 }
+
 
 func NewRbdConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (Connection, error) {
 	return nil, fmt.Errorf("rbd not implemented on %q", runtime.GOOS)

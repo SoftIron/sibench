@@ -34,7 +34,6 @@ type Connection interface {
 }
 
 
-
 /* 
  * WorkerConnectionConfig is all the non-protocol specific information that a particular worker
  * knows that might be useful when constructing a new connection.
@@ -48,7 +47,6 @@ type WorkerConnectionConfig struct {
     WorkerRangeStart uint64
     WorkerRangeEnd uint64
 }
-
 
 
 /*
@@ -68,7 +66,7 @@ func NewConnection(connectionType string, target string, protocolConfig Protocol
             case "rbd":     return NewRbdConnection(target, protocolConfig, workerConfig)
         }
     }
-        
+
     switch connectionType {
         case "s3":      return NewS3Connection(target, protocolConfig, workerConfig)
         case "block":   return NewBlockConnection(target, protocolConfig, workerConfig)

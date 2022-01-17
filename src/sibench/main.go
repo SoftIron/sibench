@@ -14,7 +14,7 @@ import "time"
 import "runtime"
 
 
-/* Variable to be set by the link stageG */
+/* Variables to be set by the link stage */
 var Version = "Development build"
 var BuildDate = "not set"
 
