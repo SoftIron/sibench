@@ -20,6 +20,9 @@ const(
     Op_Busy = "Busy"
     Op_Failed = "Failed"
 
+    // Opcodes used between Worker->Foreman and Foreman->Manager
+    Op_Hung = "Hung"
+
     // Opcodes used between Foreman<->Manager
     Op_StatDetails = "StatDetails"
     Op_StatDetailsDone = "StatDetailsDone"

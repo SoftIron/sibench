@@ -77,7 +77,7 @@ var validWSTransitions = map[Opcode]map[workerState]workerState {
  */
 const (
     Stat_VerifyFailure time.Duration = -1
-    Stat_OperationFailure           = -2
+    Stat_OperationFailure            = -2
 )
 
 
