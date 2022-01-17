@@ -26,7 +26,7 @@ func (s *StatSummary) Add(other *StatSummary) {
 
 
 /* Helper to convert values into to K, G, M etc. units */
-func toUnits(val uint64) string {
+func ToUnits(val uint64) string {
     const unit = 1024
 
     if val < unit {
@@ -61,7 +61,7 @@ func (s *StatSummary) String(objectSize uint64) string {
             ops := s[i][SE_None]
             ofail := s[i][SE_OperationFailure]
             vfail := s[i][SE_VerifyFailure]
-            bw := toUnits(ops * objectSize * 8)
+            bw := ToUnits(ops * objectSize * 8)
 
             result += fmt.Sprintf("[%v] ops: %v,  bw: %vb/s,  ofail: %v,  vfail: %v ", phase, ops, bw, ofail, vfail)
         }
@@ -194,7 +194,7 @@ type Analysis struct {
 func (a *Analysis) String() string {
     return fmt.Sprintf("%-28v   bandwidth: %7vb/s,  ok: %6v,  fail: %6v,  res-min: %5v ms,  res-max: %5v ms,  res-95: %6v ms, res-avg: %6v ms",
         a.Name,
-        toUnits(a.Bandwidth),
+        ToUnits(a.Bandwidth),
         a.Successes,
         a.Failures,
         a.ResTimeMin / (1000 * 1000),

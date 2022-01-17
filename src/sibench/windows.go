@@ -160,3 +160,13 @@ func NewRadosConnection(target string, protocol ProtocolConfig, worker WorkerCon
 func NewRbdConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (Connection, error) {
 	return nil, fmt.Errorf("rbd not implemented on %q", runtime.GOOS)
 }
+
+
+/*
+ * Returns the number of bytes of physical memory in the system, or 0 if we are unable to determine it.
+ */
+func GetPhysicalMemorySize() uint64 {
+    // XXX Need to work this out on Windows!
+    return 0
+}
+

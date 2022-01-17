@@ -75,8 +75,8 @@ type Arguments struct {
 
     // Synthesized options
     Bucket string
-    BandwidthInBytes uint64
-    SizeInBytes uint64
+    BandwidthInBits uint64
+    SizeInBits uint64
 }
 
 
@@ -233,17 +233,17 @@ func validateArguments(args *Arguments) error {
     }
 
     var err error
-    args.SizeInBytes, err = expandUnits(args.Size)
+    args.SizeInBits, err = expandUnits(args.Size)
     if err != nil {
         return err
     }
 
-    args.BandwidthInBytes, err = expandUnits(args.Bandwidth)
+    args.BandwidthInBits, err = expandUnits(args.Bandwidth)
     if err != nil {
         return err
     }
 
-    args.BandwidthInBytes /= 8
+    args.BandwidthInBits /= 8
 
     switch args.Verbosity {
         case "off":
@@ -322,12 +322,12 @@ func startRun(args *Arguments) {
     j.rampDown = uint64(args.RampDown)
 
     j.order.JobId = 1
-    j.order.ObjectSize = args.SizeInBytes
+    j.order.ObjectSize = args.SizeInBits
     j.order.Seed = uint64(time.Now().Unix())
     j.order.RangeStart = 0
     j.order.RangeEnd = uint64(args.Objects)
     j.order.Targets = args.Targets
-    j.order.Bandwidth = args.BandwidthInBytes
+    j.order.Bandwidth = args.BandwidthInBits
     j.order.WorkerFactor = args.Workers
     j.order.SkipReadValidation = args.FastMode
     j.order.GeneratorType = args.Generator

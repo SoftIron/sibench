@@ -24,6 +24,7 @@ const(
     Op_Hung = "Hung"
 
     // Opcodes used between Foreman<->Manager
+    Op_Discovery = "Discovery"
     Op_StatDetails = "StatDetails"
     Op_StatDetailsDone = "StatDetailsDone"
     Op_StatSummaryStart = "StatSummaryStart"
@@ -96,6 +97,13 @@ type Stat struct {
     Error StatError
     Server string
     Target string
+}
+
+
+type Discovery struct {
+    ServerName string
+    Cores uint64
+    Ram uint64
 }
 
 
