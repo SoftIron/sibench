@@ -386,8 +386,8 @@ func (m *Manager) sendJobToServers() error {
         rangeStart = o.RangeEnd
 
         // Check if we should warn about memory usage for this server
-        if (o.RangeEnd - o.RangeStart) * o.ObjectSize > (d.Ram * 8 / 10) {
-            hostsWithLowRam = append(hostsWithLowRam, o.ServerName) 
+        if ((o.RangeEnd - o.RangeStart) * o.ObjectSize) * 10 > (d.Ram * 8) {
+            hostsWithLowRam = append(hostsWithLowRam, o.ServerName)
         }
 
         // Tell the server to connect...
@@ -399,15 +399,20 @@ func (m *Manager) sendJobToServers() error {
     if len(hostsWithLowRam) > 0 {
         logger.Warnf("--------------------------------------------------------------------\n")
         logger.Warnf("\n")
-        logger.Warnf("The job will take more than 80%% of the RAM on the following hosts:\n")
+        logger.Warnf("The job may take large proportion of the RAM on the following hosts:\n")
 
         for _, host := range(hostsWithLowRam) {
             logger.Warnf("    %v\n", host)
         }
 
         logger.Warnf("\n")
-        logger.Warnf("This may results in swapping (which will make the benchmarks invalid),\n")
+        logger.Warnf("This may result in swapping (which will make the benchmarks invalid),\n")
         logger.Warnf("Or the OS may choose to kill the sibench daemon without warning.\n")
+        logger.Warnf("\n")
+        logger.Warnf("(Note: it is not sibench itself using large amounts of RAM - in fact\n")
+        logger.Warnf("it keeps almost nothing in memory = but some of the ceph libraries\n")
+        logger.Warnf("DO seem to hold on to large amounts of memory for longer than they\n")
+        logger.Warnf("should).\n")
         logger.Warnf("\n")
         logger.Warnf("--------------------------------------------------------------------\n")
     }

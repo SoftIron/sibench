@@ -31,7 +31,7 @@ type Arguments struct {
     Block bool
     File bool
     Run bool
-    FastMode bool
+    SkipReadVerification bool
 
     // Common options
     Verbosity string
@@ -86,35 +86,35 @@ func usage() string {
 Usage:
   sibench version
   sibench server     [-v LEVEL] [-p PORT] [-m DIR]
-  sibench s3 run     [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+  sibench s3 run     [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] 
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--servers SERVERS] <targets> ...
+                     [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)`
 
     if runtime.GOOS == "linux" {
         s += ` 
-  sibench rados run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+  sibench rados run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] 
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--servers SERVERS] <targets> ...
+                     [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
-  sibench cephfs run [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE] 
+  sibench cephfs run [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] 
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [-m DIR] [--servers SERVERS] <targets> ...
+                     [-m DIR] [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
-  sibench rbd run    [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+  sibench rbd run    [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--servers SERVERS] <targets> ...
+                     [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)`
     }
 
     s += ` 
-  sibench block run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+  sibench block run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--servers SERVERS] 
+                     [--skip-read-verification] [--servers SERVERS] 
                      [--block-device DEVICE]
-  sibench file run   [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-f] [-j FILE]
+  sibench file run   [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--servers SERVERS] 
+                     [--skip-read-verification] [--servers SERVERS] 
                      [--file-dir DIR]
   sibench -h | --help
 
@@ -130,9 +130,9 @@ Options:
   -d TIME, --ramp-down TIME    Seconds at the end of each phase where we don't record data.     [default: 2]
   -j FILE, --json-output FILE  The file to which we write our json results.                     [default: sibench.json]
   -w FACTOR, --workers FACTOR  Number of workers per server as a factor x number of CPU cores   [default: 1.0]
-  -f, --fast-mode              Disable validation on reads (for when sibench CPU is a limit).
   -b BW, --bandwidth BW        Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
   -g GEN, --generator GEN      Which object generator to use: "prng" or "slice"                 [default: prng]
+  --skip-read-verification     Disable validation on reads (for when sibench CPU is a limit).
   --servers SERVERS            A comma-separated list of sibench servers to connect to.         [default: localhost]
   --s3-port PORT               The port on which to connect to S3.                              [default: 7480]
   --s3-bucket BUCKET           The name of the bucket we wish to use for S3 operations.         [default: sibench]
@@ -329,7 +329,7 @@ func startRun(args *Arguments) {
     j.order.Targets = args.Targets
     j.order.Bandwidth = args.BandwidthInBits
     j.order.WorkerFactor = args.Workers
-    j.order.SkipReadValidation = args.FastMode
+    j.order.SkipReadValidation = args.SkipReadVerification
     j.order.GeneratorType = args.Generator
 
     // Determine our generator configuration.
