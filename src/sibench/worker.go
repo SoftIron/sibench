@@ -21,7 +21,6 @@ const (
     WS_PrepareDone
     WS_Read
     WS_ReadDone
-    WS_Failed
     WS_Terminated
 )
 
@@ -38,7 +37,6 @@ func workerStateToStr(state workerState) string {
         case WS_PrepareDone:    return "PrepareDone"
         case WS_Read:           return "Reading"
         case WS_ReadDone:       return "ReadingDone"
-        case WS_Failed:         return "Failed"
         case WS_Terminated:     return "Terminated"
         default:                return "UnknownState"
     }
@@ -52,13 +50,13 @@ func workerStateToStr(state workerState) string {
  * which in this case is BadTransition. 
  */
 var validWSTransitions = map[Opcode]map[workerState]workerState {
-    Op_Connect:     { WS_Init:           WS_Connect },
-    Op_WriteStart:  { WS_ConnectDone:    WS_Write },
-    Op_WriteStop:   { WS_Write:          WS_WriteDone },
-    Op_Prepare:     { WS_WriteDone:      WS_Prepare },
-    Op_ReadStart:   { WS_PrepareDone:    WS_Read },
-    Op_ReadStop:    { WS_Read:           WS_ReadDone },
-    Op_Terminate:   { WS_Init:           WS_Terminated,
+    OP_Connect:     { WS_Init:           WS_Connect },
+    OP_WriteStart:  { WS_ConnectDone:    WS_Write },
+    OP_WriteStop:   { WS_Write:          WS_WriteDone },
+    OP_Prepare:     { WS_WriteDone:      WS_Prepare },
+    OP_ReadStart:   { WS_PrepareDone:    WS_Read },
+    OP_ReadStop:    { WS_Read:           WS_ReadDone },
+    OP_Terminate:   { WS_Init:           WS_Terminated,
                       WS_Connect:        WS_Terminated,
                       WS_ConnectDone:    WS_Terminated,
                       WS_Write:          WS_Terminated,
@@ -67,7 +65,7 @@ var validWSTransitions = map[Opcode]map[workerState]workerState {
                       WS_PrepareDone:    WS_Terminated,
                       WS_Read:           WS_Terminated,
                       WS_ReadDone:       WS_Terminated,
-                      WS_Failed:         WS_Terminated },
+                      WS_Terminated:     WS_Terminated },
 }
 
 
@@ -82,7 +80,13 @@ const (
 
 
 
-/* A WorkerResponse reports the error from an opcode, which is nil if the opcode succeeded. */
+const HangTimeoutSecs = 90
+
+
+
+/*
+ * WorkerResponse reports the error from an opcode, which is nil if the opcode succeeded. 
+ */
 type WorkerResponse struct {
     WorkerId uint64
     Op Opcode
@@ -149,25 +153,18 @@ func (w *Worker) Id() uint64 {
 }
 
 
-func (w *Worker) sendResponse(op Opcode, err error) {
-    logger.Debugf("[worker %v] sending Response: %v, %v\n", w.spec.Id, op, err)
-    w.spec.ResponseChannel <- &WorkerResponse{ WorkerId: w.spec.Id, Op: op, Error: err }
-}
-
-
 func (w *Worker) eventLoop() {
     for w.state != WS_Terminated {
         select {
             case op := <-w.spec.OpChannel: w.handleOpcode(op)
-            default: // default is needed to prevent blocking when there's no opcode to process.
-        }
 
-        switch w.state {
-            case WS_Connect:  w.connect()
-            case WS_Write:    w.write()
-            case WS_Prepare:  w.prepare()
-            case WS_Read:     w.read()
-            default:
+            default: switch w.state {
+                case WS_Connect:  w.connect()
+                case WS_Write:    w.write()
+                case WS_Prepare:  w.prepare()
+                case WS_Read:     w.read()
+                default:
+            }
         }
     }
 
@@ -185,9 +182,7 @@ func (w *Worker) handleOpcode(op Opcode) {
     // See if the Opcode is valid in our current state.
     nextState := validWSTransitions[op][w.state]
     if nextState == WS_BadTransition {
-        logger.Errorf("[worker %v] handleOpcode: bad transition from state %v\n", w.spec.Id, workerStateToStr(w.state))
-        w.sendResponse(op, fmt.Errorf("Bad state transition"))
-        w.setState(WS_Failed)
+        w.fail(fmt.Errorf("[worker %v] handleOpcode: bad transition from state %v on opcode %v", w.spec.Id, workerStateToStr(w.state), op))
         return
     }
 
@@ -195,7 +190,7 @@ func (w *Worker) handleOpcode(op Opcode) {
     // them when they have actually completed their work.
     // The rest of the opcodes take place immediately, so we can respond with acknowledgement here.
 
-    if (op != Op_Connect) && (op != Op_Prepare) {
+    if (op != OP_Connect) && (op != OP_Prepare) {
         w.sendResponse(op, nil)
     }
 
@@ -205,7 +200,29 @@ func (w *Worker) handleOpcode(op Opcode) {
 }
 
 
+func (w *Worker) sendResponse(op Opcode, err error) {
+    logger.Debugf("[worker %v] sending Response: %v, %v\n", w.spec.Id, op, err)
+    w.spec.ResponseChannel <- &WorkerResponse{ WorkerId: w.spec.Id, Op: op, Error: err }
+}
+
+
+func (w *Worker) fail(err error) {
+    w.state = WS_Terminated
+    logger.Errorf("%v\n", err.Error())
+    w.sendResponse(OP_Fail, err)
+}
+
+
+func (w *Worker) hung(err error) {
+    w.state = WS_Terminated
+    logger.Errorf("%v\n", err.Error())
+    w.sendResponse(OP_Hung, err)
+}
+
+
 func (w *Worker) connect() {
+    w.setState(WS_ConnectDone)
+
     for _, t := range w.order.Targets {
         conn, err := NewConnection(w.order.ConnectionType, t, w.order.ProtocolConfig, w.spec.ConnConfig)
         if err == nil {
@@ -213,19 +230,15 @@ func (w *Worker) connect() {
         }
 
         if err != nil {
-            logger.Errorf("[worker %v] failure during connect to %v: %v\n", w.spec.Id, t, err)
-            w.setState(WS_Failed)
-            w.sendResponse(Op_Connect, err)
+            w.fail(fmt.Errorf("[worker %v] failure during connect to %v: %v", w.spec.Id, t, err))
             return
         }
-
 
         w.connections = append(w.connections, conn)
     }
 
     logger.Debugf("[worker %v] successfully connected\n", w.spec.Id)
-    w.setState(WS_ConnectDone)
-    w.sendResponse(Op_Connect, nil)
+    w.sendResponse(OP_Connect, nil)
 }
 
 
@@ -234,10 +247,29 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     contents := w.generator.Generate(w.order.ObjectSize, key, w.cycle)
     conn := w.connections[w.connIndex]
 
-    // Actually do the PUT
-    start := time.Now()
-    err := conn.PutObject(key, w.objectIndex, contents)
-    end := time.Now()
+    var err error
+    var start time.Time
+    var end time.Time
+    done := make(chan bool, 1)
+
+    go func() {
+        start = time.Now()
+        err = conn.PutObject(key, w.objectIndex, contents)
+        end = time.Now()
+        done <- true
+    }()
+
+    // See which happens first: a result, or a timeout.
+    select {
+        case <-time.After(HangTimeoutSecs * time.Second):
+            // We can't tell if this is a slow operation or a hang in a ceph library, so assume the worst.
+            w.hung(fmt.Errorf("[worker %v] Timeout on write to %v", w.spec.Id, conn.Target()))
+            return
+
+        case <-done:
+            logger.Tracef("[worker %v] completed write\n", w.spec.Id)
+
+    }
 
     var s Stat
     s.Error = SE_None
@@ -279,7 +311,7 @@ func (w *Worker) prepare() {
     if w.cycle > 0 {
         w.invalidateConnectionCaches()
         w.setState(WS_PrepareDone)
-        w.sendResponse(Op_Prepare, nil)
+        w.sendResponse(OP_Prepare, nil)
         return
     }
 
@@ -293,12 +325,30 @@ func (w *Worker) read() {
     key := fmt.Sprintf("obj_%v", w.objectIndex)
     conn := w.connections[w.connIndex]
 
-    // logger.Debugf(" [worker %v] getting object<%v> from %v\n", w.spec.Id, key, conn.Target())
+    var err error
+    var contents []byte
+    var start time.Time
+    var end time.Time
+    done := make(chan bool, 1)
 
-    // Actually do the GET
-    start := time.Now()
-    contents, err := conn.GetObject(key, w.objectIndex)
-    end := time.Now()
+    go func() {
+        start = time.Now()
+        contents, err = conn.GetObject(key, w.objectIndex)
+        end = time.Now()
+        done <- true
+    }()
+
+    // See which happens first: a result, or a timeout.
+    select {
+        case <-time.After(HangTimeoutSecs * time.Second):
+            // We can't tell if this is a slow operation or a hang in a ceph library, so assume the worst.
+            w.hung(fmt.Errorf("[worker %v] Timeout on read from %v", w.spec.Id, conn.Target()))
+            return
+
+        case <-done:
+            logger.Tracef("[worker %v] completed read\n", w.spec.Id)
+
+    }
 
     var s Stat
     s.Error = SE_None

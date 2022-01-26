@@ -90,14 +90,14 @@ func (m *Manager) Run(j *Job) error {
 
     // Write
     logger.Infof("\n----------------------- WRITE -----------------------------\n")
-    err = m.runPhase(phaseTime, Op_WriteStart, Op_WriteStop)
+    err = m.runPhase(phaseTime, OP_WriteStart, OP_WriteStop)
     if err != nil {
         logger.Errorf("Failure during write phase: %v\n", err)
         return err
     }
 
     // Prepare
-    m.sendOpToServers(Op_Prepare, true)
+    m.sendOpToServers(OP_Prepare, true)
     if err != nil {
         logger.Errorf("Failure during prepare phase: %v\n", err)
         return err
@@ -105,7 +105,7 @@ func (m *Manager) Run(j *Job) error {
 
     // Read
     logger.Infof("\n----------------------- READ ------------------------------\n")
-    err = m.runPhase(phaseTime, Op_ReadStart, Op_ReadStop)
+    err = m.runPhase(phaseTime, OP_ReadStart, OP_ReadStop)
     if err != nil {
         logger.Errorf("Failure during read phase: %v\n", err)
         return err
@@ -124,7 +124,7 @@ func (m *Manager) Run(j *Job) error {
 
     // Terminate
     logger.Infof("\n")
-    err = m.sendOpToServers(Op_Terminate, true)
+    err = m.sendOpToServers(OP_Terminate, true)
     if err != nil {
         logger.Errorf("Failure sending terminate message to servers: %v\n", err)
         return err
@@ -139,7 +139,7 @@ func (m *Manager) Run(j *Job) error {
  * If waitForResponse is true, then we block until all the servers have responded.
  */
 func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) error {
-    if m.isInterrupted && (op != Op_Terminate) {
+    if m.isInterrupted && (op != OP_Terminate) {
         return nil
     }
 
@@ -158,6 +158,22 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) error {
 }
 
 
+/*
+ * Check if an incoming message is an error type, and convert it to error if so.
+ */
+func checkError(msg comms.ReceivedMessage) error {
+    op := Opcode(msg.ID())
+
+    if (op != OP_Fail) && (op != OP_Hung) {
+        return nil
+    }
+
+    var resp ForemanGenericResponse
+    msg.Data(&resp)
+    return fmt.Errorf("%v:%v", resp.Hostname, resp.Error)
+}
+
+
 /* 
  * When we have complete a phase (or the whole run!) we can ask the servers to 
  * send us all the detailed stats that they have been collecting (and to then
@@ -173,7 +189,7 @@ func (m* Manager) drainStats() error {
         return nil
     }
 
-    err := m.sendOpToServers(Op_StatDetails, false)
+    err := m.sendOpToServers(OP_StatDetails, false)
     if err != nil {
         return err
     }
@@ -185,25 +201,29 @@ func (m* Manager) drainStats() error {
         select {
             case msgInfo := <-m.msgChannel:
                 if msgInfo.Error != nil {
-                    return fmt.Errorf("Failure: %v\n", msgInfo.Error)
+                    return fmt.Errorf("Transport failure: %v\n", msgInfo.Error)
                 }
 
                 msg := msgInfo.Message
-                op := Opcode(msg.ID())
+                err := checkError(msg)
+                if err != nil {
+                    return err
+                }
 
                 // We can ignore anything except StatDetail
 
+                op := Opcode(msg.ID())
                 switch op {
-                    case Op_StatDetails:
+                    case OP_StatDetails:
                         s := new(Stat)
                         msg.Data(s)
                         m.job.addStat(s)
                         count++
 
-                    case Op_StatDetailsDone:
+                    case OP_StatDetailsDone:
                         pending--
 
-                    case Op_StatSummary:
+                    case OP_StatSummary:
                         // Ignore this - we just received one a bit later than expected.
 
                     default:
@@ -234,7 +254,7 @@ func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) error {
     }
 
     m.sendOpToServers(startOp, true)
-    m.sendOpToServers(Op_StatSummaryStart, true)
+    m.sendOpToServers(OP_StatSummaryStart, true)
 
     timer := time.NewTimer(time.Duration(secs + 1) * time.Second)
     ticker := time.NewTicker(time.Second)
@@ -249,13 +269,17 @@ func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) error {
                     if msgInfo.Error == io.EOF {
                         return fmt.Errorf("Received remote close from %v\n", msgInfo.Connection.RemoteIP())
                     }
-                    return fmt.Errorf("%v\n", msgInfo.Error)
+                    return fmt.Errorf("Transport failure: %v\n", msgInfo.Error)
                 }
 
                 msg := msgInfo.Message
-                op := Opcode(msg.ID())
+                err := checkError(msg)
+                if err != nil {
+                    return err
+                }
 
-                if op != Op_StatSummary {
+                op := Opcode(msg.ID())
+                if op != OP_StatSummary {
                     return fmt.Errorf("Unexpected opcode %v\n", op)
                 }
 
@@ -276,7 +300,7 @@ func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) error {
 
             case <-timer.C:
                 ticker.Stop()
-                err := m.sendOpToServers(Op_StatSummaryStop, true)
+                err := m.sendOpToServers(OP_StatSummaryStop, true)
                 if err != nil {
                     return err
                 }
@@ -318,14 +342,16 @@ func (m *Manager) waitForResponses(expectedOp Opcode) error {
         }
 
         msg := msgInfo.Message
+        err := checkError(msg)
+        if err != nil {
+            return err
+        }
+
         op := Opcode(msg.ID())
 
         if op == expectedOp {
             var resp ForemanGenericResponse
             msg.Data(&resp)
-            if resp.Error != "" {
-                return fmt.Errorf("Failure on %v: %v\n", resp.Hostname, resp.Error)
-            }
 
             pending--
             if pending == 0 {
@@ -334,7 +360,7 @@ func (m *Manager) waitForResponses(expectedOp Opcode) error {
             }
 
             logger.Debugf("Received %v, still waiting for %v more\n", op, pending)
-        } else if op != Op_StatSummary {
+        } else if op != OP_StatSummary {
             // Stat Summary messages can arrive later than expected because they're asynchronous.  
             // If we see one when we don't want one, we just drop it.  
             // All other unexpected opcodes are an error.
@@ -392,7 +418,7 @@ func (m *Manager) sendJobToServers() error {
 
         // Tell the server to connect...
         logger.Debugf("Sending job to %s with start: %v, end: %v, bandwidth: %v\n", o.ServerName, o.RangeStart, o.RangeEnd, o.Bandwidth)
-        conn.Send(Op_Connect, &o)
+        conn.Send(OP_Connect, &o)
     }
 
     // Check if we should warn about hosts with low RAM
@@ -417,7 +443,7 @@ func (m *Manager) sendJobToServers() error {
         logger.Warnf("--------------------------------------------------------------------\n")
     }
 
-    return m.waitForResponses(Op_Connect)
+    return m.waitForResponses(OP_Connect)
 }
 
 
@@ -430,7 +456,7 @@ func (m *Manager) discoverServerCapabilities() error {
     for _, conn := range m.msgConns {
         var d Discovery
         d.ServerName = m.connToServerName[conn]
-        conn.Send(Op_Discovery, &d)
+        conn.Send(OP_Discovery, &d)
     }
 
     m.serverNameToDiscovery = make(map[string]Discovery)
@@ -449,7 +475,7 @@ func (m *Manager) discoverServerCapabilities() error {
         msg := msgInfo.Message
 
         op := Opcode(msg.ID())
-        if op != Op_Discovery {
+        if op != OP_Discovery {
             return fmt.Errorf("Unexpected Opcode received: expected Discovery but got %v\n", op)
         }
 

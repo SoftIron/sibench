@@ -33,6 +33,7 @@ const(
     FS_ReadStop
     FS_ReadStopDone
     FS_Terminate
+    FS_Hung
 )
 
 
@@ -54,6 +55,7 @@ func foremanStateToStr(state foremanState) string {
         case FS_ReadStop:           return "ReadStop"
         case FS_ReadStopDone:       return "ReadStopDone"
         case FS_Terminate:          return "Terminate"
+        case FS_Hung:               return "Hung"
         default:                    return "UnknownState"
     }
 }
@@ -66,17 +68,17 @@ func foremanStateToStr(state foremanState) string {
  * which in this case is BadTransition. 
  */
 var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
-    Op_Discovery:           { FS_Idle:              FS_Idle },
-    Op_Connect:             { FS_Idle:              FS_Connect },
-    Op_WriteStart:          { FS_ConnectDone:       FS_WriteStart },
-    Op_WriteStop:           { FS_WriteStartDone:    FS_WriteStop },
-    Op_Prepare:             { FS_WriteStopDone:     FS_Prepare },
-    Op_ReadStart:           { FS_PrepareDone:       FS_ReadStart },
-    Op_ReadStop:            { FS_ReadStartDone:     FS_ReadStop },
-    Op_StatDetails:         { FS_WriteStopDone:     FS_WriteStopDone,
+    OP_Discovery:           { FS_Idle:              FS_Idle },
+    OP_Connect:             { FS_Idle:              FS_Connect },
+    OP_WriteStart:          { FS_ConnectDone:       FS_WriteStart },
+    OP_WriteStop:           { FS_WriteStartDone:    FS_WriteStop },
+    OP_Prepare:             { FS_WriteStopDone:     FS_Prepare },
+    OP_ReadStart:           { FS_PrepareDone:       FS_ReadStart },
+    OP_ReadStop:            { FS_ReadStartDone:     FS_ReadStop },
+    OP_StatDetails:         { FS_WriteStopDone:     FS_WriteStopDone,
                               FS_PrepareDone:       FS_PrepareDone,
                               FS_ReadStopDone:      FS_ReadStopDone },
-    Op_StatSummaryStart:    { FS_WriteStart:        FS_WriteStart,
+    OP_StatSummaryStart:    { FS_WriteStart:        FS_WriteStart,
                               FS_WriteStartDone:    FS_WriteStartDone,
                               FS_WriteStop:         FS_WriteStop,
                               FS_WriteStopDone:     FS_WriteStopDone,
@@ -86,7 +88,7 @@ var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
                               FS_ReadStartDone:     FS_ReadStartDone,
                               FS_ReadStop:          FS_ReadStop,
                               FS_ReadStopDone:      FS_ReadStopDone },
-    Op_StatSummaryStop:     { FS_WriteStart:        FS_WriteStart,
+    OP_StatSummaryStop:     { FS_WriteStart:        FS_WriteStart,
                               FS_WriteStartDone:    FS_WriteStartDone,
                               FS_WriteStop:         FS_WriteStop,
                               FS_WriteStopDone:     FS_WriteStopDone,
@@ -96,7 +98,7 @@ var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
                               FS_ReadStartDone:     FS_ReadStartDone,
                               FS_ReadStop:          FS_ReadStop,
                               FS_ReadStopDone:      FS_ReadStopDone },
-    Op_Terminate:           { FS_Idle:              FS_Terminate,
+    OP_Terminate:           { FS_Idle:              FS_Terminate,
                               FS_Connect:           FS_Terminate,
                               FS_ConnectDone:       FS_Terminate,
                               FS_WriteStart:        FS_Terminate,
@@ -108,20 +110,36 @@ var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
                               FS_ReadStart:         FS_Terminate,
                               FS_ReadStartDone:     FS_Terminate,
                               FS_ReadStop:          FS_Terminate,
-                              FS_ReadStopDone:      FS_Terminate },
+                              FS_ReadStopDone:      FS_Terminate,
+                              FS_Terminate:         FS_Terminate,
+                              FS_Hung:              FS_Hung },
 }
 
 /*
  * The same, but for transitions triggered by Worker responses.
  */
 var validWorkerTransitions = map[Opcode]map[foremanState]foremanState {
-    Op_Connect:     { FS_Connect:           FS_ConnectDone },
-    Op_WriteStart:  { FS_WriteStart:        FS_WriteStartDone },
-    Op_WriteStop:   { FS_WriteStop:         FS_WriteStopDone },
-    Op_Prepare:     { FS_Prepare:           FS_PrepareDone },
-    Op_ReadStart:   { FS_ReadStart:         FS_ReadStartDone },
-    Op_ReadStop:    { FS_ReadStop:          FS_ReadStopDone },
-    Op_Terminate:   { FS_Terminate:         FS_Idle },
+    OP_Connect:     { FS_Connect:           FS_ConnectDone },
+    OP_WriteStart:  { FS_WriteStart:        FS_WriteStartDone },
+    OP_WriteStop:   { FS_WriteStop:         FS_WriteStopDone },
+    OP_Prepare:     { FS_Prepare:           FS_PrepareDone },
+    OP_ReadStart:   { FS_ReadStart:         FS_ReadStartDone },
+    OP_ReadStop:    { FS_ReadStop:          FS_ReadStopDone },
+    OP_Terminate:   { FS_Terminate:         FS_Idle },
+    OP_Fail:        { FS_Connect:           FS_Terminate,
+                      FS_WriteStart:        FS_Terminate,
+                      FS_WriteStop:         FS_Terminate,
+                      FS_Prepare:           FS_Terminate,
+                      FS_ReadStart:         FS_Terminate,
+                      FS_ReadStop:          FS_Terminate,
+                      FS_Terminate:         FS_Terminate },
+    OP_Hung:        { FS_Connect:           FS_Hung,
+                      FS_WriteStart:        FS_Hung,
+                      FS_WriteStop:         FS_Hung,
+                      FS_Prepare:           FS_Hung,
+                      FS_ReadStart:         FS_Hung,
+                      FS_ReadStop:          FS_Hung,
+                      FS_Terminate:         FS_Hung },
 }
 
 
@@ -150,10 +168,10 @@ type WorkerInfo struct {
  * executes them by farming our the actual work to a horde of Workers.
  *
  * Foremen only work on one TCP connection at a time.  If any other managers attempt
- * to connect, then they will be handed a Op_Busy message and then connection will be 
+ * to connect, then they will be handed a OP_Busy message and then connection will be 
  * closed.
  *
- * When a Foreman accepts a new WorkOrder from a Manager (sent as part of an Op_Connect
+ * When a Foreman accepts a new WorkOrder from a Manager (sent as part of an OP_Connect
  * message), it spins up a set of Workers.  We have choose the number of workers based
  * on the number of CPU cores of the box that the Foreman is running on.  Typically we
  * do not create more than a dozen or two workers; we do not attempt to get maximum
@@ -196,10 +214,7 @@ type Foreman struct {
     nextWorkerId uint64
 
     /* How many workers have yet to respond to the last opcode we sent them */
-    pendingResponses int
-
-    /* The first error we see when receiving responses from our workers */
-    responseError error
+    responsePending int
 
     /* Our current state. */
     state foremanState
@@ -258,14 +273,14 @@ func (f *Foreman) handleNewTcpConnection(conn *comms.MessageConnection) {
     // If we aready already have a connection then tell the new one we're busy.
     if f.tcpConnection != nil {
         logger.Warnf("Rejecting connection: already busy\n");
-        conn.Send(Op_Busy, nil)
+        conn.Send(OP_Busy, nil)
         conn.Close()
         return
     }
 
     // We're not busy - tell the connection to deliver messages to us over a channel.
     f.tcpConnection = conn
-    f.tcpMessageChannel = make(chan *comms.ReceivedMessageInfo)
+    f.tcpMessageChannel = make(chan *comms.ReceivedMessageInfo, 2)
     conn.ReceiveToChannel(f.tcpMessageChannel)
 }
 
@@ -317,20 +332,20 @@ func (f *Foreman) handleTcpMsg(msgInfo *comms.ReceivedMessageInfo) {
     // Type assertions on msg.Data are done without checking since it is generated by the TCP unmarshaller, which already checks.
 
     switch op {
-        case Op_Discovery:
+        case OP_Discovery:
             var d Discovery
             msg.Data(&d)
             d.Cores = uint64(runtime.NumCPU())
             d.Ram = GetPhysicalMemorySize()
-            f.tcpConnection.Send(Op_Discovery, d)
+            f.tcpConnection.Send(OP_Discovery, d)
 
-        case Op_Connect:
+        case OP_Connect:
             msg.Data(&f.order)
             f.connect()
 
-        case Op_StatDetails:       f.setStatControl(SC_SendDetails)
-        case Op_StatSummaryStart:  f.setStatControl(SC_StartSummaries)
-        case Op_StatSummaryStop:   f.setStatControl(SC_StopSummaries)
+        case OP_StatDetails:       f.setStatControl(SC_SendDetails)
+        case OP_StatSummaryStart:  f.setStatControl(SC_StartSummaries)
+        case OP_StatSummaryStop:   f.setStatControl(SC_StopSummaries)
 
         default:
             f.setState(nextState)
@@ -348,8 +363,19 @@ func (f *Foreman) handleTcpMsg(msgInfo *comms.ReceivedMessageInfo) {
  * operation and change our state.
  */
 func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
-    if (f.state == FS_Terminate) && (resp.Op != Op_Terminate) {
+    if resp.Op == OP_Fail {
+        f.fail(resp.Error)
+        return
+    }
+
+    if resp.Op == OP_Hung {
+        f.hung(resp.Error)
+        return
+    }
+
+    if (f.state == FS_Terminate) && (resp.Op != OP_Terminate) {
         logger.Debugf("Ignoring worker response (%v) as we are terminating\n", resp.Op)
+        return
     }
 
     // Check if this is a bad message.
@@ -359,15 +385,11 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
         return
     }
 
-    f.pendingResponses--
-    if f.responseError == nil {
-        f.responseError = resp.Error
-    }
+    f.responsePending--
 
-    if f.pendingResponses == 0 {
-        // This was the last worker to complete the op.
+    if f.responsePending == 0 {
         f.setState(nextState)
-        f.sendResponseToManager(resp.Op, f.responseError)
+        f.sendOpcodeToManager(resp.Op, nil)
     }
 }
 
@@ -453,13 +475,12 @@ func (f *Foreman) connect() {
 
     // We're all good.  Time to connect.
     f.setState(FS_Connect)
-    f.sendOpcodeToWorkers(Op_Connect)
+    f.sendOpcodeToWorkers(OP_Connect)
 }
 
 
 /* Send a response to an opcode back to our manager */
-func (f *Foreman) sendResponseToManager(op Opcode, err error) {
-
+func (f *Foreman) sendOpcodeToManager(op Opcode, err error) {
     // If our connection died, then don't bother trying to send anything.
     if f.tcpConnection == nil {
         logger.Debugf("No connection: not sending response for %v\n", op)
@@ -468,13 +489,31 @@ func (f *Foreman) sendResponseToManager(op Opcode, err error) {
 
     var resp ForemanGenericResponse
     resp.Hostname = f.order.ServerName
+
     if err != nil {
         resp.Error = err.Error()
     }
 
-    logger.Debugf("Send response to manager: %v, %v\n", op, resp)
+    logger.Debugf("Send response to manager: %v, %v\n", op, err)
 
     f.tcpConnection.Send(string(op), &resp)
+}
+
+
+/* Helper function to terminate the current WorkOrder when we hit a failure */
+func (f *Foreman) fail(err error) {
+    logger.Errorf("Failing with error: %v\n", err)
+    f.sendOpcodeToManager(OP_Fail,  err)
+    f.terminate()
+}
+
+func (f *Foreman) hung(err error) {
+    logger.Errorf("Hung with error: %v\n", err)
+    f.sendOpcodeToManager(OP_Hung,  err)
+    f.terminate()
+
+    logger.Infof("Exiting process to allow daemon to restart\n")
+    os.Exit(-1)
 }
 
 
@@ -483,8 +522,7 @@ func (f *Foreman) sendOpcodeToWorkers(op Opcode) {
     logger.Debugf("Sending op to workers: %v\n", op)
 
     // When we send out this message, we expect to see each of our workers acknowledge it.
-    f.pendingResponses = len(f.workerInfos)
-    f.responseError = nil
+    f.responsePending = len(f.workerInfos)
 
     for _, wi := range f.workerInfos {
         wi.OpChannel <- op
@@ -499,19 +537,11 @@ func (f *Foreman) setState(state foremanState) {
 }
 
 
-/* Helper function to terminate the current WorkOrder when we hit a failure */
-func (f *Foreman) fail(err error) {
-    logger.Errorf("Failing with error: %v\n", err)
-    f.sendResponseToManager(Op_Failed, err)
-    f.terminate()
-}
-
-
 /* Terminate the current WorkOrder, kill our workers and return to the Idle state ready for the 
  * next connection. */
 func (f *Foreman) terminate() {
     f.setState(FS_Terminate)
-    f.sendOpcodeToWorkers(Op_Terminate)
+    f.sendOpcodeToWorkers(OP_Terminate)
 
     // Tell the stats channel to terminate
     logger.Debugf("Waiting for Stats termination\n")
@@ -572,7 +602,7 @@ func processStats(statChannel chan *Stat, controlChannel chan statControl, respo
 
             case <-ticker.C:
                 if sendSummaries {
-                    tcpConnection.Send(Op_StatSummary, summary)
+                    tcpConnection.Send(OP_StatSummary, summary)
                     summary = new(StatSummary)
                 }
 
@@ -580,23 +610,23 @@ func processStats(statChannel chan *Stat, controlChannel chan statControl, respo
                 switch ctl {
                     case SC_SendDetails:
                         for _, s := range stats {
-                            tcpConnection.Send(Op_StatDetails, s)
+                            tcpConnection.Send(OP_StatDetails, s)
                         }
 
                         logger.Debugf("Sent %v detailed stats\n", len(stats))
                         stats = nil
-                        tcpConnection.Send(Op_StatDetailsDone, nil)
+                        tcpConnection.Send(OP_StatDetailsDone, nil)
 
                     case SC_StartSummaries:
                         logger.Debugf("Enabling summaries\n")
                         summary = new(StatSummary)
                         sendSummaries = true
-                        tcpConnection.Send(Op_StatSummaryStart, nil)
+                        tcpConnection.Send(OP_StatSummaryStart, nil)
 
                     case SC_StopSummaries:
                         logger.Debugf("Disabling summaries\n")
                         sendSummaries = false
-                        tcpConnection.Send(Op_StatSummaryStop, nil)
+                        tcpConnection.Send(OP_StatSummaryStop, nil)
 
                     case SC_Terminate:
                         ticker.Stop()

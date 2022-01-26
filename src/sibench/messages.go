@@ -15,36 +15,35 @@ import "time"
  */
 type Opcode string
 const(
-    // Opcodes only used between Foreman->Manager
-    Op_StatSummary = "StatSummary"
-    Op_Busy = "Busy"
-    Op_Failed = "Failed"
+    // Opcodes used between Worker->Foreman and Foreman->Manager.
+    OP_Fail = "Fail"
+    OP_Hung = "Hung"
 
-    // Opcodes used between Worker->Foreman and Foreman->Manager
-    Op_Hung = "Hung"
+    // Opcodes only used between Foreman->Manager
+    OP_StatSummary = "StatSummary"
+    OP_Busy = "Busy"
 
     // Opcodes used between Foreman<->Manager
-    Op_Discovery = "Discovery"
-    Op_StatDetails = "StatDetails"
-    Op_StatDetailsDone = "StatDetailsDone"
-    Op_StatSummaryStart = "StatSummaryStart"
-    Op_StatSummaryStop = "StatSummaryStop"
+    OP_Discovery = "Discovery"
+    OP_StatDetails = "StatDetails"
+    OP_StatDetailsDone = "StatDetailsDone"
+    OP_StatSummaryStart = "StatSummaryStart"
+    OP_StatSummaryStop = "StatSummaryStop"
 
     // Opcodes used bewtween Manager<->Foreman and between Foreman<->Worker
-    Op_Connect = "Connect"
-    Op_WriteStart = "WriteStart"
-    Op_WriteStop = "WriteStop"
-    Op_Prepare = "Prepare"
-    Op_ReadStart = "ReadStart"
-    Op_ReadStop = "ReadStop"
-    Op_Terminate = "Terminate"
+    OP_Connect = "Connect"
+    OP_WriteStart = "WriteStart"
+    OP_WriteStop = "WriteStop"
+    OP_Prepare = "Prepare"
+    OP_ReadStart = "ReadStart"
+    OP_ReadStop = "ReadStop"
+    OP_Terminate = "Terminate"
 )
-
 
 
 /* 
  * Standard response type for all TCP messages from the Foreman to the Manager that don't need special 
- * data (such as Stats).  It is combined with an Opcode to identify which message this is a response too. 
+ * data (such as Stats).  
  */
 type ForemanGenericResponse struct {
     Hostname string
