@@ -37,6 +37,8 @@ const(
     OP_Prepare = "Prepare"
     OP_ReadStart = "ReadStart"
     OP_ReadStop = "ReadStop"
+    OP_ReadWriteStart = "ReadWriteStart"
+    OP_ReadWriteStop = "ReadWriteStop"
     OP_Terminate = "Terminate"
 )
 
@@ -71,6 +73,7 @@ func (sp StatPhase) ToString() string {
 }
 
 
+/* An enum of the types of errors we count for stats purposes. */
 type StatError uint8
 const (
     SE_None = iota
@@ -88,6 +91,7 @@ type StatSummary [SP_Len][SE_Len] uint64
 
 /*
  * The fully-detailed stats that we send on Job completion.
+ * Each stat describes a single operation (such as a single object read or write).
  */
 type Stat struct {
     TimeSincePhaseStart time.Duration
@@ -119,6 +123,7 @@ type WorkOrder struct {
     Bandwidth uint64                // Bytes/s limit, or zero for no limit.
     WorkerFactor float64            // Number of workers to create for each core on a server.
     SkipReadValidation bool         // Whether to skip the validation step when we read objects.
+    ReadWriteMix uint64             // Give the percentage of reads vs writes for combined ops. 
 
     // Object parameters
     ObjectSize uint64               // The size of the objects we read and write

@@ -21,6 +21,8 @@ const (
     WS_PrepareDone
     WS_Read
     WS_ReadDone
+    WS_ReadWrite
+    WS_ReadWriteDone
     WS_Terminated
 )
 
@@ -37,6 +39,8 @@ func workerStateToStr(state workerState) string {
         case WS_PrepareDone:    return "PrepareDone"
         case WS_Read:           return "Reading"
         case WS_ReadDone:       return "ReadingDone"
+        case WS_ReadWrite:      return "ReadWrite"
+        case WS_ReadWriteDone:  return "ReadWriteDone"
         case WS_Terminated:     return "Terminated"
         default:                return "UnknownState"
     }
@@ -50,22 +54,27 @@ func workerStateToStr(state workerState) string {
  * which in this case is BadTransition. 
  */
 var validWSTransitions = map[Opcode]map[workerState]workerState {
-    OP_Connect:     { WS_Init:           WS_Connect },
-    OP_WriteStart:  { WS_ConnectDone:    WS_Write },
-    OP_WriteStop:   { WS_Write:          WS_WriteDone },
-    OP_Prepare:     { WS_WriteDone:      WS_Prepare },
-    OP_ReadStart:   { WS_PrepareDone:    WS_Read },
-    OP_ReadStop:    { WS_Read:           WS_ReadDone },
-    OP_Terminate:   { WS_Init:           WS_Terminated,
-                      WS_Connect:        WS_Terminated,
-                      WS_ConnectDone:    WS_Terminated,
-                      WS_Write:          WS_Terminated,
-                      WS_WriteDone:      WS_Terminated,
-                      WS_Prepare:        WS_Terminated,
-                      WS_PrepareDone:    WS_Terminated,
-                      WS_Read:           WS_Terminated,
-                      WS_ReadDone:       WS_Terminated,
-                      WS_Terminated:     WS_Terminated },
+    OP_Connect:         { WS_Init:           WS_Connect },
+    OP_WriteStart:      { WS_ConnectDone:    WS_Write },
+    OP_WriteStop:       { WS_Write:          WS_WriteDone },
+    OP_Prepare:         { WS_ConnectDone:    WS_Prepare,
+                          WS_WriteDone:      WS_Prepare },
+    OP_ReadStart:       { WS_PrepareDone:    WS_Read },
+    OP_ReadStop:        { WS_Read:           WS_ReadDone },
+    OP_ReadWriteStart:  { WS_PrepareDone:    WS_ReadWrite },
+    OP_ReadWriteStop:   { WS_ReadWrite:      WS_ReadWriteDone },
+    OP_Terminate:       { WS_Init:           WS_Terminated,
+                          WS_Connect:        WS_Terminated,
+                          WS_ConnectDone:    WS_Terminated,
+                          WS_Write:          WS_Terminated,
+                          WS_WriteDone:      WS_Terminated,
+                          WS_Prepare:        WS_Terminated,
+                          WS_PrepareDone:    WS_Terminated,
+                          WS_Read:           WS_Terminated,
+                          WS_ReadDone:       WS_Terminated,
+                          WS_ReadWrite:      WS_Terminated,
+                          WS_ReadWriteDone:  WS_Terminated,
+                          WS_Terminated:     WS_Terminated },
 }
 
 
@@ -159,10 +168,11 @@ func (w *Worker) eventLoop() {
             case op := <-w.spec.OpChannel: w.handleOpcode(op)
 
             default: switch w.state {
-                case WS_Connect:  w.connect()
-                case WS_Write:    w.write()
-                case WS_Prepare:  w.prepare()
-                case WS_Read:     w.read()
+                case WS_Connect:    w.connect()
+                case WS_Write:      w.write()
+                case WS_Prepare:    w.prepare()
+                case WS_Read:       w.read()
+                case WS_ReadWrite:  w.readWrite()
                 default:
             }
         }
@@ -383,6 +393,15 @@ func (w *Worker) read() {
 
     // Advance our connection index ready for next time
     w.connIndex = (w.connIndex + 1) % uint64(len(w.connections))
+}
+
+
+func (w *Worker) readWrite() {
+    if int(w.order.ReadWriteMix) < rand.Intn(100) {
+        w.write()
+    } else {
+        w.read()
+    }
 }
 
 

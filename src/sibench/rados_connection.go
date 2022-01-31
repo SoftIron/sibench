@@ -8,7 +8,9 @@ import "github.com/ceph/go-ceph/rados"
 
 
 
-
+/**
+ * A Connection for talking raw RADOS to a ceph cluster, using the standard Ceph librados native library.
+ */
 type RadosConnection struct {
     monitor string
     protocol ProtocolConfig

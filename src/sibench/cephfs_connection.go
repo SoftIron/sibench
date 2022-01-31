@@ -7,7 +7,9 @@ import "os"
 import "path/filepath"
 
 
-
+/* 
+ * A Connection for testing CephFS
+ */
 type CephFSConnection struct {
     FileConnectionBase
     protocol ProtocolConfig
@@ -36,7 +38,7 @@ func (conn *CephFSConnection) ManagerConnect() error {
         return err
     }
 
-    // This bit looks a bit odd: we close our underlying CephFS connection after creating the directory,
+    // This bit looks rather odd: we close our underlying CephFS connection after creating the directory,
     // rather than just waiting until ManagerClose() is called.
     // The reason we do this is to avoid maintaining multiple CephFS mounts in the kernel. 
     // (Not that there's necessarily a problem in doing that, but let's keep things as lightweight

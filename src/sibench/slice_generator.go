@@ -13,8 +13,8 @@ import "strconv"
 
 /*
  * SliceGenerator is a generator which builds workloads from existing files.  It aims to reproduce
- * the compressibility of those files, whilst still creating an effectively infinite supply of 
- * different objects.
+ * the compressibility characteristics of those files, whilst still creating an effectively infinitei
+ * supply of different objects.
  *
  * It works by taking a directory of files (which will usually be of the same type: source code,
  * VM images, movies, or whatever), and then loading fixed sized slices of bytes

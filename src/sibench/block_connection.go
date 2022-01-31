@@ -7,11 +7,21 @@ import "syscall"
 
 
 
+/**
+ * BlockConnection is for testing generic block performance.
+ *
+ * This is for things like iSCSI, where you do a kernel mount of a block device and then use like a local device.
+ *
+ * This is NOT for things that have their own libraries to access them (like RBD.  You *could* mount RBD with a
+ * kernel driver, but you'll get better functionality using Ceph's RBD go package).
+ */
 type BlockConnection struct {
     device string
     protocol ProtocolConfig
     worker WorkerConnectionConfig
-    fd FileDescriptor           // either an int or a windows.Handle
+
+    /* either a unix file descriptor int or a windows Handle. */
+    fd FileDescriptor
 }
 
 

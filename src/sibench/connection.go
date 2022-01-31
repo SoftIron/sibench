@@ -11,6 +11,8 @@ type Connection interface {
     /* Return the target of this conection, as a convenience for logging an so forth */
     Target() string
 
+    /* The manager will typically open a connection to the backend to test it, and will then
+     * close it before firing up the workers to do their thing. */
     ManagerConnect() error
     ManagerClose() error
 
@@ -24,7 +26,7 @@ type Connection interface {
      * offsets, which are more easily calculated directly from an integer ID number.
      *
      * Key and ID are redundant, but we provide both so that we don't need to do any string
-     * operations inside Put or Get.
+     * operations inside Put or Get (ie, not while we're inside the timed section of the code).
      */
 
     PutObject(key string, id uint64, contents []byte) error

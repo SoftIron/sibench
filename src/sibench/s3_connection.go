@@ -10,6 +10,9 @@ import "logger"
 import "io"
 
 
+/*
+ * A Connection for talking to S3 backend storage (or S3-like, such as Ceph + RadosGateway).
+ */
 type S3Connection struct {
     gateway string
     protocol ProtocolConfig

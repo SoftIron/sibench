@@ -15,7 +15,7 @@ import "syscall"
  * remote filesystem is backed by the cluster under test), but it could be any dir really.
  *
  * FileConnectionBase is not intented to be used directly, but wrapped in a parent Connection
- * that know how to create and tear-down the mount (such as CephFSConnection).   As such
+ * that knows how to create and tear-down the mount (such as CephFSConnection).   As such
  * it doesn't have the ususal connection constructor, or a Target() function.
  */
 type FileConnectionBase struct {

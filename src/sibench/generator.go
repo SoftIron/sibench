@@ -6,15 +6,11 @@ import "fmt"
 /* 
  * Generators create the contents for Objects writes, and can verify the contents
  * from object reads.
- * 
- * Currently we have only the PRNG Generator, but will probably add a Zero Generator
- * which sets data to be all zeroes (as it's cheap and allows us to get more bandwidth
- * from a single Sibench server, when correctness testing isn't required).
  *
- * We may also end up creating a set of generators for different file types: for instance
- * jpeg, mpeg and others, so that we can see how compression performs with different content.
- * (The current PRNG generator will be particularly hard on compression, and a Zero
- * generator would be unreasonably trivial).
+ * Generators should be written so that the data returned by a connection read can 
+ * be verified WITHOUT storing the expected data in memory for comparison.  Typically
+ * this means that the data should be generated algorithmically from a seed written
+ * into (or derivable from) the header of the object.
  */
 type Generator interface {
     /* 

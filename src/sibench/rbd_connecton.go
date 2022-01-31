@@ -8,6 +8,9 @@ import "github.com/ceph/go-ceph/rados"
 import "github.com/ceph/go-ceph/rbd"
 
 
+/*
+ * A Connection for talking to Ceph RBD using the standard Ceph librbd native library.
+ */
 type RbdConnection struct {
     monitor string
     protocol ProtocolConfig

@@ -31,22 +31,23 @@ type Arguments struct {
     Block bool
     File bool
     Run bool
-    SkipReadVerification bool
 
     // Common options
     Verbosity string
     Port int
     MountsDir string
     Size string
-    Objects int
+    Count int
     Servers string
     RunTime int
     RampUp int
     RampDown int
     Bandwidth string
-    JsonOutput string
+    ReadWriteMix int
+    Output string
     Targets []string
     Workers float64
+    SkipReadVerification bool
 
     // S3 options
     S3AccessKey string
@@ -86,68 +87,75 @@ func usage() string {
 Usage:
   sibench version
   sibench server     [-v LEVEL] [-p PORT] [-m DIR]
-  sibench s3 run     [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] 
+  sibench s3 run     [-v LEVEL] [-p PORT] [-o FILE]
+                     [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)`
 
     if runtime.GOOS == "linux" {
         s += ` 
-  sibench rados run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] 
+  sibench rados run  [-v LEVEL] [-p PORT] [-o FILE]
+                     [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
-  sibench cephfs run [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE] 
+  sibench cephfs run [-v LEVEL] [-p PORT] [-o FILE]
+                     [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [-m DIR] [--skip-read-verification] [--servers SERVERS] <targets> ...
-                     [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
-  sibench rbd run    [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE]
+                     [--skip-read-verification] [--servers SERVERS] <targets> ...
+                     [-m DIR] [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
+  sibench rbd run    [-v LEVEL] [-p PORT] [-o FILE]
+                     [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)`
     }
 
     s += ` 
-  sibench block run  [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE]
+  sibench block run  [-v LEVEL] [-p PORT] [-o FILE]
+                     [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--skip-read-verification] [--servers SERVERS] 
                      [--block-device DEVICE]
-  sibench file run   [-v LEVEL] [-p PORT] [-s SIZE] [-o COUNT] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR] [-b BW] [-j FILE]
+  sibench file run   [-v LEVEL] [-p PORT] [-o FILE]
+                     [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
                      [--skip-read-verification] [--servers SERVERS] 
                      [--file-dir DIR]
   sibench -h | --help
 
 Options:
-  -h, --help                   Show full usage
-  -v LEVEL, --verbosity LEVEL  Turn on debug output at level "off", "debug" or "trace"          [default: off]
-  -p PORT, --port PORT         The port on which sibench communicates.                          [default: 5150]
-  -m DIR, --mounts-dir DIR     The directory in which we should create any filesystem mounts.   [default: /tmp/sibench_mnt]
-  -s SIZE, --size SIZE         Object size to test, in units of K or M.                         [default: 1M]
-  -o COUNT, --objects COUNT    The number of objects to use as our working set.                 [default: 1000]
-  -r TIME, --run-time TIME     Seconds spent on each phase of the benchmark.                    [default: 30]
-  -u TIME, --ramp-up TIME      Seconds at the start of each phase where we don't record data.   [default: 5]
-  -d TIME, --ramp-down TIME    Seconds at the end of each phase where we don't record data.     [default: 2]
-  -j FILE, --json-output FILE  The file to which we write our json results.                     [default: sibench.json]
-  -w FACTOR, --workers FACTOR  Number of workers per server as a factor x number of CPU cores   [default: 1.0]
-  -b BW, --bandwidth BW        Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
-  -g GEN, --generator GEN      Which object generator to use: "prng" or "slice"                 [default: prng]
-  --skip-read-verification     Disable validation on reads (for when sibench CPU is a limit).
-  --servers SERVERS            A comma-separated list of sibench servers to connect to.         [default: localhost]
-  --s3-port PORT               The port on which to connect to S3.                              [default: 7480]
-  --s3-bucket BUCKET           The name of the bucket we wish to use for S3 operations.         [default: sibench]
-  --s3-access-key KEY          S3 access key.
-  --s3-secret-key KEY          S3 secret key.
-  --ceph-pool POOL             The pool we use for benchmarking.                                [default: sibench]
-  --ceph-datapool POOL         Optional pool used for RBD.  If set, ceph-pool is for metadata. 
-  --ceph-user USER             The ceph username we use.                                        [default: admin]
-  --ceph-key KEY               The secret key belonging to the ceph user.
-  --ceph-dir DIR               The CephFS directory which we should use for a benchmark.        [default: sibench]
-  --block-device DEVICE        The block device to use for a benchmark.                         [default: /tmp/sibench_block]
-  --file-dir DIR               The directory to use (must already exist).
-  --slice-dir DIR              The directory of files to be sliced up to form new workload objects.
-  --slice-count COUNT          The number of slices to construct for workload generation        [default: 10000]
-  --slice-size BYTES           The size of each slice in bytes.                                 [default: 4096]
+  -h, --help                    Show full usage
+  -v LEVEL, --verbosity LEVEL   Turn on debug output at level "off", "debug" or "trace"          [default: off]
+  -p PORT, --port PORT          The port on which sibench communicates.                          [default: 5150]
+  -m DIR, --mounts-dir DIR      The directory in which we should create any filesystem mounts.   [default: /tmp/sibench_mnt]
+  -s SIZE, --size SIZE          Object size to test, in units of K or M.                         [default: 1M]
+  -c COUNT, --count COUNT       The number of objects to use as our working set.                 [default: 1000]
+  -r TIME, --run-time TIME      Seconds spent on each phase of the benchmark.                    [default: 30]
+  -u TIME, --ramp-up TIME       Seconds at the start of each phase where we don't record data.   [default: 5]
+  -d TIME, --ramp-down TIME     Seconds at the end of each phase where we don't record data.     [default: 2]
+  -o FILE, --output FILE        The file to which we write our json results.                     [default: sibench.json]
+  -w FACTOR, --workers FACTOR   Number of workers per server as a factor x number of CPU cores   [default: 1.0]
+  -b BW, --bandwidth BW         Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
+  -x MIX, --read-write-mix MIX  Do a mix of read and writes, giving the percentage of reads.     [default: 0]
+  -g GEN, --generator GEN       Which object generator to use: "prng" or "slice"                 [default: prng]
+  --skip-read-verification      Disable validation on reads (for when sibench CPU is a limit).
+  --servers SERVERS             A comma-separated list of sibench servers to connect to.         [default: localhost]
+  --s3-port PORT                The port on which to connect to S3.                              [default: 7480]
+  --s3-bucket BUCKET            The name of the bucket we wish to use for S3 operations.         [default: sibench]
+  --s3-access-key KEY           S3 access key.
+  --s3-secret-key KEY           S3 secret key.
+  --ceph-pool POOL              The pool we use for benchmarking.                                [default: sibench]
+  --ceph-datapool POOL          Optional pool used for RBD.  If set, ceph-pool is for metadata. 
+  --ceph-user USER              The ceph username we use.                                        [default: admin]
+  --ceph-key KEY                The secret key belonging to the ceph user.
+  --ceph-dir DIR                The CephFS directory which we should use for a benchmark.        [default: sibench]
+  --block-device DEVICE         The block device to use for a benchmark.                         [default: /tmp/sibench_block]
+  --file-dir DIR                The directory to use (must already exist).
+  --slice-dir DIR               The directory of files to be sliced up to form new workload objects.
+  --slice-count COUNT           The number of slices to construct for workload generation        [default: 10000]
+  --slice-size BYTES            The size of each slice in bytes.                                 [default: 4096]
 `
     return s
 }
@@ -325,9 +333,10 @@ func startRun(args *Arguments) {
     j.order.ObjectSize = args.SizeInBits
     j.order.Seed = uint64(time.Now().Unix())
     j.order.RangeStart = 0
-    j.order.RangeEnd = uint64(args.Objects)
+    j.order.RangeEnd = uint64(args.Count)
     j.order.Targets = args.Targets
     j.order.Bandwidth = args.BandwidthInBits
+    j.order.ReadWriteMix = uint64(args.ReadWriteMix)
     j.order.WorkerFactor = args.Workers
     j.order.SkipReadValidation = args.SkipReadVerification
     j.order.GeneratorType = args.Generator
@@ -403,9 +412,9 @@ func startRun(args *Arguments) {
     jsonReport, err := json.MarshalIndent(j.report, "", "  ")
     dieOnError(err, "Unable to encode results as json")
 
-    if args.JsonOutput != "" {
-        err = ioutil.WriteFile(args.JsonOutput, jsonReport, 0644)
-        dieOnError(err, "Unable to write json report to file: %v", args.JsonOutput)
+    if args.Output != "" {
+        err = ioutil.WriteFile(args.Output, jsonReport, 0644)
+        dieOnError(err, "Unable to write json report to file: %v", args.Output)
     }
 
     logger.Infof("Done\n")

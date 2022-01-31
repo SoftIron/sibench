@@ -15,6 +15,24 @@ func prng(lastValue uint64) uint64 {
 }
 
 
+/*
+ * The PRNG generator is the default content generator for sibench.
+ *
+ * It creates test objects of the following form:
+ *
+ *   1. Object size (8 bytes)
+ *   2. Cycle (8 bytes): every time we overwrite an object, we use different contents using the cycle 
+ *      number to distinguish.
+ *   3. A PRNG Seeed (8 bytes).
+ *   4. Key length (8 bytes)
+ *   5. Key (variable number of bytes).
+ *   6. Padding to take us to an eight byte boundary.
+ *   7. Random data derived from the seed in (3).  This fills in any remaining space in the object.
+ *
+ * We don't technically need anything other than a seed in the header, but storing the other fields 
+ * allows verification that the back-end storage really is doing what we expect it to do (getting
+ * keys correct and so forth).
+ */
 type PrngGenerator struct {
     seed uint64
 }

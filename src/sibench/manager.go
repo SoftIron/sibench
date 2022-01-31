@@ -88,27 +88,47 @@ func (m *Manager) Run(j *Job) error {
 
     phaseTime := j.runTime + j.rampUp + j.rampDown
 
-    // Write
-    logger.Infof("\n----------------------- WRITE -----------------------------\n")
-    err = m.runPhase(phaseTime, OP_WriteStart, OP_WriteStop)
-    if err != nil {
-        logger.Errorf("Failure during write phase: %v\n", err)
-        return err
-    }
+    if j.order.ReadWriteMix == 0 {
+        // Write
+        logger.Infof("\n----------------------- WRITE -----------------------------\n")
+        err = m.runPhase(phaseTime, OP_WriteStart, OP_WriteStop)
+        if err != nil {
+            logger.Errorf("Failure during write phase: %v\n", err)
+            return err
+        }
 
-    // Prepare
-    m.sendOpToServers(OP_Prepare, true)
-    if err != nil {
-        logger.Errorf("Failure during prepare phase: %v\n", err)
-        return err
-    }
+        // Prepare
+        logger.Infof("Preparing...\n")
+        m.sendOpToServers(OP_Prepare, true)
+        if err != nil {
+            logger.Errorf("Failure during prepare phase: %v\n", err)
+            return err
+        }
 
-    // Read
-    logger.Infof("\n----------------------- READ ------------------------------\n")
-    err = m.runPhase(phaseTime, OP_ReadStart, OP_ReadStop)
-    if err != nil {
-        logger.Errorf("Failure during read phase: %v\n", err)
-        return err
+        // Read
+        logger.Infof("\n----------------------- READ ------------------------------\n")
+        err = m.runPhase(phaseTime, OP_ReadStart, OP_ReadStop)
+        if err != nil {
+            logger.Errorf("Failure during read phase: %v\n", err)
+            return err
+        }
+    } else {
+        // Prepare
+        logger.Infof("Preparing...\n")
+        m.sendOpToServers(OP_Prepare, true)
+        if err != nil {
+            logger.Errorf("Failure during prepare phase: %v\n", err)
+            return err
+        }
+
+        // Read
+        logger.Infof("\n--------------------- READ/WRITE --------------------------\n")
+        err = m.runPhase(phaseTime, OP_ReadWriteStart, OP_ReadWriteStop)
+        if err != nil {
+            logger.Errorf("Failure during read/write phase: %v\n", err)
+            return err
+        }
+
     }
 
     // Fetch the fully-detailed stats.
