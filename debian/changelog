@@ -1,3 +1,9 @@
+sibench (0.9.1) buster; urgency=low
+  [ Harry Richardson ]
+  * Better docs
+  * More consistent option names
+  * Core-based work division
+  * Almost ready for open-sourcing (just needs license files and build instructions)
 sibench (0.0.19) buster; urgency=low
   [ Harry Richardson ]
   * RBD now supports EC datapools
