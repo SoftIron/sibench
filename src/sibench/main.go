@@ -36,8 +36,8 @@ type Arguments struct {
     Verbosity string
     Port int
     MountsDir string
-    Size string
-    Count int
+    ObjectSize string
+    ObjectCount int
     Servers string
     RunTime int
     RampUp int
@@ -77,7 +77,7 @@ type Arguments struct {
     // Synthesized options
     Bucket string
     BandwidthInBits uint64
-    SizeInBits uint64
+    ObjectSizeInBits uint64
 }
 
 
@@ -126,36 +126,36 @@ Usage:
   sibench -h | --help
 
 Options:
-  -h, --help                    Show full usage
-  -v LEVEL, --verbosity LEVEL   Turn on debug output at level "off", "debug" or "trace"          [default: off]
-  -p PORT, --port PORT          The port on which sibench communicates.                          [default: 5150]
-  -m DIR, --mounts-dir DIR      The directory in which we should create any filesystem mounts.   [default: /tmp/sibench_mnt]
-  -s SIZE, --size SIZE          Object size to test, in units of K or M.                         [default: 1M]
-  -c COUNT, --count COUNT       The number of objects to use as our working set.                 [default: 1000]
-  -r TIME, --run-time TIME      Seconds spent on each phase of the benchmark.                    [default: 30]
-  -u TIME, --ramp-up TIME       Seconds at the start of each phase where we don't record data.   [default: 5]
-  -d TIME, --ramp-down TIME     Seconds at the end of each phase where we don't record data.     [default: 2]
-  -o FILE, --output FILE        The file to which we write our json results.                     [default: sibench.json]
-  -w FACTOR, --workers FACTOR   Number of workers per server as a factor x number of CPU cores   [default: 1.0]
-  -b BW, --bandwidth BW         Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
-  -x MIX, --read-write-mix MIX  Do a mix of read and writes, giving the percentage of reads.     [default: 0]
-  -g GEN, --generator GEN       Which object generator to use: "prng" or "slice"                 [default: prng]
-  --skip-read-verification      Disable validation on reads (for when sibench CPU is a limit).
-  --servers SERVERS             A comma-separated list of sibench servers to connect to.         [default: localhost]
-  --s3-port PORT                The port on which to connect to S3.                              [default: 7480]
-  --s3-bucket BUCKET            The name of the bucket we wish to use for S3 operations.         [default: sibench]
-  --s3-access-key KEY           S3 access key.
-  --s3-secret-key KEY           S3 secret key.
-  --ceph-pool POOL              The pool we use for benchmarking.                                [default: sibench]
-  --ceph-datapool POOL          Optional pool used for RBD.  If set, ceph-pool is for metadata. 
-  --ceph-user USER              The ceph username we use.                                        [default: admin]
-  --ceph-key KEY                The secret key belonging to the ceph user.
-  --ceph-dir DIR                The CephFS directory which we should use for a benchmark.        [default: sibench]
-  --block-device DEVICE         The block device to use for a benchmark.                         [default: /tmp/sibench_block]
-  --file-dir DIR                The directory to use (must already exist).
-  --slice-dir DIR               The directory of files to be sliced up to form new workload objects.
-  --slice-count COUNT           The number of slices to construct for workload generation        [default: 10000]
-  --slice-size BYTES            The size of each slice in bytes.                                 [default: 4096]
+  -h, --help                      Show full usage
+  -v LEVEL, --verbosity LEVEL     Turn on debug output at level "off", "debug" or "trace"          [default: off]
+  -p PORT, --port PORT            The port on which sibench communicates.                          [default: 5150]
+  -m DIR, --mounts-dir DIR        The directory in which we should create any filesystem mounts.   [default: /tmp/sibench_mnt]
+  -s SIZE, --object-size SIZE     Object size to test, in units of K or M.                         [default: 1M]
+  -c COUNT, --object-count COUNT  The number of objects to use as our working set.                 [default: 1000]
+  -r TIME, --run-time TIME        Seconds spent on each phase of the benchmark.                    [default: 30]
+  -u TIME, --ramp-up TIME         Seconds at the start of each phase where we don't record data.   [default: 5]
+  -d TIME, --ramp-down TIME       Seconds at the end of each phase where we don't record data.     [default: 2]
+  -o FILE, --output FILE          The file to which we write our json results.                     [default: sibench.json]
+  -w FACTOR, --workers FACTOR     Number of workers per server as a factor x number of CPU cores   [default: 1.0]
+  -b BW, --bandwidth BW           Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
+  -x MIX, --read-write-mix MIX    Do a mix of read and writes, giving the percentage of reads.     [default: 0]
+  -g GEN, --generator GEN         Which object generator to use: "prng" or "slice"                 [default: prng]
+  --skip-read-verification        Disable validation on reads (for when sibench CPU is a limit).
+  --servers SERVERS               A comma-separated list of sibench servers to connect to.         [default: localhost]
+  --s3-port PORT                  The port on which to connect to S3.                              [default: 7480]
+  --s3-bucket BUCKET              The name of the bucket we wish to use for S3 operations.         [default: sibench]
+  --s3-access-key KEY             S3 access key.
+  --s3-secret-key KEY             S3 secret key.
+  --ceph-pool POOL                The pool we use for benchmarking.                                [default: sibench]
+  --ceph-datapool POOL            Optional pool used for RBD.  If set, ceph-pool is for metadata.
+  --ceph-user USER                The ceph username we use.                                        [default: admin]
+  --ceph-key KEY                  The secret key belonging to the ceph user.
+  --ceph-dir DIR                  The CephFS directory which we should use for a benchmark.        [default: sibench]
+  --block-device DEVICE           The block device to use for a benchmark.                         [default: /tmp/sibench_block]
+  --file-dir DIR                  The directory to use (must already exist).
+  --slice-dir DIR                 The directory of files to be sliced up to form new workload objects.
+  --slice-count COUNT             The number of slices to construct for workload generation        [default: 10000]
+  --slice-size BYTES              The size of each slice in bytes.                                 [default: 4096]
 `
     return s
 }
@@ -241,7 +241,7 @@ func validateArguments(args *Arguments) error {
     }
 
     var err error
-    args.SizeInBits, err = expandUnits(args.Size)
+    args.ObjectSizeInBits, err = expandUnits(args.ObjectSize)
     if err != nil {
         return err
     }
@@ -330,10 +330,10 @@ func startRun(args *Arguments) {
     j.rampDown = uint64(args.RampDown)
 
     j.order.JobId = 1
-    j.order.ObjectSize = args.SizeInBits
+    j.order.ObjectSize = args.ObjectSizeInBits
     j.order.Seed = uint64(time.Now().Unix())
     j.order.RangeStart = 0
-    j.order.RangeEnd = uint64(args.Count)
+    j.order.RangeEnd = uint64(args.ObjectCount)
     j.order.Targets = args.Targets
     j.order.Bandwidth = args.BandwidthInBits
     j.order.ReadWriteMix = uint64(args.ReadWriteMix)

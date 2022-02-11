@@ -75,14 +75,14 @@ Additional options **shared by all run commands**, omitted from above for clarit
     
 - [--verbosity LEVEL] 
 - [--port PORT] 
-- [--output FILE]
-- [--size SIZE] 
-- [--count COUNT] 
-- [--bandwidth BW] 
-- [--read-write-mix MIX] 
+- [--object-size SIZE] 
+- [--object-count COUNT] 
 - [--ramp-up TIME] 
 - [--run-time TIME] 
 - [--ramp-down TIME] 
+- [--read-write-mix MIX] 
+- [--bandwidth BW] 
+- [--output FILE]
 - [--workers FACTOR] 
 - [--generator GEN] 
 - [--slice-dir DIR] 
@@ -106,15 +106,9 @@ Option Definitions
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **--port**                   | **-p** | *PORT*    | The port on which sibench communicates.                                                 |  5150              |
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+  
-| **--output**                 | **-o** | *FILE*    | The file to which we write our json results.                                            | sibench.json       |
+| **--object-size**            | **-s** | *SIZE*    | Object size to test, in units of K or M.                                                | 1M                 |
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
-| **--mounts-dir**             | **-m** | *DIR*     | The directory in which we should create any filesystem mounts that are performed by     | /tmp/sibench_mnt   |
-|                              |        |           | Sibench itself, such as when using CephFS.  It is not needed for running generic        |                    |
-|                              |        |           | filesystem benchmarks, because those must be mounted outside of sibench.                |                    |
-+------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
-| **--size**                   | **-s** | *SIZE*    | Object size to test, in units of K or M.                                                | 1M                 |
-+------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
-| **--count**                  | **-c** | *COUNT*   | The total number of objects to use as our working set.                                  | 1000               |
+| **--object-count**           | **-c** | *COUNT*   | The total number of objects to use as our working set.                                  | 1000               |
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **--ramp-up**                | **-u** | *TIME*    | The number of seconds at the start of each phase where we don't record data (to         | 5                  |
 |                              |        |           | discount edge effects caused by new connections).                                       |                    |
@@ -124,8 +118,6 @@ Option Definitions
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **--ramp-down**              | **-d** | *TIME*    | The number of seconds at the end of each phase where we don't record data.              | 2                  |
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
-| **--workers**                | **-w** | *FACTOR*  | Number of worker threads per server as a factor x number of CPU cores.                  | 1.0                |
-+------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **--read-write-mix**         | **-x** | *MIX*     | The ratio between read and writes, specified as the percentage of reads.                | 0                  |
 |                              |        |           | A value of zero indicates that reads and writes should be done in separate passes,      |                    |
 |                              |        |           | rather than being combined.                                                             |                    |
@@ -134,6 +126,14 @@ Option Definitions
 |                              |        |           | A value of zero indicates no limit.                                                     |                    |
 |                              |        |           | When the read/write mix is not zero - that is, when we are not doing separate passes    |                    |
 |                              |        |           | for read and write - then this is the bandwidth of the combined operations.             |                    |
++------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
+| **--output**                 | **-o** | *FILE*    | The file to which we write our json results.                                            | sibench.json       |
++------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
+| **--workers**                | **-w** | *FACTOR*  | Number of worker threads per server as a factor x number of CPU cores.                  | 1.0                |
++------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
+| **--mounts-dir**             | **-m** | *DIR*     | The directory in which we should create any filesystem mounts that are performed by     | /tmp/sibench_mnt   |
+|                              |        |           | Sibench itself, such as when using CephFS.  It is not needed for running generic        |                    |
+|                              |        |           | filesystem benchmarks, because those must be mounted outside of sibench.                |                    |
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **--generator**              | **-g** | *GEN*     | Which object generator to use: "prng" or "slice".                                       | prng               |
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
