@@ -236,8 +236,8 @@ func validateArguments(args *Arguments) error {
         return fmt.Errorf("S3 Port not in range: %v", args.S3Port)
     }
 
-    if (args.Workers < 0.1) || (args.Workers > 4.0) {
-        return fmt.Errorf("Worker factor not in range 0.1 - 4.0 : %v", args.Workers)
+    if (args.Workers < 0.1) || (args.Workers > 10.0) {
+        return fmt.Errorf("Worker factor not in range 0.1 - 10.0 : %v", args.Workers)
     }
 
     var err error
