@@ -236,7 +236,23 @@ func (w *Worker) connect() {
     for _, t := range w.order.Targets {
         conn, err := NewConnection(w.order.ConnectionType, t, w.order.ProtocolConfig, w.spec.ConnConfig)
         if err == nil {
-            err = conn.WorkerConnect()
+            done := make(chan bool, 1)
+
+            go func() {
+                err = conn.WorkerConnect()
+                done <- true
+            }()
+
+            // See which happens first: a result, or a timeout.
+            select {
+                case <-time.After(HangTimeoutSecs * time.Second):
+                    // We can't tell if this is a slow operation or a hang in a ceph library, so assume the worst.
+                    w.hung(fmt.Errorf("[worker %v] Timeout on write to %v", w.spec.Id, conn.Target()))
+                    return
+
+                case <-done:
+                    logger.Tracef("[worker %v] completed connect to %v\n", w.spec.Id, t)
+            }
         }
 
         if err != nil {
