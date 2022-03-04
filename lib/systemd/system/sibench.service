@@ -9,6 +9,7 @@ RuntimeDirectory=sibench
 RuntimeDirectoryPreserve=true
 LimitNOFILE=65536
 ExecStart=/usr/bin/sibench server
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
