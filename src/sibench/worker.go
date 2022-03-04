@@ -135,7 +135,7 @@ type Worker struct {
 
 
 func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
-    logger.Debugf("[worker %v] creating worker with range %v to %v\n", spec.Id, order.RangeStart, order.RangeEnd))
+    logger.Debugf("[worker %v] creating worker with range %v to %v\n", spec.Id, order.RangeStart, order.RangeEnd)
 
     var w Worker
     w.spec = *spec

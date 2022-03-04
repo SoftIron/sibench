@@ -67,8 +67,9 @@ func (s *StatSummary) String(objectSize uint64) string {
         }
     }
 
-    if result == "":
+    if result == "" {
         result = "No operations completed"
+    }
 
     return result
 }
@@ -129,7 +130,7 @@ func serverFilter(server string) filterFunc {
 
 
 /* Inverts the sense of a filter function */
-func invertFilter(fn filterFunc) filterFunc{
+func invertFilter(fn filterFunc) filterFunc {
     return func(s *Stat) bool {
         return !fn(s)
     }

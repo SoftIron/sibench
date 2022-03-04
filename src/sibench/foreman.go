@@ -442,7 +442,7 @@ func (f *Foreman) connect() {
     nWorkers := uint64(float64(runtime.NumCPU()) * f.order.WorkerFactor)
     f.workerInfos = make([]*WorkerInfo, 0, nWorkers)
 
-    rangeStart := f.order.RangeStart
+    rangeStart := float32(f.order.RangeStart)
     rangeLen := f.order.RangeEnd - f.order.RangeStart
     rangeStride := float32(rangeLen) / float32(nWorkers)
 
