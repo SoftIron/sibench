@@ -67,6 +67,9 @@ func (s *StatSummary) String(objectSize uint64) string {
         }
     }
 
+    if result == "":
+        result = "No operations completed"
+
     return result
 }
 

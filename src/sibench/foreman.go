@@ -444,13 +444,7 @@ func (f *Foreman) connect() {
 
     rangeStart := f.order.RangeStart
     rangeLen := f.order.RangeEnd - f.order.RangeStart
-    rangeStride := rangeLen / nWorkers
-
-    // Allow for divisions that don't work out nicely by increasing the number allocated to each worker
-    // by one.  We'll adjust the last worker to make it match what we were asked to do.
-    if rangeLen % nWorkers != 0 {
-        rangeStride++
-    }
+    rangeStride := float32(rangeLen) / float32(nWorkers)
 
     hostname, err := os.Hostname()
     if err != nil {
@@ -458,7 +452,6 @@ func (f *Foreman) connect() {
         f.fail(err)
         return
     }
-
 
     for i := uint64(0); (i < nWorkers) && (err == nil); i++ {
         opChannel := make(chan Opcode, 10)
@@ -470,14 +463,14 @@ func (f *Foreman) connect() {
             StatChannel: f.statChannel,
         }
 
+        rangeEnd := rangeStart + rangeStride
+
         o := *(f.order)
         o.Bandwidth = f.order.Bandwidth / nWorkers
-        o.RangeStart = rangeStart
-        o.RangeEnd = rangeStart + rangeStride
+        o.RangeStart = uint64(rangeStart)
+        o.RangeEnd = uint64(rangeEnd)
 
-        if o.RangeEnd > f.order.RangeEnd {
-            o.RangeEnd = f.order.RangeEnd
-        }
+        rangeStart = rangeEnd
 
         s.ConnConfig = WorkerConnectionConfig {
             Hostname: hostname,

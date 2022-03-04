@@ -403,15 +403,9 @@ func (m *Manager) waitForResponses(expectedOp Opcode) error {
 func (m *Manager) sendJobToServers() error {
     order := &(m.job.order)
 
-    rangeStart := order.RangeStart
+    rangeStart := float32(order.RangeStart)
     rangeLen := order.RangeEnd - order.RangeStart
-    rangeStridePerCore := rangeLen / m.totalCoreCount
-
-    // Allow for divisions that don't work out nicely by increasing the number allocated to each core
-    // by one.  We'll adjust the last server to make it match what we were asked to do.
-    if rangeLen % m.totalCoreCount != 0 {
-        rangeStridePerCore++
-    }
+    rangeStridePerCore := float32(rangeLen) / float32(m.totalCoreCount)
 
     hostsWithLowRam := make([]string, 0, 16)
 
@@ -421,15 +415,13 @@ func (m *Manager) sendJobToServers() error {
         o.ServerName = m.connToServerName[conn]
         d := m.serverNameToDiscovery[o.ServerName]
 
+        rangeEnd := rangeStart + (rangeStridePerCore * float32(d.Cores))
+
         o.Bandwidth = (order.Bandwidth * d.Cores) / m.totalCoreCount
-        o.RangeStart = rangeStart
-        o.RangeEnd = rangeStart + (rangeStridePerCore * d.Cores)
+        o.RangeStart = uint64(rangeStart)
+        o.RangeEnd = uint64(rangeEnd)
 
-        if o.RangeEnd > order.RangeEnd {
-            o.RangeEnd = order.RangeEnd
-        }
-
-        rangeStart = o.RangeEnd
+        rangeStart = rangeEnd
 
         // Check if we should warn about memory usage for this server
         if ((o.RangeEnd - o.RangeStart) * o.ObjectSize) * 10 > (d.Ram * 8) {
