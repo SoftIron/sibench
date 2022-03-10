@@ -48,7 +48,6 @@ const(
  * data (such as Stats).  
  */
 type ForemanGenericResponse struct {
-    Hostname string
     Error string
 }
 
@@ -83,6 +82,16 @@ const (
 )
 
 
+func (se StatError) ToString() string {
+    switch se {
+        case SE_None:               return "None"
+        case SE_VerifyFailure:      return "Verify"
+        case SE_OperationFailure:   return "Operation"
+        default:                    return "Unknown"
+    }
+}
+
+
 /*
  * A summary of the stats that we send periodically when doing a phase
  */
@@ -98,13 +107,14 @@ type Stat struct {
     Duration time.Duration
     Phase StatPhase
     Error StatError
-    Server string
-    Target string
+    TargetIndex uint16
 }
 
 
+/*
+ * A Foreman's response to a discovery request
+ */
 type Discovery struct {
-    ServerName string
     Cores uint64
     Ram uint64
 }
@@ -119,7 +129,6 @@ type GeneratorConfig map[string]string
  */
 type WorkOrder struct {
     JobId uint64                    // Which job this WorkOrder is part of
-    ServerName string               // The name we wish the server processing the order to use in stats
     Bandwidth uint64                // Bytes/s limit, or zero for no limit.
     WorkerFactor float64            // Number of workers to create for each core on a server.
     SkipReadValidation bool         // Whether to skip the validation step when we read objects.

@@ -1,6 +1,5 @@
 package main
 
-
 /*
  * A job is all the data needed by the Manager to describe a single run.
  *
@@ -38,44 +37,8 @@ type Job struct {
     rampDown uint64     // Time at the end of the run where we throw away the results again.
 
     /* The report object bundles up everything we need to generate a report when we're done. */
-    report Report
+    report *Report
 }
 
 
 
-/* 
- * A Report contains all the information we return from a run.
- *
- * The fields are all public so that JSON encoders can access them.
- */
-type Report struct {
-    Arguments *Arguments
-    Errors []error
-    Analyses []*Analysis
-    Stats []*Stat
-}
-
-
-func (j *Job) setArguments(args *Arguments) {
-    j.report.Arguments = args
-}
-
-
-func (j *Job) addError(err error) {
-    j.report.Errors = append(j.report.Errors, err)
-}
-
-
-func (j *Job) addAnalysis(a *Analysis) {
-    j.report.Analyses = append(j.report.Analyses, a)
-}
-
-
-func (j *Job) addStat(s *Stat) {
-    j.report.Stats = append(j.report.Stats, s)
-}
-
-
-func (j *Job) CrunchTheNumbers() {
-    j.report.Analyses = AnalyseStats(j, j.report.Stats)
-}

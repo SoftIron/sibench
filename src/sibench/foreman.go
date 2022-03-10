@@ -487,7 +487,6 @@ func (f *Foreman) connect() {
             f.workerInfos = append(f.workerInfos, &info)
         }
 
-        rangeStart += rangeStride
         f.nextWorkerId++
     }
 
@@ -511,7 +510,6 @@ func (f *Foreman) sendOpcodeToManager(op Opcode, err error) {
     }
 
     var resp ForemanGenericResponse
-    resp.Hostname = f.order.ServerName
 
     if err != nil {
         resp.Error = err.Error()

@@ -2,7 +2,16 @@ package main
 
 import "fmt"
 import "sort"
-import "strings"
+
+
+/* 
+ * A ServerStat wraps a Stat to add a field for Server ID. 
+ */
+type ServerStat struct {
+    Stat
+    ServerIndex uint16
+}
+
 
 
 /* Reset all off the summary's counters to 0. */
@@ -80,12 +89,12 @@ func (s *StatSummary) String(objectSize uint64) string {
  * We could use anonymous functions to do the exact same thing with less code, but
  * by giving explicit names to things we can make it a lot more readable. 
  */
-type filterFunc func(*Stat) bool
+type filterFunc func(*ServerStat) bool
 
 
 /* Filter based on phase */
 func phaseFilter(phase StatPhase) filterFunc {
-    return func(s *Stat) bool {
+    return func(s *ServerStat) bool {
         return s.Phase == phase
     }
 }
@@ -93,7 +102,7 @@ func phaseFilter(phase StatPhase) filterFunc {
 
 /* Filter based on error type */
 func errorFilter(err StatError) filterFunc {
-    return func(s *Stat) bool {
+    return func(s *ServerStat) bool {
         return s.Error == err
     }
 }
@@ -106,7 +115,7 @@ func rampFilter(job *Job) filterFunc {
     up := job.rampUp * 1000 * 1000 * 1000
     time := job.runTime * 1000 * 1000 * 1000
 
-    return func(s *Stat) bool {
+    return func(s *ServerStat) bool {
         start := uint64(s.TimeSincePhaseStart)
         return (start > up) && (start <= up + time)
     }
@@ -114,32 +123,32 @@ func rampFilter(job *Job) filterFunc {
 
 
 /* Filter on target */
-func targetFilter(target string) filterFunc {
-    return func(s *Stat) bool {
-        return s.Target == target
+func targetFilter(targetIndex uint16) filterFunc {
+    return func(s *ServerStat) bool {
+        return s.TargetIndex == targetIndex
     }
 }
 
 
 /* Filter on server */
-func serverFilter(server string) filterFunc {
-    return func(s *Stat) bool {
-        return s.Server == server
+func serverFilter(serverIndex uint16) filterFunc {
+    return func(s *ServerStat) bool {
+        return s.ServerIndex == serverIndex
     }
 }
 
 
 /* Inverts the sense of a filter function */
 func invertFilter(fn filterFunc) filterFunc {
-    return func(s *Stat) bool {
+    return func(s *ServerStat) bool {
         return !fn(s)
     }
 }
 
 
 /* Apply filters to a slice of stats, returning a new slice that contains only the matching values */
-func filter(stats []*Stat, fns ...filterFunc) []*Stat {
-    var results []*Stat
+func filter(stats []*ServerStat, fns ...filterFunc) []*ServerStat {
+    var results []*ServerStat
 
     for _, s:= range stats {
         include := true
@@ -157,7 +166,7 @@ func filter(stats []*Stat, fns ...filterFunc) []*Stat {
 
 
 /* Sort a slice of stats to fastest first, slowest last. */
-func sortByDuration(stats []*Stat) {
+func sortByDuration(stats []*ServerStat) {
     sort.Slice(stats, func(i, j int) bool {
         return stats[i].Duration < stats[j].Duration
     })
@@ -175,6 +184,8 @@ func sortByDuration(stats []*Stat) {
  */
 type Analysis struct {
     Name string
+    Phase StatPhase
+    IsTotal bool
 
     /* All response times in ms */
     ResTimeMin uint64   // The fastest reponse we had for a successful operation
@@ -213,9 +224,11 @@ func (a *Analysis) String() string {
  * We pass in the name that we wish to give the Analysis.
  * The job is needed so that we can pul run times and object size from it.
  */
-func NewAnalysis(stats []*Stat, name string, job *Job) *Analysis {
+func NewAnalysis(stats []*ServerStat, name string, phase StatPhase, isTotal bool, job *Job) *Analysis {
     var result Analysis
     result.Name =name
+    result.Phase = phase
+    result.IsTotal = isTotal
 
     good := filter(stats, errorFilter(SE_None))
     result.Successes = uint64(len(good))
@@ -253,55 +266,5 @@ func limit(s string, length int) string {
 
     return string(s[:length - 1]) + "..."
 }
-
-
-/*
- * Do the maths for a slice full of detailed stats.
- * We return a slice of various different Analyses that we create.
- * As a side-effect, we also currently print the Analyses to the console.
- */
-func AnalyseStats(job *Job, stats []*Stat) []*Analysis {
-    var results []*Analysis
-
-    // Start off by throwing out anything in a ramp period.
-    stats = filter(stats, rampFilter(job))
-
-    phases := []StatPhase{ SP_Write, SP_Read }
-    lineWidth := 160
-
-    // Produce per-target and per-server analyses
-    for _, phase := range phases {
-        fmt.Printf("%v\n", strings.Repeat("-", lineWidth))
-        pstats := filter(stats, phaseFilter(phase))
-
-        for _, t := range job.order.Targets {
-            tstats := filter(pstats, targetFilter(t))
-            a := NewAnalysis(tstats, "Target[" + limit(t, 12) + "] " + phase.ToString(), job)
-            results = append(results, a)
-            fmt.Printf("%v\n", a.String())
-        }
-
-        for _, s := range job.servers {
-            sstats := filter(pstats, serverFilter(s))
-            a := NewAnalysis(sstats, "Server[" + limit(s, 12) + "] " + phase.ToString(), job)
-            results = append(results, a)
-            fmt.Printf("%v\n", a.String())
-        }
-    }
-
-    fmt.Printf("%v\n", strings.Repeat("=", lineWidth))
-
-    // End up with the most imporant stats - the overall performance.
-    for _, phase := range phases {
-        pstats := filter(stats, phaseFilter(phase))
-        a := NewAnalysis(pstats, "Total " + phase.ToString(), job)
-        results = append(results, a)
-        fmt.Printf("%v\n", a.String())
-    }
-
-    fmt.Printf("%v\n", strings.Repeat("=", lineWidth))
-    return results
-}
-
 
 

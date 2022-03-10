@@ -10,6 +10,13 @@ import "syscall"
 import "time"
 
 
+type ServerDetails struct {
+    Discovery
+    Name string
+    Index uint16
+}
+
+
 /*
  * A Manager handles connecting to a set of Foremen over TCP and executing
  * a benchmarking job on them.
@@ -25,8 +32,7 @@ type Manager struct {
     job *Job
     msgConns []*comms.MessageConnection
     msgChannel chan *comms.ReceivedMessageInfo
-    connToServerName map[*comms.MessageConnection]string
-    serverNameToDiscovery map[string]Discovery
+    connToServerDetails map[*comms.MessageConnection]*ServerDetails
     totalCoreCount uint64
     sigChan chan os.Signal
     isInterrupted bool
@@ -45,7 +51,8 @@ func (m *Manager) Run(j *Job) error {
     m.job = j
     o := &(m.job.order)
 
-    // Create a connection
+    // Ensure that we can connect to at least the first target ourselves.  If we can't then
+    // there's no need to bother the driver nodes about this at all.
     var wcc WorkerConnectionConfig
     conn, err := NewConnection(o.ConnectionType, o.Targets[0], o.ProtocolConfig, wcc)
     if err != nil {
@@ -130,17 +137,9 @@ func (m *Manager) Run(j *Job) error {
         }
 
     }
-
-    // Fetch the fully-detailed stats.
-    err = m.drainStats()
-    if err != nil {
-        logger.Errorf("Failure draining stats from servers: %v\n", err)
-        return err
-    }
-
     // Process the stats.
     logger.Infof("\n")
-    m.job.CrunchTheNumbers()
+    m.job.report.DisplayAnalyses()
 
     // Terminate
     logger.Infof("\n")
@@ -181,7 +180,8 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) error {
 /*
  * Check if an incoming message is an error type, and convert it to error if so.
  */
-func checkError(msg comms.ReceivedMessage) error {
+func (m *Manager) checkError(msgInfo *comms.ReceivedMessageInfo) error {
+    msg := msgInfo.Message
     op := Opcode(msg.ID())
 
     if (op != OP_Fail) && (op != OP_Hung) {
@@ -190,7 +190,9 @@ func checkError(msg comms.ReceivedMessage) error {
 
     var resp ForemanGenericResponse
     msg.Data(&resp)
-    return fmt.Errorf("%v:%v", resp.Hostname, resp.Error)
+
+    details := m.connToServerDetails[msgInfo.Connection]
+    return fmt.Errorf("%v:%v", details.Name, resp.Error)
 }
 
 
@@ -224,20 +226,28 @@ func (m* Manager) drainStats() error {
                     return fmt.Errorf("Transport failure: %v\n", msgInfo.Error)
                 }
 
-                msg := msgInfo.Message
-                err := checkError(msg)
+                err := m.checkError(msgInfo)
                 if err != nil {
                     return err
                 }
 
+                msg := msgInfo.Message
+                op := Opcode(msg.ID())
+
                 // We can ignore anything except StatDetail
 
-                op := Opcode(msg.ID())
                 switch op {
                     case OP_StatDetails:
-                        s := new(Stat)
-                        msg.Data(s)
-                        m.job.addStat(s)
+                        var s Stat
+                        msg.Data(&s)
+
+                        details := m.connToServerDetails[msgInfo.Connection]
+
+                        ss := new(ServerStat)
+                        ss.ServerIndex = details.Index
+                        ss.Stat = s
+
+                        m.job.report.AddStat(ss)
                         count++
 
                     case OP_StatDetailsDone:
@@ -257,6 +267,7 @@ func (m* Manager) drainStats() error {
         }
     }
 
+    m.job.report.AnalyseStats()
     return nil
 }
 
@@ -293,7 +304,7 @@ func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) error {
                 }
 
                 msg := msgInfo.Message
-                err := checkError(msg)
+                err := m.checkError(msgInfo)
                 if err != nil {
                     return err
                 }
@@ -330,7 +341,7 @@ func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) error {
                     return err
                 }
 
-                return nil
+                return m.drainStats()
 
             case <-m.sigChan:
                 logger.Infof("Interrupting job and waiting to shut down\n")
@@ -361,12 +372,12 @@ func (m *Manager) waitForResponses(expectedOp Opcode) error {
             os.Exit(-1)
         }
 
-        msg := msgInfo.Message
-        err := checkError(msg)
+        err := m.checkError(msgInfo)
         if err != nil {
             return err
         }
 
+        msg := msgInfo.Message
         op := Opcode(msg.ID())
 
         if op == expectedOp {
@@ -410,26 +421,26 @@ func (m *Manager) sendJobToServers() error {
     hostsWithLowRam := make([]string, 0, 16)
 
     for _, conn := range m.msgConns {
+        details := m.connToServerDetails[conn]
+
         // First make a copy of our work order and adjust it for the server.
         o := *order
-        o.ServerName = m.connToServerName[conn]
-        d := m.serverNameToDiscovery[o.ServerName]
 
-        rangeEnd := rangeStart + (rangeStridePerCore * float32(d.Cores))
+        rangeEnd := rangeStart + (rangeStridePerCore * float32(details.Cores))
 
-        o.Bandwidth = (order.Bandwidth * d.Cores) / m.totalCoreCount
+        o.Bandwidth = (order.Bandwidth * details.Cores) / m.totalCoreCount
         o.RangeStart = uint64(rangeStart)
         o.RangeEnd = uint64(rangeEnd)
 
         rangeStart = rangeEnd
 
         // Check if we should warn about memory usage for this server
-        if ((o.RangeEnd - o.RangeStart) * o.ObjectSize) * 10 > (d.Ram * 8) {
-            hostsWithLowRam = append(hostsWithLowRam, o.ServerName)
+        if ((o.RangeEnd - o.RangeStart) * o.ObjectSize) * 10 > (details.Ram * 8) {
+            hostsWithLowRam = append(hostsWithLowRam, details.Name)
         }
 
         // Tell the server to connect...
-        logger.Debugf("Sending job to %s with start: %v, end: %v, bandwidth: %v\n", o.ServerName, o.RangeStart, o.RangeEnd, o.Bandwidth)
+        logger.Debugf("Sending job to %s with start: %v, end: %v, bandwidth: %v\n", details.Name, o.RangeStart, o.RangeEnd, o.Bandwidth)
         conn.Send(OP_Connect, &o)
     }
 
@@ -447,11 +458,6 @@ func (m *Manager) sendJobToServers() error {
         logger.Warnf("This may result in swapping (which will make the benchmarks invalid),\n")
         logger.Warnf("Or the OS may choose to kill the sibench daemon without warning.\n")
         logger.Warnf("\n")
-        logger.Warnf("(Note: it is not sibench itself using large amounts of RAM - in fact\n")
-        logger.Warnf("it keeps almost nothing in memory = but some of the ceph libraries\n")
-        logger.Warnf("DO seem to hold on to large amounts of memory for longer than they\n")
-        logger.Warnf("should).\n")
-        logger.Warnf("\n")
         logger.Warnf("--------------------------------------------------------------------\n")
     }
 
@@ -466,12 +472,9 @@ func (m *Manager) sendJobToServers() error {
 func (m *Manager) discoverServerCapabilities() error {
     logger.Debugf("Sending Server Capability Discovery requests\n")
     for _, conn := range m.msgConns {
-        var d Discovery
-        d.ServerName = m.connToServerName[conn]
-        conn.Send(OP_Discovery, &d)
+        conn.Send(OP_Discovery, nil)
     }
 
-    m.serverNameToDiscovery = make(map[string]Discovery)
     m.totalCoreCount = 0
 
     logger.Infof("\n---------- Sibench driver capabilities discovery ----------\n")
@@ -491,10 +494,12 @@ func (m *Manager) discoverServerCapabilities() error {
             return fmt.Errorf("Unexpected Opcode received: expected Discovery but got %v\n", op)
         }
 
-        var d Discovery
-        msg.Data(&d)
-        logger.Infof("%s: %v cores, %vB of RAM\n", d.ServerName, d.Cores, ToUnits(d.Ram))
-        m.serverNameToDiscovery[d.ServerName] = d
+        d := m.connToServerDetails[msgInfo.Connection]
+        msg.Data(&d.Discovery)
+
+        // Find our details object
+
+        logger.Infof("%s: %v cores, %vB of RAM\n", d.Name, d.Cores, ToUnits(d.Ram))
         m.totalCoreCount += d.Cores
 
         pending--
@@ -517,9 +522,9 @@ func (m *Manager) discoverServerCapabilities() error {
 func (m *Manager) connectToServers() error {
     // Construct our aggregated recv channel
     m.msgChannel = make(chan *comms.ReceivedMessageInfo, 1000)
-    m.connToServerName = make(map[*comms.MessageConnection]string)
+    m.connToServerDetails = make(map[*comms.MessageConnection]*ServerDetails)
 
-    for _, s := range m.job.servers {
+    for i, s := range m.job.servers {
         endpoint := fmt.Sprintf("%v:%v", s, m.job.serverPort)
         logger.Infof("Connecting to sibench server at %v\n", endpoint)
 
@@ -530,7 +535,12 @@ func (m *Manager) connectToServers() error {
 
         conn.ReceiveToChannel(m.msgChannel)
         m.msgConns = append(m.msgConns, conn)
-        m.connToServerName[conn] = s
+
+        details := new(ServerDetails)
+        details.Name = s
+        details.Index = uint16(i)
+
+        m.connToServerDetails[conn] = details
     }
 
     return nil

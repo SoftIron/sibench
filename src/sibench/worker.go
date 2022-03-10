@@ -302,8 +302,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     s.Phase = phase
     s.TimeSincePhaseStart = end.Sub(w.phaseStart)
     s.Duration = end.Sub(start)
-    s.Target = conn.Target()
-    s.Server = w.order.ServerName
+    s.TargetIndex = uint16(w.connIndex)
 
     if err != nil {
         logger.Warnf("[worker %v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
@@ -381,8 +380,7 @@ func (w *Worker) read() {
     s.Phase = SP_Read
     s.TimeSincePhaseStart = end.Sub(w.phaseStart)
     s.Duration = end.Sub(start)
-    s.Target = conn.Target()
-    s.Server = w.order.ServerName
+    s.TargetIndex = uint16(w.connIndex)
 
     if err != nil {
         logger.Warnf("[worker %v] failure getting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)

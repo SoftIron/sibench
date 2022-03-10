@@ -3,7 +3,6 @@ package main
 import "encoding/json"
 import "github.com/docopt/docopt-go"
 import "fmt"
-import "io/ioutil"
 import "logger"
 import "math"
 import "os"
@@ -90,39 +89,37 @@ Usage:
   sibench s3 run     [-v LEVEL] [-p PORT] [-o FILE]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--skip-read-verification] [--servers SERVERS] <targets> ...
-                     [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)`
+                     [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
+                     [--skip-read-verification] [--servers SERVERS] <targets> ...`
 
     if runtime.GOOS == "linux" {
         s += ` 
   sibench rados run  [-v LEVEL] [-p PORT] [-o FILE]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
+                     [--skip-read-verification] [--servers SERVERS] <targets> ...
   sibench cephfs run [-v LEVEL] [-p PORT] [-o FILE]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--skip-read-verification] [--servers SERVERS] <targets> ...
                      [-m DIR] [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
+                     [--skip-read-verification] [--servers SERVERS] <targets> ...
   sibench rbd run    [-v LEVEL] [-p PORT] [-o FILE]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--skip-read-verification] [--servers SERVERS] <targets> ...
-                     [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)`
+                     [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)
+                     [--skip-read-verification] [--servers SERVERS] <targets> ...`
     }
 
     s += ` 
   sibench block run  [-v LEVEL] [-p PORT] [-o FILE]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--skip-read-verification] [--servers SERVERS] 
-                     [--block-device DEVICE]
+                     [--block-device DEVICE] [--skip-read-verification] [--servers SERVERS] 
   sibench file run   [-v LEVEL] [-p PORT] [-o FILE]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES]
-                     [--skip-read-verification] [--servers SERVERS] 
-                     [--file-dir DIR]
+                     [--file-dir DIR] [--skip-read-verification] [--servers SERVERS] 
   sibench -h | --help
 
 Options:
@@ -322,6 +319,7 @@ func startServer(args *Arguments) {
 /* Create a job and execute it on some set of servers. */
 func startRun(args *Arguments) {
     var j Job
+    var err error
 
     j.servers = strings.Split(args.Servers, ",")
     j.serverPort = uint16(args.Port)
@@ -400,22 +398,19 @@ func startRun(args *Arguments) {
             die("No protocol specified")
     }
 
-    j.setArguments(args)
-    m := NewManager()
+    j.report, err = MakeReport(&j, args)
+    if err != nil {
+        return
+    }
 
-    err := m.Run(&j)
+    m := NewManager()
+    err = m.Run(&j)
     if err != nil {
         fmt.Printf("Error running job: %v\n", err)
-        j.addError(err)
+        j.report.AddError(err)
     }
 
-    jsonReport, err := json.MarshalIndent(j.report, "", "  ")
-    dieOnError(err, "Unable to encode results as json")
-
-    if args.Output != "" {
-        err = ioutil.WriteFile(args.Output, jsonReport, 0644)
-        dieOnError(err, "Unable to write json report to file: %v", args.Output)
-    }
+    j.report.Close()
 
     logger.Infof("Done\n")
 }
