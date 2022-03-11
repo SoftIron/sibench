@@ -233,8 +233,8 @@ func validateArguments(args *Arguments) error {
         return fmt.Errorf("S3 Port not in range: %v", args.S3Port)
     }
 
-    if (args.Workers < 0.1) || (args.Workers > 10.0) {
-        return fmt.Errorf("Worker factor not in range 0.1 - 10.0 : %v", args.Workers)
+    if (args.Workers < 0.1) || (args.Workers > 20.0) {
+        return fmt.Errorf("Worker factor not in range 0.1 - 20.0 : %v", args.Workers)
     }
 
     var err error
@@ -264,7 +264,8 @@ func validateArguments(args *Arguments) error {
 /*
  * Build our Config.
  *
- * Currently this uses just our command line arguments, but it will probably load a json file later on.
+ * Currently this uses just our command line arguments, but it will probably have the option to 
+ * load a json file later on.
  */
 func buildConfig(args *Arguments) error {
     globalConfig.ListenPort = uint16(args.Port)
@@ -305,6 +306,8 @@ func main() {
         case args.Run:
             startRun(&args)
     }
+
+    logger.Infof("Done\n")
 }
 
 
@@ -319,7 +322,8 @@ func startServer(args *Arguments) {
 /* Create a job and execute it on some set of servers. */
 func startRun(args *Arguments) {
     var j Job
-    var err error
+
+    j.arguments = args
 
     j.servers = strings.Split(args.Servers, ",")
     j.serverPort = uint16(args.Port)
@@ -398,20 +402,6 @@ func startRun(args *Arguments) {
             die("No protocol specified")
     }
 
-    j.report, err = MakeReport(&j, args)
-    if err != nil {
-        return
-    }
-
-    m := NewManager()
-    err = m.Run(&j)
-    if err != nil {
-        fmt.Printf("Error running job: %v\n", err)
-        j.report.AddError(err)
-    }
-
-    j.report.Close()
-
-    logger.Infof("Done\n")
+    RunBenchmark(&j)
 }
 

@@ -1,5 +1,5 @@
 /* 
- * This file defines all the TCP messages that can be send between the manager and its foremen.
+ * This file defines all the TCP messages that can be sent between the manager and its foremen.
  * Some of the types here are also used to communicate between a foreman and its workers.
  */
 
@@ -53,6 +53,9 @@ type ForemanGenericResponse struct {
 
 
 
+/*
+ * Enum of the different phases of a benchmark.
+ */
 type StatPhase uint8
 const (
     SP_Write StatPhase = iota
@@ -76,9 +79,9 @@ func (sp StatPhase) ToString() string {
 type StatError uint8
 const (
     SE_None = iota
-    SE_VerifyFailure
-    SE_OperationFailure
-    SE_Len // Not an error code, but a count of how many error codes we have
+    SE_VerifyFailure    // When we read back data and get unexpected content
+    SE_OperationFailure // When we hit a non-fatal error reading or writing
+    SE_Len              // Not an error code, but a count of how many error codes we have
 )
 
 

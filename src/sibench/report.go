@@ -10,15 +10,22 @@ import "strings"
 
 
 /* 
- * A Report contains all the information we return from a run.
+ * A Report contains all the information about a run.  This includes:
  *
- * It also holds a file descriptor that it uses to write out the details as JSON
- * as they are added (so that we don't have to hold ALL the stats in memory until the 
- * end).
+ *    The job object we were executing
+ *    The errors encountered
+ *    The details from every single operation performed by the system.
+ *    An analysis of the results, both as summaries, and broken down by sibench node and
+ *    by target node/
+ *
+ * The report is written as a JSON file.  It is continually added to as we progress 
+ * through the phases of a benchmark.
+ *
+ * We do our best to hold as little data in memory as possible, but it can still end up
+ * being pretty large.
  */
 type Report struct {
     job *Job
-    arguments *Arguments
     analyses []*Analysis
     errors []error
     stats []*ServerStat
@@ -34,27 +41,35 @@ type Report struct {
 }
 
 
-func MakeReport(job *Job, args *Arguments) (*Report, error) {
+/*
+ * Create a new Report object.
+ *
+ * This will also create a new output file for the JSON results, with the filename
+ * being set with the --output argumenmt.
+ */
+func MakeReport(job *Job) (*Report, error) {
     var r Report
-
     r.job = job
-    r.arguments = args
 
-    logger.Infof("Creating report: %s\n", args.Output)
+    logger.Infof("Creating report: %s\n", job.arguments.Output)
 
-    r.jsonFile, r.jsonErr = os.Create(args.Output)
+    r.jsonFile, r.jsonErr = os.Create(job.arguments.Output)
     if r.jsonErr != nil {
-        logger.Errorf("Failure creating file: %s, %v\n", args.Output, r.jsonErr)
+        logger.Errorf("Failure creating file: %s, %v\n", job.arguments.Output, r.jsonErr)
     }
 
     r.writeString("{\n  \"Arguments\": ")
-    r.writeJson(args)
+    r.writeJson(job.arguments)
     r.writeString(",\n  \"Stats\": [\n")
 
     return &r, r.jsonErr
 }
 
 
+/*
+ * Closes the File object which we are using to write the JSON, having first added 
+ * any last sections to it.
+ */
 func (r *Report) Close() {
     if r.jsonErr != nil {
         return
@@ -70,6 +85,12 @@ func (r *Report) Close() {
 }
 
 
+/* 
+ * Writes an object as JSON using whatever marshalling is default in the encoding/json
+ * package.
+ *
+ * This method will do nothing if we have previously encountered an error.
+ */
 func (r *Report) writeJson(val interface{}) {
     if r.jsonErr != nil {
         return
@@ -85,12 +106,18 @@ func (r *Report) writeJson(val interface{}) {
 
     _, r.jsonErr = r.jsonFile.Write(jsonVal)
     if r.jsonErr != nil {
-        logger.Errorf("Failure writing to file: %s, %v\n", r.arguments.Output, r.jsonErr)
+        logger.Errorf("Failure writing to file: %s, %v\n", r.job.arguments.Output, r.jsonErr)
         r.jsonFile.Close()
     }
 }
 
 
+/* 
+ * Writes a string into the JSON, so that we can add data to it without the overhead of
+ * marshalling.
+ *
+ * This method will do nothing if we have previously encountered an error.
+ */
 func (r *Report) writeString(val string) {
     if r.jsonErr != nil {
         return
@@ -98,27 +125,41 @@ func (r *Report) writeString(val string) {
 
     _, r.jsonErr = r.jsonFile.WriteString(val)
     if r.jsonErr != nil {
-        logger.Errorf("Failure writing to file: %s, %v\n", r.arguments.Output, r.jsonErr)
+        logger.Errorf("Failure writing to file: %s, %v\n", r.job.arguments.Output, r.jsonErr)
         r.jsonFile.Close()
     }
 }
 
 
+/**
+ * Adds a Stat to the report.  It will be written into the JSON immediately.
+ * The Stat will be held on to in memory until AnalyseStats is next called.
+ */
 func (r *Report) AddStat(s *ServerStat) {
     template := `%s    {"Start": %v, "Duration": %v, "Phase": %v, "Error": "%s", "Target": "%s", "Server": "%s"}`
 
     target := r.job.order.Targets[s.TargetIndex]
     server := r.job.servers[s.ServerIndex]
 
-    val := fmt.Sprintf(template, r.jsonStatSeparator, s.TimeSincePhaseStart.Seconds(), s.Duration.Seconds(), s.Phase, s.Error.ToString(), target, server)
+    val := fmt.Sprintf(
+            template,
+            r.jsonStatSeparator,
+            s.TimeSincePhaseStart.Seconds(),
+            s.Duration.Seconds(),
+            s.Phase,
+            s.Error.ToString(),
+            target,
+            server)
+
     r.writeString(val)
-
     r.jsonStatSeparator = ",\n"
-
     r.stats = append(r.stats, s)
 }
 
 
+/*
+ * Adds an error to the Report.
+ */
 func (r *Report) AddError(e error) {
     r.errors = append(r.errors, e)
 }
@@ -202,8 +243,3 @@ func (r *Report) DisplayAnalyses() {
 
     fmt.Printf("%v\n", strings.Repeat("=", lineWidth))
 }
-
-
-
-
-

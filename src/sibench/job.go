@@ -24,6 +24,9 @@ package main
  * 30 seconds to 10 minutes, and the RampDown is short - perhaps 5 secs maximum.
  */
 type Job struct {
+    /* The command line arguments with which we were created */
+    arguments *Arguments
+
     /* All the stuff we need to hand out to our Foremen. */
     order WorkOrder
 
@@ -35,10 +38,5 @@ type Job struct {
     rampUp uint64       // Time given to settle down before we start recording results
     runTime uint64      // The length of the main part of the run where we record results.
     rampDown uint64     // Time at the end of the run where we throw away the results again.
-
-    /* The report object bundles up everything we need to generate a report when we're done. */
-    report *Report
 }
-
-
 
