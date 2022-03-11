@@ -1,6 +1,6 @@
 package main
 
-
+import "bufio"
 import "encoding/json"
 import "fmt"
 import "logger"
@@ -28,10 +28,15 @@ type Report struct {
     job *Job
     analyses []*Analysis
     errors []error
+
+    /* The stats that we are still waiting to analyse. */
     stats []*ServerStat
 
     /* The file handle we use to write out a JSON version of the report. */
     jsonFile *os.File
+
+    /* Buffered Writer for the JSON file */
+    jsonWriter *bufio.Writer
 
     /* Error we maintain to avoid huge amounts of error checking everywhere */
     jsonErr error
@@ -58,6 +63,8 @@ func MakeReport(job *Job) (*Report, error) {
         logger.Errorf("Failure creating file: %s, %v\n", job.arguments.Output, r.jsonErr)
     }
 
+    r.jsonWriter = bufio.NewWriter(r.jsonFile)
+
     r.writeString("{\n  \"Arguments\": ")
     r.writeJson(job.arguments)
     r.writeString(",\n  \"Stats\": [\n")
@@ -81,6 +88,7 @@ func (r *Report) Close() {
     r.writeJson(r.analyses)
     r.writeString("\n}")
 
+    r.jsonWriter.Flush()
     r.jsonFile.Close()
 }
 
@@ -104,7 +112,8 @@ func (r *Report) writeJson(val interface{}) {
         return
     }
 
-    _, r.jsonErr = r.jsonFile.Write(jsonVal)
+    _, r.jsonErr = r.jsonWriter.Write(jsonVal)
+
     if r.jsonErr != nil {
         logger.Errorf("Failure writing to file: %s, %v\n", r.job.arguments.Output, r.jsonErr)
         r.jsonFile.Close()
@@ -123,7 +132,8 @@ func (r *Report) writeString(val string) {
         return
     }
 
-    _, r.jsonErr = r.jsonFile.WriteString(val)
+    _, r.jsonErr = r.jsonWriter.WriteString(val)
+
     if r.jsonErr != nil {
         logger.Errorf("Failure writing to file: %s, %v\n", r.job.arguments.Output, r.jsonErr)
         r.jsonFile.Close()

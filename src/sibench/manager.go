@@ -82,23 +82,22 @@ func RunBenchmark(j *Job) error {
     phaseTime := j.runTime + j.rampUp + j.rampDown
 
     if j.order.ReadWriteMix == 0 {
-        // Write
+        // Write/Prepare/Read
+
         logger.Infof("\n----------------------- WRITE -----------------------------\n")
         m.runPhase(phaseTime, OP_WriteStart, OP_WriteStop)
 
-        // Prepare
         logger.Infof("\n---------------------- PREPARE ----------------------------\n")
         m.prepare()
 
-        // Read
         logger.Infof("\n----------------------- READ ------------------------------\n")
         m.runPhase(phaseTime, OP_ReadStart, OP_ReadStop)
     } else {
-        // Prepare
+        // Prepare/Read-Write-Mix
+
         logger.Infof("\n---------------------- PREPARE ----------------------------\n")
         m.prepare()
 
-        // Read
         logger.Infof("\n--------------------- READ/WRITE --------------------------\n")
         m.runPhase(phaseTime, OP_ReadWriteStart, OP_ReadWriteStop)
     }
@@ -145,19 +144,21 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
 /*
  * Check if an incoming message is an error type, and convert it to error if so.
  */
-func (m *Manager) checkError(msgInfo *comms.ReceivedMessageInfo) error {
+func (m *Manager) checkError(msgInfo *comms.ReceivedMessageInfo) {
+    if m.err != nil { return }
+
     msg := msgInfo.Message
     op := Opcode(msg.ID())
 
     if (op != OP_Fail) && (op != OP_Hung) {
-        return nil
+        return
     }
 
     var resp ForemanGenericResponse
     msg.Data(&resp)
 
     details := m.connToServerDetails[msgInfo.Connection]
-    return fmt.Errorf("%v:%v", details.Name, resp.Error)
+    m.err = fmt.Errorf("%v:%v", details.Name, resp.Error)
 }
 
 
@@ -174,6 +175,8 @@ func (m *Manager) checkError(msgInfo *comms.ReceivedMessageInfo) error {
 func (m* Manager) drainStats() {
     if (m.err != nil) || m.isInterrupted { return }
 
+    logger.Infof("Retrieving stats from servers\n")
+
     m.sendOpToServers(OP_StatDetails, false)
 
     count := 0
@@ -187,7 +190,7 @@ func (m* Manager) drainStats() {
                     return
                 }
 
-                m.err = m.checkError(msgInfo)
+                m.checkError(msgInfo)
                 if m.err != nil { return }
 
                 msg := msgInfo.Message
@@ -239,8 +242,8 @@ func (m* Manager) drainStats() {
 func (m *Manager) prepare() {
     if (m.err != nil) || m.isInterrupted { return }
 
-    m.sendOpToServers(OP_Prepare, false)
     m.sendOpToServers(OP_StatSummaryStart, true)
+    m.sendOpToServers(OP_Prepare, false)
 
     ticker := time.NewTicker(time.Second)
 
@@ -262,7 +265,7 @@ func (m *Manager) prepare() {
                 }
 
                 msg := msgInfo.Message
-                m.err = m.checkError(msgInfo)
+                m.checkError(msgInfo)
                 if m.err != nil { return }
 
                 op := Opcode(msg.ID())
@@ -270,6 +273,7 @@ func (m *Manager) prepare() {
                     case OP_Prepare:
                         pending--
                         if pending == 0 {
+                            m.sendOpToServers(OP_StatSummaryStop, true)
                             m.drainStats()
                             return
                         }
@@ -333,7 +337,7 @@ func (m *Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
                 }
 
                 msg := msgInfo.Message
-                m.err = m.checkError(msgInfo)
+                m.checkError(msgInfo)
                 if m.err != nil { return }
 
                 op := Opcode(msg.ID())
@@ -395,7 +399,7 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
             os.Exit(-1)
         }
 
-        m.err = m.checkError(msgInfo)
+        m.checkError(msgInfo)
         if m.err != nil { return }
 
         msg := msgInfo.Message
