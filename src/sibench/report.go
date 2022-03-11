@@ -136,7 +136,7 @@ func (r *Report) writeString(val string) {
  * The Stat will be held on to in memory until AnalyseStats is next called.
  */
 func (r *Report) AddStat(s *ServerStat) {
-    template := `%s    {"Start": %v, "Duration": %v, "Phase": %v, "Error": "%s", "Target": "%s", "Server": "%s"}`
+    template := `%s    {"Start": %v, "Duration": %v, "Phase": "%s", "Error": "%s", "Target": "%s", "Server": "%s"}`
 
     target := r.job.order.Targets[s.TargetIndex]
     server := r.job.servers[s.ServerIndex]
@@ -146,7 +146,7 @@ func (r *Report) AddStat(s *ServerStat) {
             r.jsonStatSeparator,
             s.TimeSincePhaseStart.Seconds(),
             s.Duration.Seconds(),
-            s.Phase,
+            s.Phase.ToString(),
             s.Error.ToString(),
             target,
             server)
@@ -216,7 +216,7 @@ func (r *Report) AnalyseStats() {
  */
 func (r *Report) DisplayAnalyses() {
     lineWidth := 160
-    lastPhase := SP_Len // Choosing a value that will not be a real phase.
+    lastPhase := "" // Choosing a value that will not be a real phase.
 
     // First print out the target and server analyses
 

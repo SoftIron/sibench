@@ -184,7 +184,7 @@ func sortByDuration(stats []*ServerStat) {
  */
 type Analysis struct {
     Name string
-    Phase StatPhase
+    Phase string
     IsTotal bool
 
     /* All response times in ms */
@@ -227,7 +227,7 @@ func (a *Analysis) String() string {
 func NewAnalysis(stats []*ServerStat, name string, phase StatPhase, isTotal bool, job *Job) *Analysis {
     var result Analysis
     result.Name =name
-    result.Phase = phase
+    result.Phase = phase.ToString()
     result.IsTotal = isTotal
 
     good := filter(stats, errorFilter(SE_None))

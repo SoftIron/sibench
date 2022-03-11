@@ -38,7 +38,7 @@ type Manager struct {
     sigChan chan os.Signal
     isInterrupted bool
 
-    /* We stop the first time we encounter an error */
+    /* Most operations will be skipped after the first time we encounter an error */
     err error
 }
 
@@ -87,16 +87,16 @@ func RunBenchmark(j *Job) error {
         m.runPhase(phaseTime, OP_WriteStart, OP_WriteStop)
 
         // Prepare
-        logger.Infof("Preparing...\n")
-        m.sendOpToServers(OP_Prepare, true)
+        logger.Infof("\n---------------------- PREPARE ----------------------------\n")
+        m.prepare()
 
         // Read
         logger.Infof("\n----------------------- READ ------------------------------\n")
         m.runPhase(phaseTime, OP_ReadStart, OP_ReadStop)
     } else {
         // Prepare
-        logger.Infof("Preparing...\n")
-        m.sendOpToServers(OP_Prepare, true)
+        logger.Infof("\n---------------------- PREPARE ----------------------------\n")
+        m.prepare()
 
         // Read
         logger.Infof("\n--------------------- READ/WRITE --------------------------\n")
@@ -233,13 +233,81 @@ func (m* Manager) drainStats() {
 
 
 /*
+ * Works very much like runPhase, but this time we wait for the servers to tell us the're done,
+ * rather the running for a specifed length of time.
+ */
+func (m *Manager) prepare() {
+    if (m.err != nil) || m.isInterrupted { return }
+
+    m.sendOpToServers(OP_Prepare, false)
+    m.sendOpToServers(OP_StatSummaryStart, true)
+
+    ticker := time.NewTicker(time.Second)
+
+    var summary StatSummary
+    pending := len(m.msgConns)
+    i := 0
+
+    for {
+        select {
+            case msgInfo := <-m.msgChannel:
+                if msgInfo.Error != nil {
+                    if msgInfo.Error == io.EOF {
+                        m.err = fmt.Errorf("Received remote close from %v\n", msgInfo.Connection.RemoteIP())
+                        return
+                    }
+
+                    m.err = fmt.Errorf("Transport failure: %v\n", msgInfo.Error)
+                    return
+                }
+
+                msg := msgInfo.Message
+                m.err = m.checkError(msgInfo)
+                if m.err != nil { return }
+
+                op := Opcode(msg.ID())
+                switch op {
+                    case OP_Prepare:
+                        pending--
+                        if pending == 0 {
+                            m.drainStats()
+                            return
+                        }
+
+                    case OP_StatSummary:
+                        var s StatSummary
+                        msg.Data(&s)
+                        summary.Add(&s)
+
+                    default:
+                        m.err = fmt.Errorf("Unexpected opcode %v\n", op)
+                        return
+                }
+
+            case <-ticker.C:
+                logger.Infof("%v: %v\n", i, summary.String(m.job.order.ObjectSize))
+                i++
+                summary.Zero()
+
+            case <-m.sigChan:
+                logger.Infof("Interrupting job and waiting to shut down\n")
+                ticker.Stop()
+                m.isInterrupted = true
+                return
+        }
+    }
+}
+
+
+
+/*
  * Waits for the specified number of seconds whilst a benchmark executes.
  *
  * During this time, we accept StatSummary messages from the servers.   
  * These are aggragated, and printed out once per second so that the user can
  * see what the system is doing.
  */
-func (m* Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
+func (m *Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
     if (m.err != nil) || m.isInterrupted { return }
 
     m.sendOpToServers(startOp, true)
