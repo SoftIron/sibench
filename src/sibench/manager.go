@@ -128,11 +128,11 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
     if m.err != nil { return }
     if m.isInterrupted && (op != OP_Terminate) { return }
 
-    logger.Debugf("Sending: %v\n", op)
+    logger.Debugf("Sending: %v\n", op.ToString())
 
     // Send our request.
     for _, conn := range m.msgConns {
-        conn.Send(string(op), nil)
+        conn.Send(uint8(op), nil)
     }
 
     if waitForResponse {
@@ -145,7 +145,7 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
  * Check if an incoming message is an error type, and convert it to error if so.
  */
 func (m *Manager) checkError(msgInfo *comms.ReceivedMessageInfo) {
-    if m.err != nil { return }
+    if (m.err != nil) || m.isInterrupted { return }
 
     msg := msgInfo.Message
     op := Opcode(msg.ID())
@@ -221,7 +221,7 @@ func (m* Manager) drainStats() {
                         // Ignore this - we just received one a bit later than expected.
 
                     default:
-                        m.err = fmt.Errorf("Unexpected opcode: %v\n", op)
+                        m.err = fmt.Errorf("Unexpected opcode: %v\n", op.ToString())
                         return
                 }
 
@@ -288,7 +288,7 @@ func (m *Manager) prepare() {
                         summary.Add(&s)
 
                     default:
-                        m.err = fmt.Errorf("Unexpected opcode %v\n", op)
+                        m.err = fmt.Errorf("Unexpected opcode %v\n", op.ToString())
                         return
                 }
 
@@ -346,7 +346,7 @@ func (m *Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
 
                 op := Opcode(msg.ID())
                 if op != OP_StatSummary {
-                    m.err = fmt.Errorf("Unexpected opcode %v\n", op)
+                    m.err = fmt.Errorf("Unexpected opcode %v\n", op.ToString())
                     return
                 }
 
@@ -390,42 +390,48 @@ func (m *Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
  * time, and which are just ignored here.
  */
 func (m *Manager) waitForResponses(expectedOp Opcode) {
-    if m.err != nil { return }
+    if (m.err != nil) || m.isInterrupted { return }
 
-    logger.Debugf("Waiting for %s\n", expectedOp)
+    logger.Debugf("Waiting for %s\n", expectedOp.ToString())
     pending := len(m.msgConns)
 
     for {
-        msgInfo := <-m.msgChannel
+        select {
+            case msgInfo := <-m.msgChannel:
+                if msgInfo.Error != nil {
+                    logger.Errorf("%v\n", msgInfo.Error)
+                    os.Exit(-1)
+                }
 
-        if msgInfo.Error != nil {
-            logger.Errorf("%v\n", msgInfo.Error)
-            os.Exit(-1)
-        }
+                m.checkError(msgInfo)
+                if m.err != nil { return }
 
-        m.checkError(msgInfo)
-        if m.err != nil { return }
+                msg := msgInfo.Message
+                op := Opcode(msg.ID())
 
-        msg := msgInfo.Message
-        op := Opcode(msg.ID())
+                if op == expectedOp {
+                    var resp ForemanGenericResponse
+                    msg.Data(&resp)
 
-        if op == expectedOp {
-            var resp ForemanGenericResponse
-            msg.Data(&resp)
+                    pending--
+                    if pending == 0 {
+                        logger.Debugf("Received %v, finished waiting\n", op.ToString())
+                        return
+                    }
 
-            pending--
-            if pending == 0 {
-                logger.Debugf("Received %v, finished waiting\n", op)
+                    logger.Debugf("Received %v, still waiting for %v more\n", op.ToString(), pending)
+                } else if op != OP_StatSummary {
+                    // Stat Summary messages can arrive later than expected because they're asynchronous.  
+                    // If we see one when we don't want one, we just drop it.  
+                    // All other unexpected opcodes are an error.
+                    m.err = fmt.Errorf("Unexpected Opcode received: expected %v but got %v\n", expectedOp.ToString(), op.ToString())
+                    return
+                }
+
+            case <-m.sigChan:
+                logger.Infof("Interrupting job and waiting to shut down\n")
+                m.isInterrupted = true
                 return
-            }
-
-            logger.Debugf("Received %v, still waiting for %v more\n", op, pending)
-        } else if op != OP_StatSummary {
-            // Stat Summary messages can arrive later than expected because they're asynchronous.  
-            // If we see one when we don't want one, we just drop it.  
-            // All other unexpected opcodes are an error.
-            m.err = fmt.Errorf("Unexpected Opcode received: expected %v but got %v\n", expectedOp, op)
-            return
         }
     }
 }
@@ -442,7 +448,7 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
  * We block until all the servers have acknowledged the new job.
  */
 func (m *Manager) sendJobToServers() {
-    if m.err != nil { return }
+    if (m.err != nil) || m.isInterrupted { return }
 
     order := &(m.job.order)
 
@@ -502,7 +508,7 @@ func (m *Manager) sendJobToServers() {
  * so forth, so that we can allocate the workloads appropriately later.
  */
 func (m *Manager) discoverServerCapabilities() {
-    if m.err != nil { return }
+    if (m.err != nil) || m.isInterrupted { return }
 
     logger.Debugf("Sending Server Capability Discovery requests\n")
     for _, conn := range m.msgConns {
@@ -527,7 +533,7 @@ func (m *Manager) discoverServerCapabilities() {
 
         op := Opcode(msg.ID())
         if op != OP_Discovery {
-            m.err = fmt.Errorf("Unexpected Opcode received: expected Discovery but got %v\n", op)
+            m.err = fmt.Errorf("Unexpected Opcode received: expected Discovery but got %v\n", op.ToString())
             return
         }
 
@@ -556,7 +562,7 @@ func (m *Manager) discoverServerCapabilities() {
  * successfully talk to.
  */
 func (m *Manager) connectToServers() {
-    if m.err != nil { return }
+    if (m.err != nil) || m.isInterrupted { return }
 
     // Construct our aggregated recv channel
     m.msgChannel = make(chan *comms.ReceivedMessageInfo, 1000)

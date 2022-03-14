@@ -4,7 +4,7 @@ A MessageConnection encapsulates a connection over TCP to some other machine, ov
 received.
 
 Messages consist of:
-1. A string ID to identify the type of the message.
+1. An integer ID to identify the type of the message.
 2. An optional struct of data.
 
 The type of the data struct is implied by the message ID.
@@ -42,7 +42,7 @@ import "time"
 
 // TCPMessageFmt - Format of TCP messages.
 type TCPMessageFmt struct {
-    ID string `json:"command"`
+    ID uint8 `json:"command"`
     IsError bool `json:"is_error,omitempty"`
     Data interface{} `json:"data"`
 }
@@ -52,7 +52,8 @@ type TCPMessageFmt struct {
 
 // MakeEncoderFactory - Make a factory for our default encoder.
 func MakeEncoderFactory() EncoderFactory {
-    return MakeJSONEncoderFactory()
+    // return MakeJSONEncoderFactory()
+    return MakeGobEncoderFactory()
 }
 
 
@@ -131,7 +132,7 @@ func (me *MessageConnection) RemoteIP() string {
 
 
 // Send - Send the given message.
-func (me* MessageConnection) Send(MessageID string, data interface{}) error {
+func (me* MessageConnection) Send(MessageID uint8, data interface{}) error {
     return me.encoder.Send(MessageID, data)
 }
 
@@ -146,17 +147,6 @@ func (me *MessageConnection) Receive(timeout time.Duration) (ReceivedMessage, er
     // TODO: Handle timeout.
 
     return me.encoder.Receive()
-}
-
-
-// SendReceive - Send the given command and wait for a response.
-// Equivalent to calling Send() and then Receive(), but simplifies error handling slightly.
-// The timeout is optional, pass to 0 for no timeout.
-// May not be called after a receive channel has been provided.
-func (me *MessageConnection) SendReceive(MessageID string, data interface{}, timeout time.Duration) (
-    replyID string, replyData interface{}, err error) {
-    // TODO
-    return "", nil, nil
 }
 
 

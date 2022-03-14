@@ -10,7 +10,7 @@ package comms
 // ReceivedMessage - A message that we have received and partially decoded.
 type ReceivedMessage interface {
     // ID - Report our message ID.
-    ID() string
+    ID() uint8
 
     // Data - Unpack the message data into the given struct of the appropriate type.
     Data(data interface{})
@@ -27,7 +27,7 @@ type EncoderFactory interface {
 // Encoder - Encodes and decodes messages with struct data, sending and receiving via a framer.
 type Encoder interface {
     // Send - Encode the given message and send it.
-    Send(messageID string, data interface{}) error
+    Send(messageID uint8, data interface{}) error
 
     // Receive - Blocking call to receive, and decode, the next message.
     Receive() (ReceivedMessage, error)

@@ -187,12 +187,12 @@ func (w *Worker) eventLoop() {
 
 
 func (w *Worker) handleOpcode(op Opcode) {
-    logger.Debugf("[worker %v] handleOpcode: %v\n", w.spec.Id, op)
+    logger.Debugf("[worker %v] handleOpcode: %v\n", w.spec.Id, op.ToString())
 
     // See if the Opcode is valid in our current state.
     nextState := validWSTransitions[op][w.state]
     if nextState == WS_BadTransition {
-        w.fail(fmt.Errorf("[worker %v] handleOpcode: bad transition from state %v on opcode %v", w.spec.Id, workerStateToStr(w.state), op))
+        w.fail(fmt.Errorf("[worker %v] handleOpcode: bad transition from state %v on opcode %v", w.spec.Id, workerStateToStr(w.state), op.ToString()))
         return
     }
 
@@ -211,7 +211,7 @@ func (w *Worker) handleOpcode(op Opcode) {
 
 
 func (w *Worker) sendResponse(op Opcode, err error) {
-    logger.Debugf("[worker %v] sending Response: %v, %v\n", w.spec.Id, op, err)
+    logger.Debugf("[worker %v] sending Response: %v, %v\n", w.spec.Id, op.ToString(), err)
     w.spec.ResponseChannel <- &WorkerResponse{ WorkerId: w.spec.Id, Op: op, Error: err }
 }
 

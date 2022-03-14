@@ -13,34 +13,59 @@ import "time"
  * Foremen.
  * Also used directly (without TCP) between a Foreman and its Workers.
  */
-type Opcode string
+type Opcode uint8
 const(
     // Opcodes used between Worker->Foreman and Foreman->Manager.
-    OP_Fail = "Fail"
-    OP_Hung = "Hung"
+    OP_Fail = iota
+    OP_Hung
 
     // Opcodes only used between Foreman->Manager
-    OP_StatSummary = "StatSummary"
-    OP_Busy = "Busy"
+    OP_StatSummary
+    OP_Busy
 
     // Opcodes used between Foreman<->Manager
-    OP_Discovery = "Discovery"
-    OP_StatDetails = "StatDetails"
-    OP_StatDetailsDone = "StatDetailsDone"
-    OP_StatSummaryStart = "StatSummaryStart"
-    OP_StatSummaryStop = "StatSummaryStop"
+    OP_Discovery
+    OP_StatDetails
+    OP_StatDetailsDone
+    OP_StatSummaryStart
+    OP_StatSummaryStop
 
     // Opcodes used bewtween Manager<->Foreman and between Foreman<->Worker
-    OP_Connect = "Connect"
-    OP_WriteStart = "WriteStart"
-    OP_WriteStop = "WriteStop"
-    OP_Prepare = "Prepare"
-    OP_ReadStart = "ReadStart"
-    OP_ReadStop = "ReadStop"
-    OP_ReadWriteStart = "ReadWriteStart"
-    OP_ReadWriteStop = "ReadWriteStop"
-    OP_Terminate = "Terminate"
+    OP_Connect
+    OP_WriteStart
+    OP_WriteStop
+    OP_Prepare
+    OP_ReadStart
+    OP_ReadStop
+    OP_ReadWriteStart
+    OP_ReadWriteStop
+    OP_Terminate
 )
+
+
+func (op Opcode) ToString() string {
+    switch op {
+        case OP_Fail: return "Fail"
+        case OP_Hung: return "Hung"
+        case OP_StatSummary: return "StatSummary"
+        case OP_Busy: return "Busy"
+        case OP_Discovery: return "Discovery"
+        case OP_StatDetails: return "StatDetails"
+        case OP_StatDetailsDone: return "StatDetailsDone"
+        case OP_StatSummaryStart: return "StatSummaryStart"
+        case OP_StatSummaryStop: return "StatSummaryStop"
+        case OP_Connect: return "Connect"
+        case OP_WriteStart: return "WriteStart"
+        case OP_WriteStop: return "WriteStop"
+        case OP_Prepare: return "Prepare"
+        case OP_ReadStart: return "ReadStart"
+        case OP_ReadStop: return "ReadStop"
+        case OP_ReadWriteStart: return "ReadWriteStart"
+        case OP_ReadWriteStop: return "ReadWriteStop"
+        case OP_Terminate: return "Terminate"
+        default: return "Unknown"
+    }
+}
 
 
 /* 
@@ -70,7 +95,7 @@ func (sp StatPhase) ToString() string {
         case SP_Write:    return "Write"
         case SP_Prepare:  return "Prepare"
         case SP_Read:     return "Read"
-        default:          return "Unkown"
+        default:          return "Unknown"
     }
 }
 

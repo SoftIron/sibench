@@ -350,12 +350,12 @@ func (f *Foreman) handleTcpMsg(msgInfo *comms.ReceivedMessageInfo) {
     msg := msgInfo.Message
     op := Opcode(msg.ID())
 
-    logger.Debugf("Received message from %v: %v\n", msgInfo.Connection.RemoteIP(), op)
+    logger.Debugf("Received message from %v: %v\n", msgInfo.Connection.RemoteIP(), op.ToString())
 
     // See if the Opcode is valid in our current state.
     nextState := validTcpTransitions[op][f.state]
     if nextState == FS_BadTransition {
-        f.fail(fmt.Errorf("Bad TCP state transition: %v, %v", foremanStateToStr(f.state), op))
+        f.fail(fmt.Errorf("Bad TCP state transition: %v, %v", foremanStateToStr(f.state), op.ToString()))
         return
     }
 
@@ -404,14 +404,14 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
     }
 
     if (f.state == FS_Terminate) && (resp.Op != OP_Terminate) {
-        logger.Debugf("Ignoring worker response (%v) as we are terminating\n", resp.Op)
+        logger.Debugf("Ignoring worker response (%v) as we are terminating\n", resp.Op.ToString())
         return
     }
 
     // Check if this is a bad message.
     nextState := validWorkerTransitions[resp.Op][f.state]
     if nextState == FS_BadTransition {
-        f.fail(fmt.Errorf("Bad Worker state transition: %v, %v", foremanStateToStr(f.state), resp.Op))
+        f.fail(fmt.Errorf("Bad Worker state transition: %v, %v", foremanStateToStr(f.state), resp.Op.ToString()))
         return
     }
 
@@ -505,7 +505,7 @@ func (f *Foreman) connect() {
 func (f *Foreman) sendOpcodeToManager(op Opcode, err error) {
     // If our connection died, then don't bother trying to send anything.
     if f.tcpConnection == nil {
-        logger.Debugf("No connection: not sending response for %v\n", op)
+        logger.Debugf("No connection: not sending response for %v\n", op.ToString())
         return
     }
 
@@ -515,9 +515,9 @@ func (f *Foreman) sendOpcodeToManager(op Opcode, err error) {
         resp.Error = err.Error()
     }
 
-    logger.Debugf("Send response to manager: %v, %v\n", op, err)
+    logger.Debugf("Send response to manager: %v, %v\n", op.ToString(), err)
 
-    f.tcpConnection.Send(string(op), &resp)
+    f.tcpConnection.Send(uint8(op), &resp)
 }
 
 
@@ -540,7 +540,7 @@ func (f *Foreman) hung(err error) {
 
 /* Send an opcode to all our workers */
 func (f *Foreman) sendOpcodeToWorkers(op Opcode) {
-    logger.Debugf("Sending op to workers: %v\n", op)
+    logger.Debugf("Sending op to workers: %v\n", op.ToString())
 
     // When we send out this message, we expect to see each of our workers acknowledge it.
     f.responsePending = len(f.workerInfos)
@@ -630,15 +630,17 @@ func processStats(statChannel chan *Stat, controlChannel chan statControl, respo
             case ctl := <-controlChannel:
                 switch ctl {
                     case SC_SendDetails:
+                        // Send Stats 64 at a time, if we have that many.
+
                         step := 64
-                        count := len(stats) / step
+                        count := len(stats) - (len(stats) % step)
                         var i int
                         for i = 0; i < count; i += step {
-                             tcpConnection.Send(OP_StatDetails, stats[i:step])
+                            tcpConnection.Send(OP_StatDetails, stats[i:i + step])
                         }
 
                         if i < len(stats) {
-                            tcpConnection.Send(OP_StatDetails, stats[i:len(stats) - i])
+                            tcpConnection.Send(OP_StatDetails, stats[i:])
                         }
 
                         logger.Debugf("Sent %v detailed stats\n", len(stats))
