@@ -630,8 +630,15 @@ func processStats(statChannel chan *Stat, controlChannel chan statControl, respo
             case ctl := <-controlChannel:
                 switch ctl {
                     case SC_SendDetails:
-                        for _, s := range stats {
-                            tcpConnection.Send(OP_StatDetails, s)
+                        step := 64
+                        count := len(stats) / step
+                        var i int
+                        for i = 0; i < count; i += step {
+                             tcpConnection.Send(OP_StatDetails, stats[i:step])
+                        }
+
+                        if i < len(stats) {
+                            tcpConnection.Send(OP_StatDetails, stats[i:len(stats) - i])
                         }
 
                         logger.Debugf("Sent %v detailed stats\n", len(stats))

@@ -181,6 +181,7 @@ func (m* Manager) drainStats() {
 
     count := 0
     pending := len(m.msgConns)
+    start := time.Now()
 
     for pending > 0 {
         select {
@@ -200,17 +201,18 @@ func (m* Manager) drainStats() {
 
                 switch op {
                     case OP_StatDetails:
-                        var s Stat
-                        msg.Data(&s)
-
+                        var stats []Stat
+                        msg.Data(&stats)
                         details := m.connToServerDetails[msgInfo.Connection]
 
-                        ss := new(ServerStat)
-                        ss.ServerIndex = details.Index
-                        ss.Stat = s
+                        for _, s := range(stats) {
+                            ss := new(ServerStat)
+                            ss.ServerIndex = details.Index
+                            ss.Stat = s
 
-                        m.report.AddStat(ss)
-                        count++
+                            m.report.AddStat(ss)
+                            count++
+                        }
 
                     case OP_StatDetailsDone:
                         pending--
@@ -230,6 +232,8 @@ func (m* Manager) drainStats() {
         }
     }
 
+    end := time.Now()
+    logger.Infof("%v stats retrieved in %.3f seconds\n", len(m.report.stats), end.Sub(start).Seconds())
     m.report.AnalyseStats()
     return
 }
