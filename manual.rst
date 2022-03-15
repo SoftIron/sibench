@@ -208,7 +208,10 @@ you wish to perform your own analysis) is a better indicator of a system's behav
 Memory considerations
 ---------------------
 
-Sibench is written to use as little memory as possible.  The generators algorithmically create each object to be written or read-and-verified on the fly, and so objects do not need to be held in memory for longer than a single read or write operation as they can be recreated at will.
+Sibench is written to use as little memory as possible.  The generators algorithmically create each object to be written or read-and-verified on the fly, and so objects do not need to be held in memory for longer than a single read or write operation as they can be recreated at will.  
+
+The one part of sibench that can take a *lot* of memory is the stats gathering, as stats are held in memory by each driver node until the completion of each phase of a run.  At the end of each phase, the manager process collects 
+the stats from all the nodes and merges them.  This can be a lot of data if, say, you are running 30 driver nodes against an NVME cluster for a long run time.
 
 Unfortunately, some of the Ceph native libraries used by Sibench do appear to hold on to data for longer periods of time.  This can result in large amounts of memory being used, which can result in two undesirable outcomes:
 
@@ -241,6 +244,31 @@ The reason for this is that if one Sibench server is far quicker than its peers,
 
 The details...
 ==============
+
+
+Targets
+-------
+
+The targets are the nodes to which the worker threads connect.  Each worker opens a connection to each target and round-robins their reads and writes across those connections.
+
+For most Ceph operations, the targets are monitors, and there is no advantage to specifying more than one.  All the monitors do is provide the state-of-the-cluster map so
+that the workers can connect to the OSDs directly.
+
+For RGW/S3, however, you should *definitely* list all of the storage cluster's RGW nodes as targets, since those nodes are doing real work, and it needs to be balanced.
+
+RBD
+---
+
+RBD behaviour is a little different than you might expect: Each worker creates an RBD image per target, just big enough to hold that worker's share of the 'objects' for the benchmark.  
+All reads and writes that the worker then does are within the RBD image.
+
+For example, if you have the following:
+
+1. 10 sibench nodes, each with 16 cores
+2. A single target monitor
+3. And object count of 1600 and an object size of 1MB
+
+Then sibench will create 160 workers (by default, it is one per core), each of which will create a single 10MB RBD image, and then it will procede to read and write 1 MB at a time to parts of that image.
 
 Generators
 ----------
@@ -293,7 +321,7 @@ Sibench either benchmarks write operations first and then read operations, or el
 When benchmarking reads, or a read-write mix, it must first ensure that there are enough objects there to read before it can start work.  This is the *prepare* phase,
 and that is what is happening when you see messages about 'Preparing'. 
 
-It also happens if we are doing separate writes and reads and we did not have a long enough run time for Sibench to write all of the objects specified by the `count` 
+It also happens if we are doing separate writes and reads and we did not have a long enough run time for Sibench to write all of the objects specified by the `object-count` 
 option.  In this case, the prepare phase will keep writing until all the objects are ready for reading.
 
 
