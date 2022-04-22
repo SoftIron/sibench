@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2022 SoftIron Limited <info@softiron.com>
+// SPDX-License-Identifier: GNU General Public License v2.0 only WITH Classpath exception 2.0
+
 /* MessageConnection.
 
 A MessageConnection encapsulates a connection over TCP to some other machine, over which messages can be sent and

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2022 SoftIron Limited <info@softiron.com>
+// SPDX-License-Identifier: GNU General Public License v2.0 only WITH Classpath exception 2.0
+
 /* 
  * This file defines all the TCP messages that can be sent between the manager and its foremen.
  * Some of the types here are also used to communicate between a foreman and its workers.
