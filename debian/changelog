@@ -1,3 +1,6 @@
+sibench (0.9.5) buster; urgency=low
+  [ Harry Richardson ]
+  * Bug fix for prepare ordering
 sibench (0.9.4) buster; urgency=low
   [ Harry Richardson ]
   * Binrary wire protocol

@@ -249,8 +249,8 @@ func (m* Manager) drainStats() {
 func (m *Manager) prepare() {
     if (m.err != nil) || m.isInterrupted { return }
 
-    m.sendOpToServers(OP_StatSummaryStart, true)
     m.sendOpToServers(OP_Prepare, false)
+    m.sendOpToServers(OP_StatSummaryStart, true)
 
     ticker := time.NewTicker(time.Second)
 
