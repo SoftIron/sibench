@@ -21,6 +21,23 @@ These last two can be used to benchmark many other protocols - iSCSI, SMB, NFS
 and so on - provided that these have been manually mounted on each Sibench
 node.
 
+
+Architecture
+------------
+
+Sibench has a client-server architecture. The client doing benchmarking will
+communincate with the Sibench servers to generate the load. This way Sibench
+can generate a distributed load to avoid any bottlenecks caused by running
+benchmarks from a single location.
+
+
+.. image:: images/sibench-architecture.png
+  :alt: Diagram illustrating Sibench client connecting to workers, and these to
+        the multiple benchmarking backends.
+
+To use Sibench from multiple nodes you will need to install it on all of
+these nodes, including the client and the servers.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
