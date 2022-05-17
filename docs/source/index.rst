@@ -38,6 +38,9 @@ benchmarks from a single location.
 To use Sibench from multiple nodes you will need to install it on all of
 these nodes, including the client and the servers.
 
+Have a look at some :doc:`examples` and also to the :doc:`manual` to continue
+learning about Sibench.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -45,4 +48,5 @@ these nodes, including the client and the servers.
 
    self
    manual
+   examples
    best-practices
