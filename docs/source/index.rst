@@ -41,6 +41,17 @@ these nodes, including the client and the servers.
 Have a look at some :doc:`examples` and also to the :doc:`manual` to continue
 learning about Sibench.
 
+Contributing
+------------
+
+* This documentation can be seen at https://sibench.io
+* Check Sibench source code: https://github.com/softiron/sibench
+* Documentation source:
+  https://github.com/softiron/sibench/tree/master/docs/source
+* For bug reports and feature requestis create a Github issue:
+  https://github.com/softiron/sibench/issues
+
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
