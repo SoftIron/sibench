@@ -1,3 +1,6 @@
+sibench (0.9.6) buster; urgency=low
+  [ Harry Richardson ]
+  * Bug fix for read/write mix state transition error
 sibench (0.9.5) buster; urgency=low
   [ Harry Richardson ]
   * Bug fix for prepare ordering
