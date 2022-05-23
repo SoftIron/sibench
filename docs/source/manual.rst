@@ -24,7 +24,7 @@ Command Line
 ------------
 
 Commands
-~~~~~~
+~~~~~~~~
 
 The following is a list of all the commands that the sibench binary accepts:
 
@@ -77,7 +77,7 @@ Additional options **shared by all run commands**, omitted from above for clarit
 
 
 Option Definitions
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 +------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | Long                         | Short  | Value     | Description                                                                             | Default            |
