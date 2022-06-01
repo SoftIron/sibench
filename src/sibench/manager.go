@@ -107,7 +107,7 @@ func RunBenchmark(j *Job) error {
 
     // Process the stats.
     logger.Infof("\n")
-    m.report.DisplayAnalyses()
+    m.report.DisplayAnalyses(m.job.useBytes)
 
     // Terminate
     logger.Infof("\n")
@@ -296,7 +296,7 @@ func (m *Manager) prepare() {
                 }
 
             case <-ticker.C:
-                logger.Infof("%v: %v\n", i, summary.String(m.job.order.ObjectSize))
+                logger.Infof("%v: %v\n", i, summary.String(m.job.order.ObjectSize, m.job.useBytes))
                 i++
                 summary.Zero()
 
@@ -358,7 +358,8 @@ func (m *Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
                 summary.Add(&s)
 
             case <-ticker.C:
-                logger.Infof("%v: %v\n", i, summary.String(m.job.order.ObjectSize))
+                logger.Infof("%v: %v\n", i, summary.String(m.job.order.ObjectSize, m.job.useBytes))
+                //Here printing
                 i++
 
                 // Draw some lines to indicate the ramp-up/ramp-down demarcation.

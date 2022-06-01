@@ -335,6 +335,7 @@ func startRun(args *Arguments) {
     j.runTime = uint64(args.RunTime)
     j.rampUp = uint64(args.RampUp)
     j.rampDown = uint64(args.RampDown)
+    j.useBytes = args.UseBytes
 
     j.order.JobId = 1
     j.order.ObjectSize = args.ObjectSizeInBits

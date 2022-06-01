@@ -41,5 +41,8 @@ type Job struct {
     rampUp uint64       // Time given to settle down before we start recording results
     runTime uint64      // The length of the main part of the run where we record results.
     rampDown uint64     // Time at the end of the run where we throw away the results again.
+
+    /* extra */
+    useBytes bool       // Boolean value to specify if you want the output in Bytes and not Bits
 }
 

@@ -57,7 +57,7 @@ func ToUnits(val uint64) string {
 
 
 /* Produce a human readable string from a StatSummary object */
-func (s *StatSummary) String(objectSize uint64) string {
+func (s *StatSummary) String(objectSize uint64, useBytes bool) string {
     result := ""
 
     for i := StatPhase(0); i < SP_Len; i++ {
@@ -73,9 +73,15 @@ func (s *StatSummary) String(objectSize uint64) string {
             ops := s[i][SE_None]
             ofail := s[i][SE_OperationFailure]
             vfail := s[i][SE_VerifyFailure]
+            bwb := ToUnits(ops * objectSize)
             bw := ToUnits(ops * objectSize * 8)
-
-            result += fmt.Sprintf("[%v] ops: %v,  bw: %vb/s,  ofail: %v,  vfail: %v ", phase, ops, bw, ofail, vfail)
+            bwstr := ""
+            if useBytes {
+                bwstr = fmt.Sprintf("%vB/s", bwb)
+            } else {
+                bwstr = fmt.Sprintf("%vb/s", bw)
+            }
+            result += fmt.Sprintf("[%v] ops: %v,  bw: %v,  ofail: %v,  vfail: %v ", phase, ops, bwstr, ofail, vfail)
         }
     }
 
@@ -210,10 +216,17 @@ type Analysis struct {
  * Produce a human-readable string from an Analysis.
  * This is intended to be used to dump tables of Analyses, and aligns fields nicely for that purpose.
  */
-func (a *Analysis) String() string {
-    return fmt.Sprintf("%-28v   bandwidth: %7vb/s,  ok: %6v,  fail: %6v,  res-min: %5v ms,  res-max: %5v ms,  res-95: %6v ms, res-avg: %6v ms",
+func (a *Analysis) String(useBytes bool) string {
+    bwstr := ""
+    if useBytes {
+        bwstr = fmt.Sprintf("%vB/s", ToUnits(a.BandwidthBytes))
+    } else {
+        bwstr = fmt.Sprintf("%vb/s", ToUnits(a.Bandwidth))
+    }
+
+    return fmt.Sprintf("%-28v   bandwidth: %7v,  ok: %6v,  fail: %6v,  res-min: %5v ms,  res-max: %5v ms,  res-95: %6v ms, res-avg: %6v ms",
         a.Name,
-        ToUnits(a.Bandwidth),
+        bwstr,
         a.Successes,
         a.Failures,
         a.ResTimeMin / (1000 * 1000),

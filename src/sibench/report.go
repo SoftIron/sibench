@@ -227,7 +227,7 @@ func (r *Report) AnalyseStats() {
 /*
  * Prints the analyses to stdout with some nice formatting.
  */
-func (r *Report) DisplayAnalyses() {
+func (r *Report) DisplayAnalyses(useBytes bool) {
     lineWidth := 160
     lastPhase := "" // Choosing a value that will not be a real phase.
 
@@ -240,7 +240,7 @@ func (r *Report) DisplayAnalyses() {
                 fmt.Printf("%v\n", strings.Repeat("-", lineWidth))
             }
 
-            fmt.Printf("%v\n", a.String())
+            fmt.Printf("%v\n", a.String(useBytes))
         }
     }
 
@@ -250,7 +250,7 @@ func (r *Report) DisplayAnalyses() {
 
     for _, a := range r.analyses {
         if a.IsTotal {
-            fmt.Printf("%v\n", a.String())
+            fmt.Printf("%v\n", a.String(useBytes))
         }
     }
 
