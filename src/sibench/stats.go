@@ -198,6 +198,7 @@ type Analysis struct {
 
     /* Bandwidth is in bits per seconds */
     Bandwidth uint64
+    BandwidthBytes uint64
 
     /* Counts */
     Successes uint64
@@ -245,6 +246,8 @@ func NewAnalysis(stats []*ServerStat, name string, phase StatPhase, isTotal bool
         result.ResTimeMax = uint64(good[len(good) - 1].Duration)
         result.ResTime95  = uint64(good[int(float64(len(good)) * 0.95)].Duration)
         result.Bandwidth  = uint64(8 * len(good)) * job.order.ObjectSize / job.runTime
+        result.BandwidthBytes  = uint64(len(good)) * job.order.ObjectSize / job.runTime
+
 
         total := uint64(0)
         for i, _ := range(good) {
