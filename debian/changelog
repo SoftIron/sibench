@@ -1,3 +1,6 @@
+sibench (0.9.7) buster; urgency=low
+  [ Harry Richardson ]
+  * Merged Pedro's changes to optionally show values in bytes rather than bits.
 sibench (0.9.6) buster; urgency=low
   [ Harry Richardson ]
   * Bug fix for read/write mix state transition error
