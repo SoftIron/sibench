@@ -61,3 +61,4 @@ Contributing
    manual
    examples
    best-practices
+   benchmaster
