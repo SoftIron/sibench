@@ -9,7 +9,8 @@ For these tests you will need to create a Pool, and a Ceph user that can
 access to this pool::
 
     ceph osd pool create sibench.pool <pg-num>
-    ceph auth get-or-create client.sibench mon 'profile rbd' osd 'profile rbd pool=sibench.pool' mgr 'profile rbd pool=sibench.pool'
+    ceph auth get-or-create client.sibench mon 'profile rbd' \
+      osd 'profile rbd pool=sibench.pool' mgr 'profile rbd pool=sibench.pool'
 
 
 
@@ -27,7 +28,8 @@ Running Sibench using the Rados object protocol
 
 .. code-block::
 
-    sibench rados run --ceph-pool sibench.pool --ceph-user sibench --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== <Ceph monitor address>
+    sibench rados run --ceph-pool sibench.pool --ceph-user sibench \
+      --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== <Ceph monitor address>
 
 .. raw:: html
 
@@ -37,7 +39,8 @@ Running Sibench using the Rados object protocol
 
 .. code-block::
 
-    $ sibench rados run --ceph-pool sibench.pool --ceph-user sibench --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== ceph-mon1
+    $ sibench rados run --ceph-pool sibench.pool --ceph-user sibench \
+    >   --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== ceph-mon1
     Creating report: sibench.json
     Creating rados client to ceph-mon1 as user sibench
     2022-05-23 07:39:10.858 7f81428039c0 -1 auth: unable to find a keyring on /etc/ceph/..keyring,/etc/ceph/.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin,: (2) No such file or directory
@@ -163,7 +166,8 @@ Using RBD protocol
 
 .. code-block::
 
-    sibench rbd run --ceph-pool sibench.pool --ceph-user sibench --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== <Ceph monitor address>
+    sibench rbd run --ceph-pool sibench.pool --ceph-user sibench \
+      --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== <Ceph monitor address>
 
 
 .. raw:: html
@@ -174,7 +178,8 @@ Using RBD protocol
 
 .. code-block::
 
-    $ sibench rbd run --ceph-pool sibench.pool --ceph-user sibench --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== ceph-mon1
+    $ sibench rbd run --ceph-pool sibench.pool --ceph-user sibench \
+    >   --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== ceph-mon1
     Creating report: sibench.json
     Creating rados client to ceph-mon1 as user sibench
     2022-05-23 09:50:42.666 7fa49ca939c0 -1 auth: unable to find a keyring on /etc/ceph/..keyring,/etc/ceph/.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin,: (2) No such file or directory
@@ -300,7 +305,9 @@ Multiple Sibench servers
 To run Sibench from multiple servers you need to set the ``--servers`` option
 (by default 'localhost') to select the Sibench servers to use::
 
-    sibench rados run --ceph-pool sibench.pool --ceph-user sibench --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== --servers <List of Sibench servers> <Ceph monitor address>
+    sibench rados run --ceph-pool sibench.pool --ceph-user sibench \
+      --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== \
+      --servers <List of Sibench servers> <Ceph monitor address>
 
 
 S3 benchmarking
@@ -308,7 +315,7 @@ S3 benchmarking
 
 In this case you will need to create an S3 user and bucket to run Sibench::
 
-    radosgw-admin user create --uid=sibench --display-name sibench
+    radosgw-admin user create --uid sibench --display-name sibench
 
 .. note::
 
@@ -316,7 +323,9 @@ In this case you will need to create an S3 user and bucket to run Sibench::
 
 .. code-block::
 
-    sibench s3 run  --s3-bucket sibench_bucket --s3-access-key <key> --s3-secret-key <secret key> --servers <List of Sibench servers> <List of Rados Gatway servers>
+    sibench s3 run --s3-bucket sibench_bucket --s3-access-key <key> \
+      --s3-secret-key <secret key> --servers <List of Sibench servers> \
+      <List of Rados Gatway servers>
 
 .. warning::
 
@@ -332,7 +341,8 @@ In this case you will need to create an S3 user and bucket to run Sibench::
 
 .. code-block::
 
-    $ sibench s3 run  --s3-bucket sibench_bucket --s3-access-key Q2ZUTESFMIF43V9CXOR9 --s3-secret-key OXHtTFvLBVAoj7eyC1uZnySx0TP3c0UB2dKvjpd6  ceph-rgw1 ceph-rgw2 ceph-rgw3
+    $ sibench s3 run  --s3-bucket sibench_bucket --s3-access-key Q2ZUTESFMIF43V9CXOR9 \
+    >   --s3-secret-key OXHtTFvLBVAoj7eyC1uZnySx0TP3c0UB2dKvjpd6  ceph-rgw1 ceph-rgw2 ceph-rgw3
     Creating report: sibench.json
     Creating S3 Connection to ceph-rgw1:7480
     Creating bucket on ceph-rgw1: sibench_bucket
