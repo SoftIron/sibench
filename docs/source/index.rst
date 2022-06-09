@@ -41,6 +41,9 @@ these nodes, including the client and the servers.
 Have a look at some :doc:`examples` and also to the :doc:`manual` to continue
 learning about Sibench.
 
+You don't have Sibench installed yet? Have a look at the :doc:`installation`
+page.
+
 Contributing
 ------------
 
@@ -58,6 +61,7 @@ Contributing
    :hidden:
 
    self
+   installation
    manual
    examples
    best-practices
