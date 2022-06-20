@@ -34,7 +34,7 @@ On Fedora, you can install the dependencies with::
 Once you have the base dependencies in place, you can install Benchmaster
 straight from GitHub::
 
-    pip3 install pip install https://github.com/softiron/benchmaster/archive/master.zip
+    pip3 install https://github.com/softiron/benchmaster/archive/master.zip
 
 
 Spreadsheet integration
@@ -61,7 +61,8 @@ First of all, you need to create a spreadsheet for your benchmarking data::
     benchmaster sheet create "benchmaster example tests" bench@example.com another@example.com
 
 This will create a spreadsheet named "benchmaster example tests" owned by the
-service account, and shared with "bench@example.com" and "another@example.com"
+service account, and shared with ``bench@example.com`` and
+``another@example.com``
 
 With the spreadsheet ready you can start running some benchmarks.
 
