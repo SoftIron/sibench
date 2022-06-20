@@ -68,7 +68,7 @@ With the spreadsheet ready you can start running some benchmarks.
 You will notice that Benchmaster connects to your Ceph Monitors or Gateways via
 an ``ssh`` connection to the ``root`` user. This will be used to retrieve
 Ceph Admin key, or to create a Rados Gateway user in the case of ``benchmaster
-s3 adduser``. In any case, you can specify the Ceph user and Key using the optons
+s3 adduser``. In any case, you can specify the Ceph user and Key using the options
 ``--ceph--user`` and ``--ceph-key``.
 
 
@@ -98,7 +98,7 @@ An example of the output you should get after running the command above:
 Benchmarking RBD using Sibench
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In a similar way, we can use the same user, key, and pool to run a a benchmark
+In a similar way, we can use the same user, key, and pool to run a benchmark
 using RBD protocol::
 
 
@@ -139,7 +139,7 @@ Once it finishes, you should see an additional row in your spreadsheet.
 The spreadsheet
 ~~~~~~~~~~~~~~~
 
-On the initial colums of the spreadsheet you can find:
+On the initial columns of the spreadsheet you can find:
 
 - ID of the run (COSbench only)
 - Protocol used
@@ -157,11 +157,11 @@ start and end times.
 .. image:: images/benchmaster-spreadsheet-sides.png
   :alt: Screenshot of the initial and final columns of the spreadsheet
 
-On the central colums of the spreasheet you will see the output of the test.
+On the central columns of the spreadsheet you will see the output of the test.
 You will see in Red, the Write results, and in Green, the Read results. For
 both operation types you will see:
 
-- Bandiwtdth
+- Bandwidth
 - Response times
 - Number of successful operations
 - Number of failed operations

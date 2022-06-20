@@ -24,15 +24,15 @@ be interrupted during a write. Both of these scenarios can have a huge effect on
 the accuracy of our response time measurements, and may make them look much
 worse than they really are.
 
-As a consequence, a sibench node only starts up as many workers as it has cores.
+As a consequence, a Sibench node only starts up as many workers as it has cores.
 This is adjustable using the ``--workers`` option.  (A factor of 2.0 will have
 twice as many workers as cores).  This may be useful if we want to determine
 absolute maximum throughput, provided we don't care about the accuracy of the
 response times.
 
-Alternatively, you may also be able boost read throughput from the sibench nodes
-by using the ``--skip-read-verification`` option, which does exactly what it
-suggests.
+Alternatively, you may also be able to boost read throughput from the Sibench
+nodes by using the ``--skip-read-verification`` option, which does exactly what
+it suggests.
 
 In general though, neither of these two options are recommended except for one
 particular use case: if disabling read verification or increasing the worker
@@ -58,11 +58,11 @@ algorithmically create each object to be written or read-and-verified on the
 fly, and so objects do not need to be held in memory for longer than a single
 read or write operation as they can be recreated at will.
 
-The one part of sibench that can take a *lot* of memory is the stats gathering,
+The one part of Sibench that can take a *lot* of memory is the stats gathering,
 as stats are held in memory by each driver node until the completion of each
 phase of a run.  At the end of each phase, the manager process collects the
 stats from all the nodes and merges them.  This can be a lot of data if, say,
-you are running 30 driver nodes against an NVME cluster for a long run time.
+you are running 30 driver nodes against an NVMe cluster for a long run time.
 
 Unfortunately, some of the Ceph native libraries used by Sibench do appear to
 hold on to data for longer periods of time.  This can result in large amounts of
@@ -74,7 +74,7 @@ memory being used, which can result in two undesirable outcomes:
 * Process death: on Linux, the OOM Killer in the kernel will terminate processes
   that take too much memory with a SIGKILL.  Since this is not a signal that can
   be caught, there is no warning or error when it occurs.  (The systemd script
-  should start a new copy of the server immediately though, so the Sibench ndoe
+  should start a new copy of the server immediately though, so the Sibench node
   will be usable for a new benchmark run with no further action.
 
 At the start of each run, Sibench determines how much physical memory each node

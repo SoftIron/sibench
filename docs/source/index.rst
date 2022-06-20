@@ -26,7 +26,7 @@ Architecture
 ------------
 
 Sibench has a client-server architecture. The client doing benchmarking will
-communincate with the Sibench servers to generate the load. This way Sibench
+communicate with the Sibench servers to generate the load. This way Sibench
 can generate a distributed load to avoid any bottlenecks caused by running
 benchmarks from a single location.
 
@@ -48,7 +48,7 @@ Contributing
 * Check Sibench source code: https://github.com/softiron/sibench
 * Documentation source:
   https://github.com/softiron/sibench/tree/master/docs/source
-* For bug reports and feature requestis create a Github issue:
+* For bug reports and feature requests create a GitHub issue:
   https://github.com/softiron/sibench/issues
 
 
