@@ -1,0 +1,42 @@
+name: Release build
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Release build for amd64
+    runs-on: "ubuntu-20.04"
+    container:
+      image: debian:bullseye
+
+    steps:
+      - name: Install git before checkout
+        run: apt-get update && apt-get install -y git
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.16.15'
+
+      - name: Install Sibench build dependencies
+        run: apt-get install -y librados-dev librbd-dev build-essential git
+
+      - name: Build Sibench
+        run:  make
+
+      - name: tar the release
+        run: cd bin && tar -cvzf sibench-amd64.tar.gz sibench
+
+      - name: Upload Sibench binary
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ github.workspace }}/bin/sibench-amd64.tar.gz
+          asset_name: sibench-amd64-${{ github.event.release.tag_name }}.tar.gz
+          asset_content_type: application/gzip
