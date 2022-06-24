@@ -1,0 +1,33 @@
+stages:
+  - build
+  - deploy
+
+.build_any:
+  image: debian/buildd:bullseye
+  stage: build
+  script:
+    - echo "deb http://deb.debian.org/debian bullseye-backports main" >> /etc/apt/sources.list 
+    - DEBIAN_FRONTEND=noninteractive apt -o Acquire::Check-Valid-Until=false update
+    - DEBIAN_FRONTEND=noninteractive apt --yes install build-essential devscripts
+    - mk-build-deps
+    - DEBIAN_FRONTEND=noninteractive apt --yes install ./sibench-build-deps_*.deb
+    - rm ./sibench-build-deps_*
+    - ln -sf /usr/lib/go-1.16/bin/* /usr/bin/
+    - debuild -us -uc
+    - mkdir output
+    - dcmd mv -v ../${CI_JOB_NAME%_*}*changes output/
+
+
+sibench_amd64.deb:
+  extends:
+    - .build_any
+  tags:
+    - amd64
+
+downstream-job:
+  stage: deploy
+  variables:
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    UPSTREAM_TAG: $CI_COMMIT_TAG
+    UPSTREAM_COMMIT: $CI_COMMIT_SHA
+  trigger: benchmarking/sibench-packaging
