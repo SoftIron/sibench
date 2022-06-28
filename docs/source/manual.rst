@@ -1,6 +1,9 @@
 Manual
 ======
 
+Synopsis
+--------
+
 Each benchmarking node runs Sibench as a server daemon, listening for incoming
 connections from a Sibench client.
 
@@ -22,9 +25,6 @@ server nodes without significantly impacting benchmarking performance.
 
 Command Line
 ------------
-
-Commands
-~~~~~~~~
 
 The following is a list of all the commands that the sibench binary accepts:
 
