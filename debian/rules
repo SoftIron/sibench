@@ -15,6 +15,7 @@ binary-indep:
 	true
 binary: binary-arch binary-indep
 	cp -a lib usr debian/sibench
+	dh_installman
 	dh_gencontrol
 	dh_installdeb
 	dh_builddeb
