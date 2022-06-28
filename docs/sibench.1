@@ -1,0 +1,613 @@
+.\" Man page generated from reStructuredText.
+.
+.TH "Sibench" "1" ""
+.SH NAME
+Sibench - Benchmark CEPH clusters 
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+Each benchmarking node runs Sibench as a server daemon, listening for incoming
+connections from a Sibench client.
+.sp
+Once the client starts a benchmark, the Sibench servers send periodic summaries
+back to it, so that the user can see progress.
+.sp
+When a benchmark completes, the Sibench servers send the full results back to
+the client.  A summary of the results is dislplayed by the client, but the full
+results of every individual read and write operation are written out as a json
+file in case the user wishes to perform their own statistical analysis.
+.sp
+Once a client starts running a benchmark on some set of Sibench servers, those
+servers will reject any other incoming connections until the benchmark completes
+or is aborted.  There is no job queue or long\-lived management process.
+.sp
+The client and server use the same binary, just with different command line
+options.  The client is extremely lightweight, and may be run on one of the
+server nodes without significantly impacting benchmarking performance.
+.SH COMMAND LINE
+.sp
+The following is a list of all the commands that the sibench binary accepts:
+.INDENT 0.0
+.TP
+.B \fBsibench \-h | \-\-help\fP
+Outputs the full command line syntax.
+.TP
+.B \fBsibench version\fP
+Outputs the version number of the sibench binary.
+.TP
+.B \fBsibench server\fP [\-\-verbosity LEVEL] [\-\-port PORT] [\-\-mounts\-dir DIR]
+Starts sibench as a server.
+.TP
+.B \fBsibench s3 run\fP [\-\-s3\-port PORT] [\-\-s3\-bucket BUCKET] (\-\-s3\-access\-key KEY) (\-\-s3\-secret\-key KEY) <target> ...
+Starts a benchmark using the S3 object protocol against the specified targets, which may S3 servers or RadosGateway nodes.
+.TP
+.B \fBsibench rados run\fP [\-\-ceph\-pool POOL] [\-\-ceph\-user USER] (\-\-ceph\-key KEY) <target> ...
+Starts a benchmark using the Rados object protocol against the specified targets, which should be Ceph monitors.
+.TP
+.B \fBsibench cephfs run\fP [\-\-mounts\-dir DIR] [\-\-ceph\-dir DIR] [\-\-ceph\-user USER] (\-\-ceph\-key KEY) <target> ...
+Starts a benchmark using CephFS against the specified targets, which should be Ceph monitors.
+.TP
+.B \fBsibench rbd run\fP [\-\-ceph\-pool POOL] [\-\-ceph\-datapool POOL] [\-\-ceph\-user USER] (\-\-ceph\-key KEY) <target> ...
+Starts a benchmark using RBD against the specified targets, which should be Ceph monitors.
+.TP
+.B \fBsibench block run\fP [\-\-block\-device DEVICE]
+Starts a benchmark using a locally mounted block device.
+.TP
+.B \fBsibench file run\fP [\-\-file\-dir DIR]
+Starts a benchmark using a locally mounted filesystem.
+.UNINDENT
+.sp
+Additional options \fBshared by all run commands\fP, omitted from above for clarity:
+.INDENT 0.0
+.IP \(bu 2
+[\-\-verbosity LEVEL]
+.IP \(bu 2
+[\-\-port PORT]
+.IP \(bu 2
+[\-\-object\-size SIZE]
+.IP \(bu 2
+[\-\-object\-count COUNT]
+.IP \(bu 2
+[\-\-ramp\-up TIME]
+.IP \(bu 2
+[\-\-run\-time TIME]
+.IP \(bu 2
+[\-\-ramp\-down TIME]
+.IP \(bu 2
+[\-\-read\-write\-mix MIX]
+.IP \(bu 2
+[\-\-bandwidth BW]
+.IP \(bu 2
+[\-\-output FILE]
+.IP \(bu 2
+[\-\-workers FACTOR]
+.IP \(bu 2
+[\-\-generator GEN]
+.IP \(bu 2
+[\-\-slice\-dir DIR]
+.IP \(bu 2
+[\-\-slice\-count COUNT]
+.IP \(bu 2
+[\-\-slice\-size BYTES]
+.IP \(bu 2
+[\-\-skip\-read\-verification]
+.IP \(bu 2
+[\-\-servers SERVERS]
+.UNINDENT
+.SS Option Definitions
+.TS
+center;
+|l|l|l|l|l|.
+_
+T{
+Long
+T}	T{
+Short
+T}	T{
+Value
+T}	T{
+Description
+T}	T{
+Default
+T}
+_
+T{
+\fB\-\-help\fP
+T}	T{
+\fB\-h\fP
+T}	T{
+\-
+T}	T{
+Show full usage.
+T}	T{
+\-
+T}
+_
+T{
+\fB\-\-verbosity\fP
+T}	T{
+\fB\-v\fP
+T}	T{
+\fILEVEL\fP
+T}	T{
+Set debugging output at level "off", "debug" or "trace".  The "trace" level may
+generate enough output to affect benchmark performance, and should only be used when
+trying to track down issues.
+T}	T{
+off
+T}
+_
+T{
+\fB\-\-port\fP
+T}	T{
+\fB\-p\fP
+T}	T{
+\fIPORT\fP
+T}	T{
+The port on which Sibench communicates.
+T}	T{
+5150
+T}
+_
+T{
+\fB\-\-object\-size\fP
+T}	T{
+\fB\-s\fP
+T}	T{
+\fISIZE\fP
+T}	T{
+Object size to test, in units of K or M.
+T}	T{
+1M
+T}
+_
+T{
+\fB\-\-object\-count\fP
+T}	T{
+\fB\-c\fP
+T}	T{
+\fICOUNT\fP
+T}	T{
+The total number of objects to use as our working set.
+T}	T{
+1000
+T}
+_
+T{
+\fB\-\-ramp\-up\fP
+T}	T{
+\fB\-u\fP
+T}	T{
+\fITIME\fP
+T}	T{
+The number of seconds at the start of each phase where we don\(aqt record data (to
+discount edge effects caused by new connections).
+T}	T{
+5
+T}
+_
+T{
+\fB\-\-run\-time\fP
+T}	T{
+\fB\-r\fP
+T}	T{
+\fITIME\fP
+T}	T{
+The number of seconds in the middle on each phase of the benchmark where we
+do record the data.
+T}	T{
+30
+T}
+_
+T{
+\fB\-\-ramp\-down\fP
+T}	T{
+\fB\-d\fP
+T}	T{
+\fITIME\fP
+T}	T{
+The number of seconds at the end of each phase where we don\(aqt record data.
+T}	T{
+2
+T}
+_
+T{
+\fB\-\-read\-write\-mix\fP
+T}	T{
+\fB\-x\fP
+T}	T{
+\fIMIX\fP
+T}	T{
+The ratio between read and writes, specified as the percentage of reads.
+A value of zero indicates that reads and writes should be done in separate passes,
+rather than being combined.
+T}	T{
+0
+T}
+_
+T{
+\fB\-\-bandwidth\fP
+T}	T{
+\fB\-b\fP
+T}	T{
+\fIBW\fP
+T}	T{
+Benchmark at a fixed bandwidth, in units of K, M or G bits/s
+A value of zero indicates no limit.
+When the read/write mix is not zero \- that is, when we are not doing separate passes
+for read and write \- then this is the bandwidth of the combined operations.
+T}	T{
+0
+T}
+_
+T{
+\fB\-\-output\fP
+T}	T{
+\fB\-o\fP
+T}	T{
+\fIFILE\fP
+T}	T{
+The file to which we write our json results.
+T}	T{
+sibench.json
+T}
+_
+T{
+\fB\-\-workers\fP
+T}	T{
+\fB\-w\fP
+T}	T{
+\fIFACTOR\fP
+T}	T{
+Number of worker threads per server as a factor x number of CPU cores.
+T}	T{
+1.0
+T}
+_
+T{
+\fB\-\-mounts\-dir\fP
+T}	T{
+\fB\-m\fP
+T}	T{
+\fIDIR\fP
+T}	T{
+The directory in which we should create any filesystem mounts that are performed by
+Sibench itself, such as when using CephFS.  It is not needed for running generic
+filesystem benchmarks, because those must be mounted outside of Sibench.
+T}	T{
+/tmp/sibench_mnt
+T}
+_
+T{
+\fB\-\-generator\fP
+T}	T{
+\fB\-g\fP
+T}	T{
+\fIGEN\fP
+T}	T{
+Which object generator to use: "prng" or "slice".
+T}	T{
+prng
+T}
+_
+T{
+\fB\-\-skip\-read\-verification\fP
+T}	T{
+T}	T{
+\-
+T}	T{
+Disable validation on reads.  This should only be used to check if the number of nodes
+in the Sibench cluster is a limiting factor when benchmarking read performance.
+T}	T{
+\-
+T}
+_
+T{
+\fB\-\-servers\fP
+T}	T{
+T}	T{
+\fISERVERS\fP
+T}	T{
+A comma\-separated list of Sibench servers to connect to.
+T}	T{
+localhost
+T}
+_
+T{
+\fB\-\-s3\-port\fP
+T}	T{
+T}	T{
+\fIPORT\fP
+T}	T{
+The port on which to connect to S3.
+T}	T{
+7480
+T}
+_
+T{
+\fB\-\-s3\-bucket\fP
+T}	T{
+T}	T{
+\fIBUCKET\fP
+T}	T{
+The name of the bucket we wish to use for S3 operations.
+T}	T{
+sibench
+T}
+_
+T{
+\fB\-\-s3\-access\-key\fP
+T}	T{
+T}	T{
+\fIKEY\fP
+T}	T{
+S3 access key.
+T}	T{
+\-
+T}
+_
+T{
+\fB\-\-s3\-secret\-key\fP
+T}	T{
+T}	T{
+\fIKEY\fP
+T}	T{
+S3 secret key.
+T}	T{
+\-
+T}
+_
+T{
+\fB\-\-ceph\-pool\fP
+T}	T{
+T}	T{
+\fIPOOL\fP
+T}	T{
+The pool we use for benchmarking.
+T}	T{
+sibench
+T}
+_
+T{
+\fB\-\-ceph\-datapool\fP
+T}	T{
+T}	T{
+\fIPOOL\fP
+T}	T{
+Optional pool used for RBD.  If set, ceph\-pool is used only for metadata.
+T}	T{
+\-
+T}
+_
+T{
+\fB\-\-ceph\-user\fP
+T}	T{
+T}	T{
+\fIUSER\fP
+T}	T{
+The Ceph username we wish to use.
+T}	T{
+admin
+T}
+_
+T{
+\fB\-\-ceph\-key\fP
+T}	T{
+T}	T{
+\fIKEY\fP
+T}	T{
+The CephX secret key belonging to the ceph user.
+T}	T{
+\-
+T}
+_
+T{
+\fB\-\-ceph\-dir\fP
+T}	T{
+T}	T{
+\fIDIR\fP
+T}	T{
+The directory within CephFS that we should use for a benchmark.    This will be created
+by Sibench if it does not already exist.
+T}	T{
+sibench
+T}
+_
+T{
+\fB\-\-block\-device\fP
+T}	T{
+T}	T{
+\fIDEVICE\fP
+T}	T{
+The local block device to use for a benchmark.
+T}	T{
+/tmp/sibench_block
+T}
+_
+T{
+\fB\-\-file\-dir\fP
+T}	T{
+T}	T{
+\fIDIR\fP
+T}	T{
+The local directory to use for file operations.  The directory must already exist.
+T}	T{
+\-
+T}
+_
+T{
+\fB\-\-slice\-dir\fP
+T}	T{
+T}	T{
+\fIDIR\fP
+T}	T{
+The directory of files to be sliced up to form new workload objects.
+T}	T{
+\-
+T}
+_
+T{
+\fB\-\-slice\-count\fP
+T}	T{
+T}	T{
+\fICOUNT\fP
+T}	T{
+The number of slices to construct for workload generation.
+T}	T{
+10000
+T}
+_
+T{
+\fB\-\-slice\-size\fP
+T}	T{
+T}	T{
+\fIBYTES\fP
+T}	T{
+The size of each slice in bytes.
+T}	T{
+4096
+T}
+_
+.TE
+.SS Targets
+.sp
+The targets are the nodes to which the worker threads connect.  Each worker
+opens a connection to each target and round\-robins their reads and writes across
+those connections.
+.sp
+For most Ceph operations, the targets are monitors, and there is no advantage to
+specifying more than one.  All the monitors do is provide the
+state\-of\-the\-cluster map so that the workers can connect to the OSDs directly.
+.sp
+For RGW/S3, however, you should \fIdefinitely\fP list all of the storage cluster\(aqs
+RGW nodes as targets, since those nodes are doing real work, and it needs to be
+balanced.
+.SS RBD
+.sp
+RBD behaviour is a little different than you might expect: Each worker creates
+an RBD image per target, just big enough to hold that worker\(aqs share of the
+\(aqobjects\(aq for the benchmark.  All reads and writes that the worker then does are
+within the RBD image.
+.sp
+For example, if you have the following:
+.INDENT 0.0
+.IP 1. 3
+10 Sibench nodes, each with 16 cores
+.IP 2. 3
+A single target monitor
+.IP 3. 3
+And object count of 1600 and an object size of 1MB
+.UNINDENT
+.sp
+Then Sibench will create 160 workers (by default, it is one per core), each of
+which will create a single 10MB RBD image, and then it will proceed to read and
+write 1 MB at a time to parts of that image.
+.SS Generators
+.sp
+Generators create the data that Sibench uses as workloads for the storage
+system.  There are currently two of them, selectable with the \fB\-\-generator\fP
+option.
+.SS PRNG Generator
+.sp
+The PRNG generator creates data which is entirely pseudorandom.  It requires no
+configuration, and is the default choice.  However, it has one shortcoming:
+because it creates pseudorandom data, it is not compressible.  If you wish to
+test compression in your storage system, then you will need need to create a
+compressible workload.  The same restriction applies to de\-duplication
+technologies.
+.SS Slice Generator
+.sp
+The Slice generator builds workloads from existing files.  It aims to reproduce
+the compressibility characteristics of those files, whilst still creating an
+effectively infinite supply of different objects.
+.sp
+It works by taking a directory of files (which will usually be of the same type:
+source code, VM images, movies, or whatever), and then loading fixed sized
+slices of bytes from random positions within those files.  The end result is
+that we have a library of (say) 1000 slices, each containing (say) 4Kb of data.
+Both of those values may be set with command line options.
+.sp
+When asked to generate a new workload object the slice generator does the
+following:
+.INDENT 0.0
+.IP 1. 3
+Creates a random seed.
+.IP 2. 3
+Writes the seed into the start of the workload object.
+.IP 3. 3
+Uses the seed to create a PRNG just for this workload object.
+.IP 4. 3
+Uses that prng to select slices from our library, which are concatenated
+onto the object until we have as many bytes as we were asked for.
+.UNINDENT
+.sp
+This approach means that we do not need to ever store the objects themselves: we
+can verify a read operation by reading the seed from the first few bytes, and
+then recreating the object we would expect.
+.sp
+Note that the directory of data to be sliced needs to be in the same location on
+each of the Sibench server nodes.
+.sp
+The drivers do \fInot\fP need to have the same files in their slice directories,
+though it\(aqs likely that they will.  One option would be to mount the same NFS
+share on all the drivers as a repository for the slice data.  Performance when
+loading the slices is not a consideration, since it is done before the benchmark
+begins, and so will not affect the numbers.
+.SS Write cycles
+.sp
+The \fBcount\fP parameter determines how many objects we create.  However, for long
+benchmarks runs, or for small counts or object sizes, we are likely to wrap
+around and start writing from the first object again.  If this happens, Sibench
+internally increments a cycle counter, which it uses to ensure that objects
+written in different cycles will have different contents, even though the object
+will still use the same key as previously.
+.SS The prepare phase
+.sp
+Sibench either benchmarks write operations first and then read operations, or
+else it benchmarks a mixture of the too (depending on the \fB\-\-read\-write\-mix\fP
+option.  When benchmarking reads, or a read\-write mix, it must first ensure that
+there are enough objects there to read before it can start work.  This is the
+\fIprepare\fP phase, and that is what is happening when you see messages about
+\(aqPreparing\(aq.
+.sp
+It also happens if we are doing separate writes and reads and we did not have a
+long enough run time for Sibench to write all of the objects specified by the
+\fBobject\-count\fP option.  In this case, the prepare phase will keep writing until
+all the objects are ready for reading.
+.SS Slow shutdown
+.sp
+There are times when Sibench can take a long time when cleaning up after a
+benchmark run.  This is due to Ceph being extremely slow at deleting objects.
+.sp
+Future versions of Sibench may add an option to not clean up their data in order
+to avoid this.  (For test clusters with no production data, it would be faster
+to not have Sibench clean up, but to delete and recreate the Ceph pools
+instead).
+.\" Generated by docutils manpage writer.
+.
