@@ -16,7 +16,7 @@ Debian
 
 3. Setup the repository::
 
-       echo  "https://cdn.softiron.com/distro/packages $(lsb_release -cs)-sibench main" | sudo tee \
+       echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
        /etc/apt/sources.list.d/sibench.list > /dev/null
 
 4. Install Sibench::
@@ -38,8 +38,8 @@ Other Linux systems
 
 2. Download a Sibench release from https://github.com/softiron/sibench/releases, for example::
 
-       wget https://github.com/home-assistant/operating-system/releases/latest/download/sibench-amd64 \
-       -o sibench
+       wget https://github.com/SoftIron/sibench/releases/download/0.9.8/sibench-amd64-0.9.8.tar.gz
+       tar -xvf sibench-amd64-0.9.8.tar.gz
 
 3. Copy the binary somewhere in your ``$PATH``, for example::
 
