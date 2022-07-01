@@ -1,6 +1,30 @@
 Best practices
 ==============
 
+Cache considerations
+--------------------
+
+When doing read operations, it is vital that your working set is large enough
+that the storage backend cannot fulfil requests from cache - unless of course,
+cache performance  is what you are trying to benchmark!  
+
+The object `size` and `count` parameters determine your working set.  For 
+example, if you have 10,000 objects of 1M size, then your working set will be
+10 GB.
+
+Exactly how big your working set needs to be is dependent on the storage system
+under test, and may be difficult to determine.  For instance, when benchmarking
+Rados, we would need to consider not only Ceph's own cache sizes, but also the
+combined amount of cache built into all the drives in the system.
+
+When in doubt, use a bigger object count.  The only downsides to using a larger
+count are the possibility of running out of memory on the Sibench nodes
+themselves, and the increased amount of time it will take to clean up after the
+benchmark.
+
+We regularly use working sets measured in terabytes when benchamarking medium
+sized clusters.
+
 Throughput isn't everything!
 ----------------------------
 
@@ -22,13 +46,17 @@ nodes.  This is by design: we do not want to have to wait long for a thread to
 be scheduled in order to read data that has become available.  Nor do we want to
 be interrupted during a write. Both of these scenarios can have a huge effect on
 the accuracy of our response time measurements, and may make them look much
-worse than they really are.
+worse than they really are.  In essence, we are trying to avoid benchmarking
+the benchmarking system itself!
 
 As a consequence, a Sibench node only starts up as many workers as it has cores.
 This is adjustable using the ``--workers`` option.  (A factor of 2.0 will have
 twice as many workers as cores).  This may be useful if we want to determine
 absolute maximum throughput, provided we don't care about the accuracy of the
 response times.
+
+*Note that sibench considers hyperthreaded cores as real cores for the purposes
+of determining core counts.*
 
 Alternatively, you may also be able to boost read throughput from the Sibench
 nodes by using the ``--skip-read-verification`` option, which does exactly what
@@ -64,9 +92,13 @@ phase of a run.  At the end of each phase, the manager process collects the
 stats from all the nodes and merges them.  This can be a lot of data if, say,
 you are running 30 driver nodes against an NVMe cluster for a long run time.
 
-Unfortunately, some of the Ceph native libraries used by Sibench do appear to
-hold on to data for longer periods of time.  This can result in large amounts of
-memory being used, which can result in two undesirable outcomes:
+A consequence of this approach is that the manager node may need a lot more 
+memory than the driver nodes, because it has to hold the stats of *all* of the
+driver nodes in memory in order to the merge.
+
+Unfortunately, some of the Ceph native libraries used by Sibench appear to
+hold on to data for longer than would seem necessary.  This can result in large
+amounts of memory being used, which can result in two undesirable outcomes:
 
 * Swapping: if the benchmarking process needs to swap, then performance figures
   are likely to be wildly wrong.
@@ -81,26 +113,8 @@ At the start of each run, Sibench determines how much physical memory each node
 has, and does some back-of-the-envelope maths to determine how much memory a
 benchmark may consume in the worst case.  If the latter is within about 80% of
 the former, it outputs a warning message to alert the user of possible
-consequences.
-
-Cache considerations
---------------------
-
-When doing read operations, it is vital that your working set is large enough
-that the storage backend cannot fulfil requests from cache - unless of course,
-that is what you are trying to benchmark!  The object `size` and `count`
-parameters determine your working set.  For example, if you have 10,000 objects
-of 1M size, then your working set will be 10 GB.
-
-Exactly how big your working set needs to be is dependent on the storage system
-under test, and may be difficult to determine.  For instance, when benchmarking
-Rados, we would need to consider not only Ceph's own cache sizes, but also the
-combined amount of cache built into all the drives in the system.
-
-When in doubt, use a bigger object count.  The only downsides to using a larger
-count are the possibility of running out of memory on the Sibench nodes
-themselves, and the increased amount of time it will take to clean up after the
-benchmark.
+consequences.  However, the benchmark will try to run (and because this assumes
+worst-case ceph library behaviour, it may well succeed).
 
 Homogeneous cores
 -----------------
