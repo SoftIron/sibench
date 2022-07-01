@@ -21,7 +21,8 @@ or is aborted.  There is no job queue or long-lived management process.
 
 The client and server use the same binary, just with different command line
 options.  The client is extremely lightweight, and may be run on one of the
-server nodes without significantly impacting benchmarking performance.
+server nodes without significantly impacting benchmarking performance, though
+it may result in higher memory usage on that node.
 
 Command Line
 ------------
@@ -175,7 +176,7 @@ balanced.
 RBD
 ~~~
 
-RBD behaviour is a little different than you might expect: Each worker creates
+RBD behaviour is a little different than you might expect: each worker creates
 an RBD image per target, just big enough to hold that worker's share of the
 'objects' for the benchmark.  All reads and writes that the worker then does are
 within the RBD image.
@@ -225,8 +226,8 @@ following:
 
 1.  Creates a random seed.
 2.  Writes the seed into the start of the workload object.
-3.  Uses the seed to create a PRNG just for this workload object.
-4.  Uses that prng to select slices from our library, which are concatenated
+3.  Uses the seed to create a random number generator  just for this workload object.
+4.  Uses that random number generator  to select slices from our library, which are concatenated
     onto the object until we have as many bytes as we were asked for.
 
 This approach means that we do not need to ever store the objects themselves: we
@@ -242,7 +243,7 @@ share on all the drivers as a repository for the slice data.  Performance when
 loading the slices is not a consideration, since it is done before the benchmark
 begins, and so will not affect the numbers.
 
-Write cycles
+Write Cycles
 ~~~~~~~~~~~~
 
 The ``count`` parameter determines how many objects we create.  However, for long
@@ -252,7 +253,7 @@ internally increments a cycle counter, which it uses to ensure that objects
 written in different cycles will have different contents, even though the object
 will still use the same key as previously.
 
-The prepare phase
+The Prepare Phase
 ~~~~~~~~~~~~~~~~~
 
 Sibench either benchmarks write operations first and then read operations, or
@@ -268,7 +269,7 @@ long enough run time for Sibench to write all of the objects specified by the
 all the objects are ready for reading.
 
 
-Slow shutdown
+Slow Shutdown
 ~~~~~~~~~~~~~
 
 There are times when Sibench can take a long time when cleaning up after a
