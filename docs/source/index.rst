@@ -1,11 +1,7 @@
 Sibench
 =======
 
-Sibench is a benchmarking tool for storage systems, and for Ceph in particular.
-
-Sibench typically runs on many nodes in parallel, in order to be able to scale
-up to the very high bandwidths of which modern scaleable storage systems are
-capable.
+.. include:: sibench-short-intro.txt
 
 It has support for file, block and object storage backends, using a variety of
 different protocols, which currently include:

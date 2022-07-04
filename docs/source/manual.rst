@@ -1,8 +1,12 @@
 Manual
 ======
 
-Synopsis
---------
+.. include:: sibench-short-intro.txt
+
+For more detailed information, visit https://sibench.io.
+
+How It Works
+------------
 
 Each benchmarking node runs Sibench as a server daemon, listening for incoming
 connections from a Sibench client.
