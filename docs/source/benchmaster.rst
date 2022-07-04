@@ -87,7 +87,8 @@ Sibench server running locally::
       --ceph-user sibench --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== \
       --ceph-pool sibench.pool "Rados single Sibench server" ceph-mon1
 
-As explained on :ref:`targets section <examples:rados-and-rbd-benchmarking>`.
+See the :ref:`examples page <examples:rados and rbd benchmarking>` for
+how to create a Ceph pool and user.
 
 An example of the output you should get after running the command above:
 
