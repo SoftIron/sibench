@@ -75,6 +75,7 @@ Additional options **shared by all run commands**, omitted from above for clarit
 - [\-\-slice-size BYTES]
 - [\-\-skip-read-verification]
 - [\-\-servers SERVERS]
+- [\-\-use-bytes]
 
 
 Option Definitions
@@ -155,6 +156,8 @@ Option Definitions
 | **\-\-slice-count**            |        | *COUNT*   | The number of slices to construct for workload generation.                              | 10000              |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-slice-size**             |        | *BYTES*   | The size of each slice in bytes.                                                        | 4096               |
++--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
+| **\-\-use-bytes**              |        | \-        | Show bandwidth in Bytes                                                                 | off                |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 
 
