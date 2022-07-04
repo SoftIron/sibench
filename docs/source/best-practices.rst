@@ -94,7 +94,7 @@ you are running 30 driver nodes against an NVMe cluster for a long run time.
 
 A consequence of this approach is that the manager node may need a lot more 
 memory than the driver nodes, because it has to hold the stats of *all* of the
-driver nodes in memory in order to the merge.
+driver nodes in memory in order to do the merge.
 
 Unfortunately, some of the Ceph native libraries used by Sibench appear to
 hold on to data for longer than would seem necessary.  This can result in large
