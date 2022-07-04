@@ -2,4 +2,4 @@
 
 Sibench is a tool for benchmarking Ceph clusters and other storage systems.  
 
-See manual.rst for full details of operation.
+See https://sibench.io for full details of operation.
