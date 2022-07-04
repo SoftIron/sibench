@@ -32,6 +32,11 @@ test:
 
 clean:
 	go clean ./... || true
-	rm -f bin/*
+	rm -f bin/* docs/sibench.1
 
-.PHONY: rbd comms sibench logger test clean
+man:
+	rst2man docs/source/manual.rst docs/sibench.1
+	sed -i 's/TH MANUAL.*/TH "Sibench" "1" ""/' docs/sibench.1
+	sed -i 's/Manual \\-/Sibench - Benchmark Ceph clusters/' docs/sibench.1
+
+.PHONY: rbd comms sibench logger test clean man
