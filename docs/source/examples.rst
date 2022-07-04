@@ -307,8 +307,37 @@ To run Sibench from multiple servers you need to set the ``--servers`` option
 
     sibench rados run --ceph-pool sibench.pool --ceph-user sibench \
       --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== \
-      --servers <List of Sibench servers> <Ceph monitor address>
+      --servers <driver1,driver2...> <Ceph monitor address>
 
+
+.. raw:: html
+
+   <details>
+   <summary>Example output</summary>
+
+
+.. code-block::
+
+    $ sibench rados run --ceph-pool sibench.pool --ceph-user sibench \
+    >   --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== \
+    > --servers sibench-driver1,sibench-driver2 ceph-mon1
+
+    Creating report: sibench.json
+    Connecting to sibench server at sibench-driver1:5150
+    Connecting to sibench server at sibench-driver2:5150
+
+    ---------- Sibench driver capabilities discovery ----------
+    sibench-driver1: 4 cores, 15.5 GB of RAM
+    sibench-driver2: 4 cores, 15.5 GB of RAM
+
+    ----------------------- WRITE -----------------------------
+    0: [Write] ops: 37,  bw: 296.0 Mb/s,  ofail: 0,  vfail: 0
+    1: [Write] ops: 161,  bw: 1.3 Gb/s,  ofail: 0,  vfail: 0
+    ...
+
+.. raw:: html
+
+   </details>
 
 S3 benchmarking
 ---------------
@@ -324,8 +353,8 @@ In this case you will need to create an S3 user and bucket to run Sibench::
 .. code-block::
 
     sibench s3 run --s3-bucket sibench_bucket --s3-access-key <key> \
-      --s3-secret-key <secret key> --servers <List of Sibench servers> \
-      <List of Rados Gatway servers>
+      --s3-secret-key <secret key> --servers <driver1,driver1...> \
+      <List of Rados Gateway servers>
 
 .. warning::
 
