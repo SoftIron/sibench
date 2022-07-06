@@ -19,9 +19,18 @@ Debian
        echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
        /etc/apt/sources.list.d/sibench.list > /dev/null
 
-4. Install Sibench::
+4. Install Sibench:
+
+   4a. Debian bullseye::
 
        sudo apt-get install sibench
+
+   4b. Debian buster::
+
+       sudo apt-get install sibench -t buster-backports
+
+   .. note:: This step assumes you have buster-backports enabled
+
 
 Other Linux systems
 -------------------
@@ -34,7 +43,12 @@ Other Linux systems
 
    - On Fedora::
 
-       sudo dnf install librados-devel librbd-devel
+       sudo dnf install librados2 librbd1
+
+   .. note:: Minimun version needed for these dependencies is ``14.0``.
+      Available on Debian buster-backports, bullseye, Ubuntu >= 20.04 and
+      Fedora >= 34
+
 
 2. Download a Sibench release from https://github.com/softiron/sibench/releases, for example::
 
