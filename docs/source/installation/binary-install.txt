@@ -1,0 +1,14 @@
+2. Download a Sibench release from https://github.com/softiron/sibench/releases, for example::
+
+       wget https://github.com/SoftIron/sibench/releases/download/0.9.8/sibench-amd64-0.9.8.tar.gz
+       tar -xvf sibench-amd64-0.9.8.tar.gz
+
+3. Copy the binary somewhere in your ``$PATH``, for example::
+
+       sudo cp sibench /usr/local/bin/
+
+
+You will not have a Sibench sever running if only installing the binary. You
+can run it manually using ``sibench server`` command, or you can create a
+systemd unit like `this one. <https://github.com/SoftIron/sibench/blob/master/lib/systemd/system/sibench.service>`__
+

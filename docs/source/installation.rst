@@ -1,65 +1,80 @@
 Install
 =======
 
-Debian
-------
+If you are running SoftIron Linux or Debian, we recommend you install Sibench
+using the :ref:`Package install <installation:package install>` instructions.
 
-1. Update ``apt`` package index::
+If this is not an option, try the :ref:`Binary install <installation:binary install>`
+instructions.
 
-       sudo apt-get update
-       sudo apt-get install ca-certificates curl gnupg lsb-release
+Package install
+---------------
+.. tabs::
 
+   .. tab:: SoftIron Linux
 
-2. Add Softiron's official GPG key::
+      1. Add Sibench repository::
 
-       curl -fsSL https://cdn.softiron.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/softiron-archive.gpg
+             echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
+             /etc/apt/sources.list.d/sibench.list > /dev/null
 
-3. Setup the repository::
+      2. Install Sibench::
 
-       echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
-       /etc/apt/sources.list.d/sibench.list > /dev/null
+             sudo apt-get install sibench
 
-4. Install Sibench:
+   .. tab:: Debian (buster)
 
-   4a. Debian bullseye::
+      .. include:: installation/debian-repo-setup.txt
 
-       sudo apt-get install sibench
+      4. Install Sibench::
 
-   4b. Debian buster::
+           sudo apt-get install sibench -t buster-backports
 
-       sudo apt-get install sibench -t buster-backports
+      .. note:: This step assumes you have buster-backports enabled. Not
+         recommended on environments with Ceph already installed.
 
-   .. note:: This step assumes you have buster-backports enabled
+   .. tab:: Debian (bullseye)
 
+      .. include:: installation/debian-repo-setup.txt
 
-Other Linux systems
--------------------
+      4. Install Sibench::
 
-1. Install dependencies:
-
-   - On Debian/Ubuntu::
-
-       sudo apt install librados2 librbd1
-
-   - On Fedora::
-
-       sudo dnf install librados2 librbd1
-
-   .. note:: Minimun version needed for these dependencies is ``14.0``.
-      Available on Debian buster-backports, bullseye, Ubuntu >= 20.04 and
-      Fedora >= 34
+           sudo apt-get install sibench
 
 
-2. Download a Sibench release from https://github.com/softiron/sibench/releases, for example::
+Binary Install
+--------------
+.. tabs::
 
-       wget https://github.com/SoftIron/sibench/releases/download/0.9.8/sibench-amd64-0.9.8.tar.gz
-       tar -xvf sibench-amd64-0.9.8.tar.gz
+   .. tab:: Debian (bullseye)
 
-3. Copy the binary somewhere in your ``$PATH``, for example::
+      1. Install dependencies::
 
-       sudo cp sibench /usr/local/bin/
+          sudo apt install librados2 librbd1
 
+      .. include:: installation/binary-install.txt
 
-You will not have a Sibench sever running if only installing the binary. You
-can run it manually using ``sibench server`` command, or you can create a
-systemd unit like `this one. <https://github.com/SoftIron/sibench/blob/master/lib/systemd/system/sibench.service>`__
+   .. tab:: Ubuntu >= 20.04
+
+      1. Install dependencies::
+
+          sudo apt install librados2 librbd1
+
+      .. include:: installation/binary-install.txt
+
+   .. tab:: Fedora >= 34
+
+      1. Install dependencies::
+
+          sudo dnf install librados2 librbd1
+
+      .. include:: installation/binary-install.txt
+
+   .. tab:: Rocky
+
+      1. Install dependencies::
+
+          no idea
+
+      .. include:: installation/binary-install.txt
+

@@ -38,6 +38,7 @@ release = '1.0'
 # ones.
 extensions = [
   'sphinx.ext.autosectionlabel',
+  'sphinx_tabs.tabs',
 ]
 
 autosectionlabel_prefix_document = True
