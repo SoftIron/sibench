@@ -635,8 +635,6 @@ func processStats(statChannel chan *Stat, controlChannel chan statControl, respo
                 }
 
             case ctl := <-controlChannel:
-                logger.Debugf("Stats Loop: %v\n", ctl)
-
                 switch ctl {
                     case SC_SendDetails:
                         // Send Stats 64 at a time, if we have that many.
