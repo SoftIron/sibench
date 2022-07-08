@@ -111,7 +111,7 @@ func RunBenchmark(j *Job) error {
 
     // Terminate
     logger.Infof("\n")
-    m.sendOpToServers(OP_Terminate, false)
+    m.terminate()
 
     if m.err != nil {
         m.report.AddError(m.err)
@@ -436,6 +436,31 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
                 logger.Infof("Interrupting job and waiting to shut down\n")
                 m.isInterrupted = true
                 return
+        }
+    }
+}
+
+
+func (m *Manager) terminate() {
+    m.sendOpToServers(OP_Terminate, false)
+
+    // We don't do our usual wait-for-response thing here because we may have done this from
+    // an interrupt, and so there could be spurious incoming message that we have to ignore.
+
+    for pending := len(m.msgConns); pending > 0; {
+        msgInfo := <-m.msgChannel
+
+        switch msgInfo.Error {
+            case nil:
+                if Opcode(msgInfo.Message.ID()) == OP_Terminate {
+                     pending--
+                }
+
+            case io.EOF:
+                // Ignore: the foreman has just closed the connection.
+
+            default:
+                m.err = fmt.Errorf("Transport failure: %v\n", msgInfo.Error)
         }
     }
 }
