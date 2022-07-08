@@ -381,6 +381,8 @@ func (f *Foreman) handleTcpMsg(msgInfo *comms.ReceivedMessageInfo) {
         case OP_StatSummaryStart:  f.setStatControl(SC_StartSummaries)
         case OP_StatSummaryStop:   f.setStatControl(SC_StopSummaries)
 
+        case OP_Terminate:         f.terminate()
+
         default:
             f.setState(nextState)
             f.sendOpcodeToWorkers(op)
@@ -583,7 +585,8 @@ func (f *Foreman) terminate() {
     if f.tcpConnection != nil {
         f.tcpConnection.Close()
         f.tcpConnection = nil
-        logger.Infof("TCP connction closed\n")
+        f.tcpMessageChannel = nil
+        logger.Infof("TCP connection closed\n")
     }
 
     logger.Infof("WorkOrder Terminated\n")
