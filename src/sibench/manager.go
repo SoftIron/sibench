@@ -111,7 +111,7 @@ func RunBenchmark(j *Job) error {
 
     // Terminate
     logger.Infof("\n")
-    m.sendOpToServers(OP_Terminate, true)
+    m.sendOpToServers(OP_Terminate, false)
 
     if m.err != nil {
         m.report.AddError(m.err)
