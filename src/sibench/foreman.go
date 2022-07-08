@@ -409,11 +409,6 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
         return
     }
 
-    if (f.state == FS_Terminate) && (resp.Op != OP_Terminate) {
-        logger.Debugf("Ignoring worker response (%v) as we are terminating\n", resp.Op.ToString())
-        return
-    }
-
     // Check if this is a bad message.
     nextState := validWorkerTransitions[resp.Op][f.state]
     if nextState == FS_BadTransition {
@@ -570,6 +565,14 @@ func (f *Foreman) terminate() {
     f.setState(FS_Terminate)
     f.sendOpcodeToWorkers(OP_Terminate)
 
+    // And wait for acknowledgment
+    for pending := len(f.workerInfos); pending > 0;  {
+        resp := <-f.workerResponseChannel;
+        if resp.Op == OP_Terminate {
+            pending--
+        }
+    }
+
     // Tell the stats channel to terminate
     logger.Debugf("Waiting for Stats termination\n")
     f.statControlChannel <- SC_Terminate
@@ -583,6 +586,7 @@ func (f *Foreman) terminate() {
     logger.Infof("Stats terminated\n")
 
     if f.tcpConnection != nil {
+        f.sendOpcodeToManager(OP_Terminate, nil);
         f.tcpConnection.Close()
         f.tcpConnection = nil
         f.tcpMessageChannel = nil
@@ -590,6 +594,8 @@ func (f *Foreman) terminate() {
     }
 
     logger.Infof("WorkOrder Terminated\n")
+
+    f.state = FS_Idle
 }
 
 
