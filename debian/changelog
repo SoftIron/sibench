@@ -1,3 +1,7 @@
+sibench (0.9.9) buster; urgency=low
+  [ Harry Richardson ]
+  * Fixed race condition on termination
+  * Added support for graceful recovery
 sibench (0.9.8) buster; urgency=low
   [ Pedro Alvarez ]
   * Improved documentation
