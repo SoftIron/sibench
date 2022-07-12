@@ -22,7 +22,7 @@ Package install
 
              sudo apt-get install sibench
 
-   .. tab:: Debian (buster)
+   .. tab:: Debian Buster
 
       .. include:: installation/debian-repo-setup.txt
 
@@ -33,7 +33,7 @@ Package install
       .. note:: This step assumes you have buster-backports enabled. Not
          recommended on environments with Ceph already installed.
 
-   .. tab:: Debian (bullseye)
+   .. tab:: Debian Bullseye
 
       .. include:: installation/debian-repo-setup.txt
 
@@ -46,11 +46,11 @@ Binary Install
 --------------
 .. tabs::
 
-   .. tab:: Debian (bullseye)
+   .. tab:: Debian Bullseye
 
       1. Install dependencies::
 
-          sudo apt install librados2 librbd1
+          sudo apt-get install librados2 librbd1
 
       .. include:: installation/binary-install.txt
 
@@ -58,7 +58,7 @@ Binary Install
 
       1. Install dependencies::
 
-          sudo apt install librados2 librbd1
+          sudo apt-get install librados2 librbd1
 
       .. include:: installation/binary-install.txt
 
