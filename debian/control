@@ -8,6 +8,6 @@ Homepage: https://sibench.io
 
 Package: sibench
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, librados2, ceph-common, librbd1
+Depends: ${misc:Depends}, ${shlibs:Depends}, librados2 (>=14.2.9), ceph-common (>=14.2.9), librbd1 (>=14.2.9)
 Description: SoftIron benchmarking facilities
   Alternative to cosbench for S3 benchmarking (and soon librados and file stuff)
