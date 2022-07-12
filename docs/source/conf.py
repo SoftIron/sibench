@@ -28,7 +28,9 @@ copyright = '2021, SoftIron'
 author = 'SoftIron'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0'
+import re
+import os
+release = re.sub('-.+-.{8}$', '', os.popen('git describe').read().strip())
 
 
 # -- General configuration ---------------------------------------------------
