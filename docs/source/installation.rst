@@ -69,12 +69,3 @@ Binary Install
           sudo dnf install librados2 librbd1
 
       .. include:: installation/binary-install.txt
-
-   .. tab:: Rocky
-
-      1. Install dependencies::
-
-          no idea
-
-      .. include:: installation/binary-install.txt
-
