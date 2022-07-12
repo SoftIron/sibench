@@ -1,3 +1,7 @@
+sibench (1.0.0) buster; urgency=low
+  [ Pedro Alvarez ]
+  * Added dependency versions to avoid broken Sibench installs
+  * Documentation improvements
 sibench (0.9.9) buster; urgency=low
   [ Harry Richardson ]
   * Fixed race condition on termination
