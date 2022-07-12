@@ -1,7 +1,8 @@
-2. Download a Sibench release from https://github.com/softiron/sibench/releases, for example::
+2. Download a Sibench release from https://github.com/softiron/sibench/releases, for example
 
-       wget https://github.com/SoftIron/sibench/releases/download/0.9.8/sibench-amd64-0.9.8.tar.gz
-       tar -xvf sibench-amd64-0.9.8.tar.gz
+   .. parsed-literal::
+      wget h\ ttps://github.com/SoftIron/sibench/releases/download/|release|/sibench-amd64-|release|.tar.gz
+      tar -xvf sibench-amd64-|release|.tar.gz
 
 3. Copy the binary somewhere in your ``$PATH``, for example::
 
