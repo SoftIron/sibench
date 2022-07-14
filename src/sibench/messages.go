@@ -166,6 +166,7 @@ type WorkOrder struct {
     ReadWriteMix uint64             // Give the percentage of reads vs writes for combined ops. 
 
     // Object parameters
+    ObjectKeyPrefix string          // A random prefix to be used for object keys to ensure uniqueness across runs
     ObjectSize uint64               // The size of the objects we read and write
     Seed uint64                     // A seed for any PRNGs in use. 
     GeneratorType string            // Which type of Generator we will use to create and verify object data.
