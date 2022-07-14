@@ -8,6 +8,7 @@ import "github.com/docopt/docopt-go"
 import "fmt"
 import "logger"
 import "math"
+import "math/rand"
 import "os"
 import "regexp"
 import "strings"
@@ -324,6 +325,15 @@ func startServer(args *Arguments) {
 }
 
 
+
+/* Creates a random string which we can use to guarantee uniqueness across runs. */
+func createUniquePrefix() string {
+    source := rand.NewSource(time.Now().UnixNano())
+    prng := rand.New(source)
+    return fmt.Sprintf("sibench-%X", prng.Uint64())
+}
+
+
 /* Create a job and execute it on some set of servers. */
 func startRun(args *Arguments) {
     var j Job
@@ -338,6 +348,7 @@ func startRun(args *Arguments) {
     j.useBytes = args.UseBytes
 
     j.order.JobId = 1
+    j.order.ObjectKeyPrefix = createUniquePrefix()
     j.order.ObjectSize = args.ObjectSizeInBits
     j.order.Seed = uint64(time.Now().Unix())
     j.order.RangeStart = 0
@@ -394,7 +405,8 @@ func startRun(args *Arguments) {
                 "username": args.CephUser,
                 "key": args.CephKey,
                 "pool": args.CephPool,
-                "datapool": args.CephDatapool }
+                "datapool": args.CephDatapool,
+                "image_prefix": createUniquePrefix() }
 
         case args.Block:
             j.order.ConnectionType = "block"

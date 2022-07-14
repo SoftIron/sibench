@@ -71,7 +71,7 @@ func (conn *RbdConnection) WorkerConnect() error {
     // use.  The connection protocol map know how much data we will be managing.
 
     imageSize := uint64((conn.worker.WorkerRangeEnd - conn.worker.WorkerRangeStart) * conn.worker.ObjectSize)
-    imageName := fmt.Sprintf("sibench-%v-%v", conn.worker.Hostname, conn.worker.WorkerId)
+    imageName := fmt.Sprintf("%v-%v-%v", conn.protocol["image_prefix"], conn.worker.Hostname, conn.worker.WorkerId)
     imageOrder := uint64(22) // 1 << 22 gives a 4MB object size
 
     options := rbd.NewRbdImageOptions()

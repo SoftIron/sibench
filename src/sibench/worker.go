@@ -272,7 +272,7 @@ func (w *Worker) connect() {
 
 
 func (w *Worker) writeOrPrepare(phase StatPhase) {
-    key := fmt.Sprintf("obj_%v", w.objectIndex)
+    key := fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
     contents := w.generator.Generate(w.order.ObjectSize, key, w.cycle)
     conn := w.connections[w.connIndex]
 
@@ -350,7 +350,7 @@ func (w *Worker) prepare() {
 func (w *Worker) read() {
     w.limitBandwidth()
 
-    key := fmt.Sprintf("obj_%v", w.objectIndex)
+    key := fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
     conn := w.connections[w.connIndex]
 
     var err error
