@@ -54,7 +54,7 @@ Examples
 --------
 
 Once you have the service account ready, running Benchmaster can be as simple
-as running Sibench.
+as running ``sibench``.
 
 First of all, you need to create a spreadsheet for your benchmarking data::
 
@@ -73,19 +73,19 @@ s3 adduser``. In any case, you can specify the Ceph user and Key using the optio
 ``--ceph--user`` and ``--ceph-key``.
 
 
-Benchmarking Rados using Sibench
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Benchmarking Rados using ``sibench``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You may need to create an user and a pool for these. Read the :doc:`examples`
 page for information about how to do it.
 
 For an initial benchmark with Benchmaster, using default values, and a single
-Sibench server running locally::
+``sibench`` server running locally::
 
 
     benchmaster rados sibench time --sheet "benchmaster example tests" \
       --ceph-user sibench --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== \
-      --ceph-pool sibench.pool "Rados single Sibench server" ceph-mon1
+      --ceph-pool sibench.pool "Rados single sibench server" ceph-mon1
 
 See the :ref:`examples page <examples:rados and rbd benchmarking>` for
 how to create a Ceph pool and user.
@@ -95,10 +95,10 @@ An example of the output you should get after running the command above:
 
 .. image:: images/benchmaster-spreadsheet-1.png
   :alt: Screenshot of the produced spreadsheet after the benchmarking rados
-        using Sibench.
+        using sibench.
 
-Benchmarking RBD using Sibench
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Benchmarking RBD using ``sibench``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In a similar way, we can use the same user, key, and pool to run a benchmark
 using RBD protocol::
@@ -106,17 +106,17 @@ using RBD protocol::
 
     benchmaster rbd sibench time --sheet "benchmaster example tests" \
       --ceph-user sibench --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== \
-      --ceph-pool sibench.pool "RBD single Sibench server" ceph-mon1
+      --ceph-pool sibench.pool "RBD single sibench server" ceph-mon1
 
 Now in the spreadsheet you should be able to see a second row for this
 benchmark run.
 
 .. image:: images/benchmaster-spreadsheet-2.png
   :alt: Screenshot of the produced spreadsheet after the benchmarking RBD
-        using Sibench.
+        using sibench.
 
-Benchmarking S3 using Sibench
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Benchmarking S3 using ``sibench``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you want to run benchmaks using the S3 protocol you will need an S3 user.
 You can use the command ``benchmaster s3 adduser`` to do this, or you can add
@@ -130,13 +130,13 @@ For simplicity, you can use the helper command to create the user for you::
 And then, run the benchmark against your Rados Gateway nodes::
 
     benchmaster s3 sibench time --sheet "benchmaster example tests" \
-      "S3 single Sibench server" ceph-rgw1 ceph-rgw2 ceph-rgw3
+      "S3 single sibench server" ceph-rgw1 ceph-rgw2 ceph-rgw3
 
 Once it finishes, you should see an additional row in your spreadsheet.
 
 .. image:: images/benchmaster-spreadsheet-3.png
   :alt: Screenshot of the produced spreadsheet after the benchmarking S3
-        using Sibench.
+        using sibench.
 
 The spreadsheet
 ~~~~~~~~~~~~~~~
@@ -145,10 +145,10 @@ On the initial columns of the spreadsheet you can find:
 
 - ID of the run (COSbench only)
 - Protocol used
-- Backend (Sibench or COSbench)
+- Backend (``sibench`` or COSbench)
 - Size of the object used
 - Number of object used
-- Workers running the test (e.g. number of Sibench servers)
+- Workers running the test (e.g. number of ``sibench`` servers)
 - Test timings (ramp up, testing and ramp down)
 - Number of targets (Monitor, Rados Gateway, etc)
 

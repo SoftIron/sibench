@@ -8,18 +8,18 @@ For more detailed information, visit https://sibench.io.
 How It Works
 ------------
 
-Each benchmarking node runs Sibench as a server daemon, listening for incoming
-connections from a Sibench client.
+Each benchmarking node runs ``sibench`` as a server daemon, listening for incoming
+connections from a ``sibench`` client.
 
-Once the client starts a benchmark, the Sibench servers send periodic summaries
+Once the client starts a benchmark, the ``sibench`` servers send periodic summaries
 back to it, so that the user can see progress.
 
-When a benchmark completes, the Sibench servers send the full results back to
+When a benchmark completes, the ``sibench`` servers send the full results back to
 the client.  A summary of the results is dislplayed by the client, but the full
 results of every individual read and write operation are written out as a json
 file in case the user wishes to perform their own statistical analysis.
 
-Once a client starts running a benchmark on some set of Sibench servers, those
+Once a client starts running a benchmark on some set of ``sibench`` servers, those
 servers will reject any other incoming connections until the benchmark completes
 or is aborted.  There is no job queue or long-lived management process.
 
@@ -94,7 +94,7 @@ Option Definitions
 |                                |        |           | generate enough output to affect benchmark performance, and should only be used when    |                    |
 |                                |        |           | trying to track down issues.                                                            | off                |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
-| **\-\-port**                   | **-p** | *PORT*    | The port on which Sibench communicates.                                                 | 5150               |
+| **\-\-port**                   | **-p** | *PORT*    | The port on which ``sibench`` communicates.                                             | 5150               |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-object-size**            | **-s** | *SIZE*    | Object size to test, in units of K or M.                                                | 1M                 |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
@@ -122,15 +122,15 @@ Option Definitions
 | **\-\-workers**                | **-w** | *FACTOR*  | Number of worker threads per server as a factor x number of CPU cores.                  | 1.0                |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-mounts-dir**             | **-m** | *DIR*     | The directory in which we should create any filesystem mounts that are performed by     | /tmp/sibench_mnt   |
-|                                |        |           | Sibench itself, such as when using CephFS.  It is not needed for running generic        |                    |
-|                                |        |           | filesystem benchmarks, because those must be mounted outside of Sibench.                |                    |
+|                                |        |           | ``sibench`` itself, such as when using CephFS.  It is not needed for running generic    |                    |
+|                                |        |           | filesystem benchmarks, because those must be mounted outside of ``sibench``.            |                    |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-generator**              | **-g** | *GEN*     | Which object generator to use: "prng" or "slice".                                       | prng               |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-skip-read-verification** |        | \-        | Disable validation on reads.  This should only be used to check if the number of nodes  | \-                 |
-|                                |        |           | in the Sibench cluster is a limiting factor when benchmarking read performance.         |                    |
+|                                |        |           | in the ``sibench`` cluster is a limiting factor when benchmarking read performance.     |                    |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
-| **\-\-servers**                |        | *SERVERS* | A comma-separated list of Sibench servers to connect to.                                | localhost          |
+| **\-\-servers**                |        | *SERVERS* | A comma-separated list of ``sibench`` servers to connect to.                            | localhost          |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-s3-port**                |        | *PORT*    | The port on which to connect to S3.                                                     | 7480               |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
@@ -149,7 +149,7 @@ Option Definitions
 | **\-\-ceph-key**               |        | *KEY*     | The CephX secret key belonging to the ceph user.                                        | \-                 |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-ceph-dir**               |        | *DIR*     | The directory within CephFS that we should use for a benchmark.    This will be created | sibench            |
-|                                |        |           | by Sibench if it does not already exist.                                                |                    |
+|                                |        |           | by ``sibench`` if it does not already exist.                                            |                    |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-block-device**           |        | *DEVICE*  | The local block device to use for a benchmark.                                          | /tmp/sibench_block |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
@@ -190,18 +190,18 @@ within the RBD image.
 
 For example, if you have the following:
 
-1. 10 Sibench nodes, each with 16 cores
+1. 10 ``sibench`` nodes, each with 16 cores
 2. A single target monitor
 3. And object count of 1600 and an object size of 1MB
 
-Then Sibench will create 160 workers (by default, it is one per core), each of
+Then ``sibench`` will create 160 workers (by default, it is one per core), each of
 which will create a single 10MB RBD image, and then it will proceed to read and
 write 1 MB at a time to parts of that image.
 
 Generators
 ~~~~~~~~~~
 
-Generators create the data that Sibench uses as workloads for the storage
+Generators create the data that ``sibench`` uses as workloads for the storage
 system.  There are currently two of them, selectable with the ``--generator``
 option.
 
@@ -242,7 +242,7 @@ can verify a read operation by reading the seed from the first few bytes, and
 then recreating the object we would expect.
 
 Note that the directory of data to be sliced needs to be in the same location on
-each of the Sibench server nodes.
+each of the ``sibench`` server nodes.
 
 The drivers do *not* need to have the same files in their slice directories,
 though it's likely that they will.  One option would be to mount the same NFS
@@ -255,7 +255,7 @@ Write Cycles
 
 The ``count`` parameter determines how many objects we create.  However, for long
 benchmarks runs, or for small counts or object sizes, we are likely to wrap
-around and start writing from the first object again.  If this happens, Sibench
+around and start writing from the first object again.  If this happens, ``sibench``
 internally increments a cycle counter, which it uses to ensure that objects
 written in different cycles will have different contents, even though the object
 will still use the same key as previously.
@@ -263,7 +263,7 @@ will still use the same key as previously.
 The Prepare Phase
 ~~~~~~~~~~~~~~~~~
 
-Sibench either benchmarks write operations first and then read operations, or
+``sibench`` either benchmarks write operations first and then read operations, or
 else it benchmarks a mixture of the too (depending on the ``--read-write-mix``
 option.  When benchmarking reads, or a read-write mix, it must first ensure that
 there are enough objects there to read before it can start work.  This is the
@@ -271,7 +271,7 @@ there are enough objects there to read before it can start work.  This is the
 'Preparing'.
 
 It also happens if we are doing separate writes and reads and we did not have a
-long enough run time for Sibench to write all of the objects specified by the
+long enough run time for ``sibench`` to write all of the objects specified by the
 ``object-count`` option.  In this case, the prepare phase will keep writing until
 all the objects are ready for reading.
 
@@ -279,10 +279,10 @@ all the objects are ready for reading.
 Slow Shutdown
 ~~~~~~~~~~~~~
 
-There are times when Sibench can take a long time when cleaning up after a
+There are times when ``sibench`` can take a long time when cleaning up after a
 benchmark run.  This is due to Ceph being extremely slow at deleting objects.
 
-Future versions of Sibench may add an option to not clean up their data in order
+Future versions of ``sibench`` may add an option to not clean up their data in order
 to avoid this.  (For test clusters with no production data, it would be faster
-to not have Sibench clean up, but to delete and recreate the Ceph pools
+to not have ``sibench`` clean up, but to delete and recreate the Ceph pools
 instead).

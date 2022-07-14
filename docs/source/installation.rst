@@ -1,7 +1,7 @@
 Install
 =======
 
-If you are running SoftIron Linux or Debian, we recommend you install Sibench
+If you are running SoftIron Linux or Debian, we recommend you install ``sibench``
 using the :ref:`Package install <installation:package install>` instructions.
 
 If this is not an option, try the :ref:`Binary install <installation:binary install>`
@@ -13,12 +13,12 @@ Package install
 
    .. tab:: SoftIron Linux
 
-      1. Add Sibench repository::
+      1. Add ``sibench`` repository::
 
            echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
                /etc/apt/sources.list.d/sibench.list > /dev/null
 
-      2. Install Sibench::
+      2. Install ``sibench``::
 
            sudo apt-get update
            sudo apt-get install sibench
@@ -27,7 +27,7 @@ Package install
 
       .. include:: installation/debian-repo-setup.txt
 
-      4. Install Sibench
+      4. Install ``sibench``
 
          .. code-block::
 
@@ -41,7 +41,7 @@ Package install
 
       .. include:: installation/debian-repo-setup.txt
 
-      4. Install Sibench::
+      4. Install ``sibench``::
 
            sudo apt-get update
            sudo apt-get install sibench

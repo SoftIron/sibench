@@ -18,7 +18,7 @@ Rados, we would need to consider not only Ceph's own cache sizes, but also the
 combined amount of cache built into all the drives in the system.
 
 When in doubt, use a bigger object count.  The only downsides to using a larger
-count are the possibility of running out of memory on the Sibench nodes
+count are the possibility of running out of memory on the ``sibench`` nodes
 themselves, and the increased amount of time it will take to clean up after the
 benchmark.
 
@@ -41,7 +41,7 @@ bandwidth limited to 80 or 90 percent of the peak number.
 Boosting throughput
 -------------------
 
-Sibench is inefficient with respect to the amount of load it puts on its own
+``sibench`` is inefficient with respect to the amount of load it puts on its own
 nodes.  This is by design: we do not want to have to wait long for a thread to
 be scheduled in order to read data that has become available.  Nor do we want to
 be interrupted during a write. Both of these scenarios can have a huge effect on
@@ -49,7 +49,7 @@ the accuracy of our response time measurements, and may make them look much
 worse than they really are.  In essence, we are trying to avoid benchmarking
 the benchmarking system itself!
 
-As a consequence, a Sibench node only starts up as many workers as it has cores.
+As a consequence, a ``sibench`` node only starts up as many workers as it has cores.
 This is adjustable using the ``--workers`` option.  (A factor of 2.0 will have
 twice as many workers as cores).  This may be useful if we want to determine
 absolute maximum throughput, provided we don't care about the accuracy of the
@@ -58,20 +58,20 @@ response times.
 *Note that sibench considers hyperthreaded cores as real cores for the purposes
 of determining core counts.*
 
-Alternatively, you may also be able to boost read throughput from the Sibench
+Alternatively, you may also be able to boost read throughput from the ``sibench``
 nodes by using the ``--skip-read-verification`` option, which does exactly what
 it suggests.
 
 In general though, neither of these two options are recommended except for one
 particular use case: if disabling read verification or increasing the worker
 count boosts your throughput numbers, then that is an indication that more
-Sibench nodes should be added in order to benchmark at those rates whilst still
+``sibench`` nodes should be added in order to benchmark at those rates whilst still
 giving accurate timings.
 
 Response times
 --------------
 
-Whilst Sibench will output the maximum, minimum and average response times, in
+Whilst ``sibench`` will output the maximum, minimum and average response times, in
 practice it is the 95%-response time - the time in which 95% of requests
 complete - that is likely to be the most informative.  Maximum response times
 can be thrown out by one outlier result, which in turn poisons the average.  The
@@ -81,12 +81,12 @@ better indicator of a system's behaviour.
 Memory considerations
 ---------------------
 
-Sibench is written to use as little memory as possible.  The generators
+``sibench`` is written to use as little memory as possible.  The generators
 algorithmically create each object to be written or read-and-verified on the
 fly, and so objects do not need to be held in memory for longer than a single
 read or write operation as they can be recreated at will.
 
-The one part of Sibench that can take a *lot* of memory is the stats gathering,
+The one part of ``sibench`` that can take a *lot* of memory is the stats gathering,
 as stats are held in memory by each driver node until the completion of each
 phase of a run.  At the end of each phase, the manager process collects the
 stats from all the nodes and merges them.  This can be a lot of data if, say,
@@ -96,7 +96,7 @@ A consequence of this approach is that the manager node may need a lot more
 memory than the driver nodes, because it has to hold the stats of *all* of the
 driver nodes in memory in order to do the merge.
 
-Unfortunately, some of the Ceph native libraries used by Sibench appear to
+Unfortunately, some of the Ceph native libraries used by ``sibench`` appear to
 hold on to data for longer than would seem necessary.  This can result in large
 amounts of memory being used, which can result in two undesirable outcomes:
 
@@ -106,10 +106,10 @@ amounts of memory being used, which can result in two undesirable outcomes:
 * Process death: on Linux, the OOM Killer in the kernel will terminate processes
   that take too much memory with a SIGKILL.  Since this is not a signal that can
   be caught, there is no warning or error when it occurs.  (The systemd script
-  should start a new copy of the server immediately though, so the Sibench node
+  should start a new copy of the server immediately though, so the ``sibench`` node
   will be usable for a new benchmark run with no further action.
 
-At the start of each run, Sibench determines how much physical memory each node
+At the start of each run, ``sibench`` determines how much physical memory each node
 has, and does some back-of-the-envelope maths to determine how much memory a
 benchmark may consume in the worst case.  If the latter is within about 80% of
 the former, it outputs a warning message to alert the user of possible
@@ -119,14 +119,14 @@ worst-case ceph library behaviour, it may well succeed).
 Homogeneous cores
 -----------------
 
-Sibench divides its workload between nodes, with each taking responsibility for
+``sibench`` divides its workload between nodes, with each taking responsibility for
 reading and writing some number of objects.  The division of labour is done
 purely according to how many cores each node has.  It does not attempt to
 measure the performance of each server node, nor does it use some artificial
 measure of performance such as BogoMIPS.  Because of this, it is important that
-the nodes used as Sibench servers be of roughly equivalent speed, at least on a
+the nodes used as ``sibench`` servers be of roughly equivalent speed, at least on a
 per-core basis.
 
-The reason for this is that if one Sibench server is far quicker than its peers,
+The reason for this is that if one ``sibench`` server is far quicker than its peers,
 then when it finishes reading its share of the objects and loops round to start
 at the beginning again, the data may still be in the storage system's caches.

@@ -1,6 +1,6 @@
-# Sibench
+# sibench
 
-This is the main repository for [Sibench]. Sibench is a tool for benchmarking
+This is the main repository for [sibench]. `sibench` is a tool for benchmarking
 Ceph clusters and other storage systems.
 
 ## Development
@@ -17,11 +17,11 @@ to get in touch and start a conversation.
 
 ## License
 
-Sibench is an open source project sponsored by [SoftIron] under the
+`sibench` is an open source project sponsored by [SoftIron] under the
 [GPLv2 License]
 
 
-[Sibench]: https://sibench.io
+[sibench]: https://sibench.io
 [open an Issue]: https://github.com/SoftIron/sibench/issues
 [SoftIron]: https://softiron.com
 [GPLv2 License]: https://github.com/SoftIron/sibench/blob/master/COPYING

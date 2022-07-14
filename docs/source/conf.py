@@ -23,8 +23,8 @@ with urlopen(_conf_url) as _inf:
 
 # -- Project information -----------------------------------------------------
 
-project = 'Sibench'
-copyright = '2021, SoftIron'
+project = 'sibench'
+copyright = '2022, SoftIron'
 author = 'SoftIron'
 
 # The full version, including alpha/beta/rc tags

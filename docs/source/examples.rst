@@ -23,8 +23,8 @@ access to this pool::
 As explained on :ref:`targets section <manual:targets>` of the :doc:`manual`,
 using only one Monitor is enough.
 
-Running Sibench using the Rados object protocol
-"""""""""""""""""""""""""""""""""""""""""""""""
+Running ``sibench`` using the Rados object protocol
+"""""""""""""""""""""""""""""""""""""""""""""""""""
 
 .. code-block::
 
@@ -300,10 +300,10 @@ Using RBD protocol
    </details>
 
 
-Multiple Sibench servers
-""""""""""""""""""""""""
-To run Sibench from multiple servers you need to set the ``--servers`` option
-(by default 'localhost') to select the Sibench servers to use::
+Multiple ``sibench`` servers
+""""""""""""""""""""""""""""
+To run ``sibench`` from multiple servers you need to set the ``--servers`` option
+(by default 'localhost') to select the ``sibench`` servers to use::
 
     sibench rados run --ceph-pool sibench.pool --ceph-user sibench \
       --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== \
@@ -342,7 +342,7 @@ To run Sibench from multiple servers you need to set the ``--servers`` option
 S3 benchmarking
 ---------------
 
-In this case you will need to create an S3 user and bucket to run Sibench::
+In this case you will need to create an S3 user and bucket to run ``sibench``::
 
     radosgw-admin user create --uid sibench --display-name sibench
 
@@ -358,7 +358,7 @@ In this case you will need to create an S3 user and bucket to run Sibench::
 
 .. warning::
 
-    Sibench will automatically create and delete the bucket for you. Avoid
+    ``sibench`` will automatically create and delete the bucket for you. Avoid
     using an existing bucket.
 
 

@@ -22,16 +22,16 @@ jobs:
         with:
           go-version: '1.16.15'
 
-      - name: Install Sibench build dependencies
+      - name: Install sibench build dependencies
         run: apt-get install -y librados-dev librbd-dev build-essential git
 
-      - name: Build Sibench
+      - name: Build sibench
         run:  make
 
       - name: tar the release
         run: cd bin && tar -cvzf sibench-amd64.tar.gz sibench
 
-      - name: Upload Sibench binary
+      - name: Upload sibench binary
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

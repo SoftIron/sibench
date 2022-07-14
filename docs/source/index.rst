@@ -1,4 +1,4 @@
-Sibench
+sibench
 =======
 
 .. include:: sibench-short-intro.txt
@@ -14,37 +14,37 @@ different protocols, which currently include:
 - Local file storage
 
 These last two can be used to benchmark many other protocols - iSCSI, SMB, NFS
-and so on - provided that these have been manually mounted on each Sibench
+and so on - provided that these have been manually mounted on each ``sibench``
 node.
 
 
 Architecture
 ------------
 
-Sibench has a client-server architecture. The client doing benchmarking will
-communicate with the Sibench servers to generate the load. This way Sibench
+``sibench`` has a client-server architecture. The client doing benchmarking will
+communicate with the ``sibench`` servers to generate the load. This way ``sibench``
 can generate a distributed load to avoid any bottlenecks caused by running
 benchmarks from a single location.
 
 
 .. image:: images/sibench-architecture.png
-  :alt: Diagram illustrating Sibench client connecting to workers, and these to
+  :alt: Diagram illustrating ``sibench`` client connecting to workers, and these to
         the multiple benchmarking backends.
 
-To use Sibench from multiple nodes you will need to install it on all of
+To use ``sibench`` from multiple nodes you will need to install it on all of
 these nodes, including the client and the servers.
 
 Have a look at some :doc:`examples` and also to the :doc:`manual` to continue
-learning about Sibench.
+learning about ``sibench``.
 
-You don't have Sibench installed yet? Have a look at the :doc:`installation`
+You don't have ``sibench`` installed yet? Have a look at the :doc:`installation`
 page.
 
 Contributing
 ------------
 
 * This documentation can be seen at https://sibench.io
-* Check Sibench source code: https://github.com/softiron/sibench
+* Check ``sibench`` source code: https://github.com/softiron/sibench
 * Documentation source:
   https://github.com/softiron/sibench/tree/master/docs/source
 * For bug reports and feature requests create a GitHub issue:
