@@ -15,23 +15,27 @@ Package install
 
       1. Add Sibench repository::
 
-             echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
-             /etc/apt/sources.list.d/sibench.list > /dev/null
+           echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
+               /etc/apt/sources.list.d/sibench.list > /dev/null
 
       2. Install Sibench::
 
-             sudo apt-get install sibench
+           sudo apt-get update
+           sudo apt-get install sibench
 
    .. tab:: Debian Buster
 
       .. include:: installation/debian-repo-setup.txt
 
-      4. Install Sibench::
+      4. Install Sibench
 
-           sudo apt-get install sibench -t buster-backports
+         .. code-block::
 
-      .. note:: This step assumes you have buster-backports enabled. Not
-         recommended on environments with Ceph already installed.
+            sudo apt-get update
+            sudo apt-get install sibench -t buster-backports
+
+         .. note:: This step assumes you have buster-backports enabled. Not
+            recommended on environments with Ceph already installed.
 
    .. tab:: Debian Bullseye
 
@@ -39,6 +43,7 @@ Package install
 
       4. Install Sibench::
 
+           sudo apt-get update
            sudo apt-get install sibench
 
 

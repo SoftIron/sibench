@@ -1,8 +1,7 @@
-1. Update ``apt`` package index::
+1. Update ``apt`` package index and install dependencies::
 
        sudo apt-get update
-       sudo apt-get install ca-certificates curl gnupg lsb-release
-
+       sudo apt-get install ca-certificates curl gnupg
 
 2. Add Softiron's official GPG key::
 
@@ -11,4 +10,4 @@
 3. Setup the repository::
 
        echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
-       /etc/apt/sources.list.d/sibench.list > /dev/null
+           /etc/apt/sources.list.d/sibench.list > /dev/null
