@@ -1,4 +1,4 @@
-2. Download a ``sibench`` release from https://github.com/softiron/sibench/releases, for example
+2. Download a ``sibench`` release from https://github.com/SoftIron/sibench/releases, for example
 
    .. parsed-literal::
       wget h\ ttps://github.com/SoftIron/sibench/releases/download/|release|/sibench-amd64-|release|.tar.gz

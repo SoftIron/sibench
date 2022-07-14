@@ -34,7 +34,7 @@ On Fedora, you can install the dependencies with::
 Once you have the base dependencies in place, you can install Benchmaster
 straight from GitHub::
 
-    pip3 install https://github.com/softiron/benchmaster/archive/master.zip
+    pip3 install https://github.com/SoftIron/benchmaster/archive/master.zip
 
 
 Spreadsheet integration

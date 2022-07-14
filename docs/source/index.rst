@@ -44,11 +44,11 @@ Contributing
 ------------
 
 * This documentation can be seen at https://sibench.io
-* Check ``sibench`` source code: https://github.com/softiron/sibench
+* Check ``sibench`` source code: https://github.com/SoftIron/sibench
 * Documentation source:
-  https://github.com/softiron/sibench/tree/master/docs/source
+  https://github.com/SoftIron/sibench/tree/master/docs/source
 * For bug reports and feature requests create a GitHub issue:
-  https://github.com/softiron/sibench/issues
+  https://github.com/SoftIron/sibench/issues
 
 
 .. toctree::
