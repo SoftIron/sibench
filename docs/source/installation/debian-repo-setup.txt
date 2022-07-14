@@ -3,11 +3,7 @@
        sudo apt-get update
        sudo apt-get install ca-certificates curl gnupg
 
-2. Add Softiron's official GPG key::
+2. Setup the repository::
 
-       curl -fsSL https://cdn.softiron.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/softiron-archive.gpg
-
-3. Setup the repository::
-
-       echo "deb https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
+       echo "deb [trusted=yes] https://cdn.softiron.com/ceph/sibench buster main" | sudo tee \
            /etc/apt/sources.list.d/sibench.list > /dev/null
