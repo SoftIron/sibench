@@ -5,7 +5,7 @@ on:
     types: [published]
 
 jobs:
-  build:
+  build-release:
     name: Release build for amd64
     runs-on: "ubuntu-20.04"
     container:
