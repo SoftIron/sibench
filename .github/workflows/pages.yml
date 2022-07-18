@@ -1,0 +1,35 @@
+name: Publish GitHub pages
+on:
+  push:
+    branches:
+      - master
+permissions:
+  contents: write
+jobs:
+  build-docs-and-publish:
+    runs-on: "ubuntu-20.04"
+    container:
+      image: debian:bullseye
+    steps:
+      - name: Install git before checkout
+        run: apt-get update && apt-get install -y git
+
+      - name: Install rsync for "github-pages-deploy-action" to work
+        run: apt-get install -y rsync
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies and build documentation
+        run: |
+          apt-get install -y python3-pip make
+          cd docs
+          pip3 install -r requirements.txt
+          make html
+          touch build/html/.nojekyll
+
+      - name: Deploy pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: docs/build/html
