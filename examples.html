@@ -1,0 +1,728 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Best practices" href="best-practices.html" /><link rel="prev" title="Manual" href="manual.html" />
+
+    <meta name="generator" content="sphinx-5.0.2, furo 2022.06.21"/>
+        <title>Examples - sibench 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="_static/tabs.css" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">sibench 1.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  
+  <span class="sidebar-brand-text">sibench 1.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">sibench</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Install</a></li>
+<li class="toctree-l1"><a class="reference internal" href="manual.html">Manual</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best-practices.html">Best practices</a></li>
+<li class="toctree-l1"><a class="reference internal" href="benchmaster.html">Benchmaster</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="examples">
+<h1>Examples<a class="headerlink" href="#examples" title="Permalink to this heading">#</a></h1>
+<section id="rados-and-rbd-benchmarking">
+<h2>Rados and RBD benchmarking<a class="headerlink" href="#rados-and-rbd-benchmarking" title="Permalink to this heading">#</a></h2>
+<p>For these tests you will need to create a Pool, and a Ceph user that can
+access to this pool:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ceph</span> <span class="n">osd</span> <span class="n">pool</span> <span class="n">create</span> <span class="n">sibench</span><span class="o">.</span><span class="n">pool</span> <span class="o">&lt;</span><span class="n">pg</span><span class="o">-</span><span class="n">num</span><span class="o">&gt;</span>
+<span class="n">ceph</span> <span class="n">auth</span> <span class="n">get</span><span class="o">-</span><span class="ow">or</span><span class="o">-</span><span class="n">create</span> <span class="n">client</span><span class="o">.</span><span class="n">sibench</span> <span class="n">mon</span> <span class="s1">&#39;profile rbd&#39;</span> \
+  <span class="n">osd</span> <span class="s1">&#39;profile rbd pool=sibench.pool&#39;</span> <span class="n">mgr</span> <span class="s1">&#39;profile rbd pool=sibench.pool&#39;</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You can use an existing user and pool if needed. Additionally, you can
+clean the pool later using <code class="docutils literal notranslate"><span class="pre">rados</span> <span class="pre">purge</span> <span class="pre">sibench.pool</span>
+<span class="pre">--yes-i-really-really-mean-it</span></code></p>
+</div>
+<p>As explained on <a class="reference internal" href="manual.html#targets"><span class="std std-ref">targets section</span></a> of the <a class="reference internal" href="manual.html"><span class="doc">Manual</span></a>,
+using only one Monitor is enough.</p>
+<section id="running-sibench-using-the-rados-object-protocol">
+<h3>Running <code class="docutils literal notranslate"><span class="pre">sibench</span></code> using the Rados object protocol<a class="headerlink" href="#running-sibench-using-the-rados-object-protocol" title="Permalink to this heading">#</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sibench</span> <span class="n">rados</span> <span class="n">run</span> <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">pool</span> <span class="n">sibench</span><span class="o">.</span><span class="n">pool</span> <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">user</span> <span class="n">sibench</span> \
+  <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">key</span> <span class="n">AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA</span><span class="o">==</span> <span class="o">&lt;</span><span class="n">Ceph</span> <span class="n">monitor</span> <span class="n">address</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<details>
+<summary>Example output</summary><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sibench rados run --ceph-pool sibench.pool --ceph-user sibench \
+&gt;   --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== ceph-mon1
+Creating report: sibench.json
+Creating rados client to ceph-mon1 as user sibench
+2022-05-23 07:39:10.858 7f81428039c0 -1 auth: unable to find a keyring on /etc/ceph/..keyring,/etc/ceph/.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin,: (2) No such file or directory
+2022-05-23 07:39:10.858 7f81428039c0 -1 auth: unable to find a keyring on /etc/ceph/..keyring,/etc/ceph/.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin,: (2) No such file or directory
+2022-05-23 07:39:10.858 7f81428039c0 -1 auth: unable to find a keyring on /etc/ceph/..keyring,/etc/ceph/.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin,: (2) No such file or directory
+Connecting to sibench server at localhost:5150
+
+---------- Sibench driver capabilities discovery ----------
+localhost: 4 cores, 15.5 GB of RAM
+
+----------------------- WRITE -----------------------------
+0: [Write] ops: 148,  bw: 1.2 Gb/s,  ofail: 0,  vfail: 0
+1: [Write] ops: 174,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+2: [Write] ops: 195,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+3: [Write] ops: 195,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+4: [Write] ops: 180,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+5: [Write] ops: 196,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+6: [Write] ops: 190,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+7: [Write] ops: 204,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+8: [Write] ops: 184,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+9: [Write] ops: 184,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+10: [Write] ops: 196,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+11: [Write] ops: 197,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+12: [Write] ops: 190,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+13: [Write] ops: 204,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+14: [Write] ops: 184,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+15: [Write] ops: 200,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+16: [Write] ops: 192,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+17: [Write] ops: 201,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+18: [Write] ops: 197,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+19: [Write] ops: 185,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+20: [Write] ops: 196,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+21: [Write] ops: 188,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+22: [Write] ops: 191,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+23: [Write] ops: 199,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+24: [Write] ops: 195,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+25: [Write] ops: 192,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+26: [Write] ops: 198,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+27: [Write] ops: 198,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+28: [Write] ops: 204,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+29: [Write] ops: 186,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+30: [Write] ops: 197,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+31: [Write] ops: 195,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+32: [Write] ops: 201,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+33: [Write] ops: 202,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+34: [Write] ops: 193,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+35: [Write] ops: 196,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+36: [Write] ops: 197,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+Retrieving stats from servers
+7344 stats retrieved in 0.043 seconds
+
+---------------------- PREPARE ----------------------------
+Retrieving stats from servers
+0 stats retrieved in 0.020 seconds
+
+----------------------- READ ------------------------------
+0: [Read] ops: 229,  bw: 1.8 Gb/s,  ofail: 0,  vfail: 0
+1: [Read] ops: 294,  bw: 2.3 Gb/s,  ofail: 0,  vfail: 0
+2: [Read] ops: 312,  bw: 2.4 Gb/s,  ofail: 0,  vfail: 0
+3: [Read] ops: 665,  bw: 5.2 Gb/s,  ofail: 0,  vfail: 0
+4: [Read] ops: 1017,  bw: 7.9 Gb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+5: [Read] ops: 1026,  bw: 8.0 Gb/s,  ofail: 0,  vfail: 0
+6: [Read] ops: 1011,  bw: 7.9 Gb/s,  ofail: 0,  vfail: 0
+7: [Read] ops: 1020,  bw: 8.0 Gb/s,  ofail: 0,  vfail: 0
+8: [Read] ops: 1011,  bw: 7.9 Gb/s,  ofail: 0,  vfail: 0
+9: [Read] ops: 1007,  bw: 7.9 Gb/s,  ofail: 0,  vfail: 0
+10: [Read] ops: 1021,  bw: 8.0 Gb/s,  ofail: 0,  vfail: 0
+11: [Read] ops: 998,  bw: 7.8 Gb/s,  ofail: 0,  vfail: 0
+12: [Read] ops: 984,  bw: 7.7 Gb/s,  ofail: 0,  vfail: 0
+13: [Read] ops: 997,  bw: 7.8 Gb/s,  ofail: 0,  vfail: 0
+14: [Read] ops: 996,  bw: 7.8 Gb/s,  ofail: 0,  vfail: 0
+15: [Read] ops: 984,  bw: 7.7 Gb/s,  ofail: 0,  vfail: 0
+16: [Read] ops: 976,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+17: [Read] ops: 997,  bw: 7.8 Gb/s,  ofail: 0,  vfail: 0
+18: [Read] ops: 987,  bw: 7.7 Gb/s,  ofail: 0,  vfail: 0
+19: [Read] ops: 978,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+20: [Read] ops: 976,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+21: [Read] ops: 968,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+22: [Read] ops: 982,  bw: 7.7 Gb/s,  ofail: 0,  vfail: 0
+23: [Read] ops: 980,  bw: 7.7 Gb/s,  ofail: 0,  vfail: 0
+24: [Read] ops: 976,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+25: [Read] ops: 987,  bw: 7.7 Gb/s,  ofail: 0,  vfail: 0
+26: [Read] ops: 977,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+27: [Read] ops: 978,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+28: [Read] ops: 967,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+29: [Read] ops: 959,  bw: 7.5 Gb/s,  ofail: 0,  vfail: 0
+30: [Read] ops: 980,  bw: 7.7 Gb/s,  ofail: 0,  vfail: 0
+31: [Read] ops: 964,  bw: 7.5 Gb/s,  ofail: 0,  vfail: 0
+32: [Read] ops: 958,  bw: 7.5 Gb/s,  ofail: 0,  vfail: 0
+33: [Read] ops: 978,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+34: [Read] ops: 932,  bw: 7.3 Gb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+35: [Read] ops: 944,  bw: 7.4 Gb/s,  ofail: 0,  vfail: 0
+36: [Read] ops: 970,  bw: 7.6 Gb/s,  ofail: 0,  vfail: 0
+Retrieving stats from servers
+35163 stats retrieved in 0.092 seconds
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Target[ceph-mon1] Write        bandwidth:   1.5 Gb/s,  ok:   5841,  fail:      0,  res-min:    10 ms,  res-max:   282 ms,  res-95:     29 ms, res-avg:     20 ms
+Server[localhost] Write        bandwidth:   1.5 Gb/s,  ok:   5841,  fail:      0,  res-min:    10 ms,  res-max:   282 ms,  res-95:     29 ms, res-avg:     20 ms
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Target[ceph-mon1] Read         bandwidth:   7.7 Gb/s,  ok:  29540,  fail:      0,  res-min:     1 ms,  res-max:    13 ms,  res-95:      5 ms, res-avg:      3 ms
+Server[localhost] Read         bandwidth:   7.7 Gb/s,  ok:  29540,  fail:      0,  res-min:     1 ms,  res-max:    13 ms,  res-95:      5 ms, res-avg:      3 ms
+================================================================================================================================================================
+Total Write                    bandwidth:   1.5 Gb/s,  ok:   5841,  fail:      0,  res-min:    10 ms,  res-max:   282 ms,  res-95:     29 ms, res-avg:     20 ms
+Total Read                     bandwidth:   7.7 Gb/s,  ok:  29540,  fail:      0,  res-min:     1 ms,  res-max:    13 ms,  res-95:      5 ms, res-avg:      3 ms
+================================================================================================================================================================
+
+Disconnecting from servers
+Disconnected
+Done
+</pre></div>
+</div>
+</details></section>
+<section id="using-rbd-protocol">
+<h3>Using RBD protocol<a class="headerlink" href="#using-rbd-protocol" title="Permalink to this heading">#</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sibench</span> <span class="n">rbd</span> <span class="n">run</span> <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">pool</span> <span class="n">sibench</span><span class="o">.</span><span class="n">pool</span> <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">user</span> <span class="n">sibench</span> \
+  <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">key</span> <span class="n">AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA</span><span class="o">==</span> <span class="o">&lt;</span><span class="n">Ceph</span> <span class="n">monitor</span> <span class="n">address</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<details>
+<summary>Example output</summary><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sibench rbd run --ceph-pool sibench.pool --ceph-user sibench \
+&gt;   --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== ceph-mon1
+Creating report: sibench.json
+Creating rados client to ceph-mon1 as user sibench
+2022-05-23 09:50:42.666 7fa49ca939c0 -1 auth: unable to find a keyring on /etc/ceph/..keyring,/etc/ceph/.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin,: (2) No such file or directory
+2022-05-23 09:50:42.666 7fa49ca939c0 -1 auth: unable to find a keyring on /etc/ceph/..keyring,/etc/ceph/.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin,: (2) No such file or directory
+2022-05-23 09:50:42.666 7fa49ca939c0 -1 auth: unable to find a keyring on /etc/ceph/..keyring,/etc/ceph/.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin,: (2) No such file or directory
+Connecting to sibench server at localhost:5150
+
+---------- Sibench driver capabilities discovery ----------
+localhost: 4 cores, 15.5 GB of RAM
+
+----------------------- WRITE -----------------------------
+0: [Write] ops: 37,  bw: 296.0 Mb/s,  ofail: 0,  vfail: 0
+1: [Write] ops: 161,  bw: 1.3 Gb/s,  ofail: 0,  vfail: 0
+2: [Write] ops: 171,  bw: 1.3 Gb/s,  ofail: 0,  vfail: 0
+3: [Write] ops: 173,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+4: [Write] ops: 170,  bw: 1.3 Gb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+5: [Write] ops: 177,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+6: [Write] ops: 174,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+7: [Write] ops: 186,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+8: [Write] ops: 185,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+9: [Write] ops: 193,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+10: [Write] ops: 199,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+11: [Write] ops: 180,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+12: [Write] ops: 183,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+13: [Write] ops: 184,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+14: [Write] ops: 172,  bw: 1.3 Gb/s,  ofail: 0,  vfail: 0
+15: [Write] ops: 183,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+16: [Write] ops: 186,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+17: [Write] ops: 185,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+18: [Write] ops: 197,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+19: [Write] ops: 189,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+20: [Write] ops: 199,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+21: [Write] ops: 192,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+22: [Write] ops: 194,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+23: [Write] ops: 187,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+24: [Write] ops: 179,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+25: [Write] ops: 192,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+26: [Write] ops: 199,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+27: [Write] ops: 187,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+28: [Write] ops: 189,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+29: [Write] ops: 186,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+30: [Write] ops: 196,  bw: 1.5 Gb/s,  ofail: 0,  vfail: 0
+31: [Write] ops: 180,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+32: [Write] ops: 177,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+33: [Write] ops: 201,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+34: [Write] ops: 199,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+35: [Write] ops: 205,  bw: 1.6 Gb/s,  ofail: 0,  vfail: 0
+36: [Write] ops: 176,  bw: 1.4 Gb/s,  ofail: 0,  vfail: 0
+Retrieving stats from servers
+7041 stats retrieved in 0.021 seconds
+
+---------------------- PREPARE ----------------------------
+Retrieving stats from servers
+0 stats retrieved in 0.010 seconds
+
+----------------------- READ ------------------------------
+0: [Read] ops: 78,  bw: 624.0 Mb/s,  ofail: 0,  vfail: 0
+1: [Read] ops: 325,  bw: 2.5 Gb/s,  ofail: 0,  vfail: 0
+2: [Read] ops: 409,  bw: 3.2 Gb/s,  ofail: 0,  vfail: 0
+3: [Read] ops: 467,  bw: 3.6 Gb/s,  ofail: 0,  vfail: 0
+4: [Read] ops: 449,  bw: 3.5 Gb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+5: [Read] ops: 459,  bw: 3.6 Gb/s,  ofail: 0,  vfail: 0
+6: [Read] ops: 442,  bw: 3.5 Gb/s,  ofail: 0,  vfail: 0
+7: [Read] ops: 465,  bw: 3.6 Gb/s,  ofail: 0,  vfail: 0
+8: [Read] ops: 490,  bw: 3.8 Gb/s,  ofail: 0,  vfail: 0
+9: [Read] ops: 496,  bw: 3.9 Gb/s,  ofail: 0,  vfail: 0
+10: [Read] ops: 464,  bw: 3.6 Gb/s,  ofail: 0,  vfail: 0
+11: [Read] ops: 412,  bw: 3.2 Gb/s,  ofail: 0,  vfail: 0
+12: [Read] ops: 491,  bw: 3.8 Gb/s,  ofail: 0,  vfail: 0
+13: [Read] ops: 449,  bw: 3.5 Gb/s,  ofail: 0,  vfail: 0
+14: [Read] ops: 509,  bw: 4.0 Gb/s,  ofail: 0,  vfail: 0
+15: [Read] ops: 425,  bw: 3.3 Gb/s,  ofail: 0,  vfail: 0
+16: [Read] ops: 488,  bw: 3.8 Gb/s,  ofail: 0,  vfail: 0
+17: [Read] ops: 475,  bw: 3.7 Gb/s,  ofail: 0,  vfail: 0
+18: [Read] ops: 528,  bw: 4.1 Gb/s,  ofail: 0,  vfail: 0
+19: [Read] ops: 433,  bw: 3.4 Gb/s,  ofail: 0,  vfail: 0
+20: [Read] ops: 497,  bw: 3.9 Gb/s,  ofail: 0,  vfail: 0
+21: [Read] ops: 423,  bw: 3.3 Gb/s,  ofail: 0,  vfail: 0
+22: [Read] ops: 472,  bw: 3.7 Gb/s,  ofail: 0,  vfail: 0
+23: [Read] ops: 462,  bw: 3.6 Gb/s,  ofail: 0,  vfail: 0
+24: [Read] ops: 466,  bw: 3.6 Gb/s,  ofail: 0,  vfail: 0
+25: [Read] ops: 507,  bw: 4.0 Gb/s,  ofail: 0,  vfail: 0
+26: [Read] ops: 472,  bw: 3.7 Gb/s,  ofail: 0,  vfail: 0
+27: [Read] ops: 500,  bw: 3.9 Gb/s,  ofail: 0,  vfail: 0
+28: [Read] ops: 496,  bw: 3.9 Gb/s,  ofail: 0,  vfail: 0
+29: [Read] ops: 500,  bw: 3.9 Gb/s,  ofail: 0,  vfail: 0
+30: [Read] ops: 474,  bw: 3.7 Gb/s,  ofail: 0,  vfail: 0
+31: [Read] ops: 514,  bw: 4.0 Gb/s,  ofail: 0,  vfail: 0
+32: [Read] ops: 461,  bw: 3.6 Gb/s,  ofail: 0,  vfail: 0
+33: [Read] ops: 505,  bw: 3.9 Gb/s,  ofail: 0,  vfail: 0
+34: [Read] ops: 429,  bw: 3.4 Gb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+35: [Read] ops: 504,  bw: 3.9 Gb/s,  ofail: 0,  vfail: 0
+36: [Read] ops: 418,  bw: 3.3 Gb/s,  ofail: 0,  vfail: 0
+Retrieving stats from servers
+17727 stats retrieved in 0.040 seconds
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Target[ceph-mon1] Write        bandwidth:   1.5 Gb/s,  ok:   5653,  fail:      0,  res-min:    10 ms,  res-max:   266 ms,  res-95:     34 ms, res-avg:     20 ms
+Server[localhost] Write        bandwidth:   1.5 Gb/s,  ok:   5653,  fail:      0,  res-min:    10 ms,  res-max:   266 ms,  res-95:     34 ms, res-avg:     20 ms
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Target[ceph-mon1] Read         bandwidth:   3.7 Gb/s,  ok:  14278,  fail:      0,  res-min:     2 ms,  res-max:   170 ms,  res-95:     18 ms, res-avg:      7 ms
+Server[localhost] Read         bandwidth:   3.7 Gb/s,  ok:  14278,  fail:      0,  res-min:     2 ms,  res-max:   170 ms,  res-95:     18 ms, res-avg:      7 ms
+================================================================================================================================================================
+Total Write                    bandwidth:   1.5 Gb/s,  ok:   5653,  fail:      0,  res-min:    10 ms,  res-max:   266 ms,  res-95:     34 ms, res-avg:     20 ms
+Total Read                     bandwidth:   3.7 Gb/s,  ok:  14278,  fail:      0,  res-min:     2 ms,  res-max:   170 ms,  res-95:     18 ms, res-avg:      7 ms
+================================================================================================================================================================
+
+Disconnecting from servers
+Disconnected
+Done
+</pre></div>
+</div>
+</details></section>
+<section id="multiple-sibench-servers">
+<h3>Multiple <code class="docutils literal notranslate"><span class="pre">sibench</span></code> servers<a class="headerlink" href="#multiple-sibench-servers" title="Permalink to this heading">#</a></h3>
+<p>To run <code class="docutils literal notranslate"><span class="pre">sibench</span></code> from multiple servers you need to set the <code class="docutils literal notranslate"><span class="pre">--servers</span></code> option
+(by default ‘localhost’) to select the <code class="docutils literal notranslate"><span class="pre">sibench</span></code> servers to use:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sibench</span> <span class="n">rados</span> <span class="n">run</span> <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">pool</span> <span class="n">sibench</span><span class="o">.</span><span class="n">pool</span> <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">user</span> <span class="n">sibench</span> \
+  <span class="o">--</span><span class="n">ceph</span><span class="o">-</span><span class="n">key</span> <span class="n">AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA</span><span class="o">==</span> \
+  <span class="o">--</span><span class="n">servers</span> <span class="o">&lt;</span><span class="n">driver1</span><span class="p">,</span><span class="n">driver2</span><span class="o">...&gt;</span> <span class="o">&lt;</span><span class="n">Ceph</span> <span class="n">monitor</span> <span class="n">address</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<details>
+<summary>Example output</summary><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sibench rados run --ceph-pool sibench.pool --ceph-user sibench \
+&gt;   --ceph-key AQASFmhiN2aiCBARYd1iIdn2ntHGoFjL3QJiTA== \
+&gt; --servers sibench-driver1,sibench-driver2 ceph-mon1
+
+Creating report: sibench.json
+Connecting to sibench server at sibench-driver1:5150
+Connecting to sibench server at sibench-driver2:5150
+
+---------- Sibench driver capabilities discovery ----------
+sibench-driver1: 4 cores, 15.5 GB of RAM
+sibench-driver2: 4 cores, 15.5 GB of RAM
+
+----------------------- WRITE -----------------------------
+0: [Write] ops: 37,  bw: 296.0 Mb/s,  ofail: 0,  vfail: 0
+1: [Write] ops: 161,  bw: 1.3 Gb/s,  ofail: 0,  vfail: 0
+...
+</pre></div>
+</div>
+</details></section>
+</section>
+<section id="s3-benchmarking">
+<h2>S3 benchmarking<a class="headerlink" href="#s3-benchmarking" title="Permalink to this heading">#</a></h2>
+<p>In this case you will need to create an S3 user and bucket to run <code class="docutils literal notranslate"><span class="pre">sibench</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">radosgw</span><span class="o">-</span><span class="n">admin</span> <span class="n">user</span> <span class="n">create</span> <span class="o">--</span><span class="n">uid</span> <span class="n">sibench</span> <span class="o">--</span><span class="n">display</span><span class="o">-</span><span class="n">name</span> <span class="n">sibench</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The user can be removed with <code class="docutils literal notranslate"><span class="pre">radosgw-admin</span> <span class="pre">user</span> <span class="pre">rm</span> <span class="pre">--uid=sibench</span></code></p>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sibench</span> <span class="n">s3</span> <span class="n">run</span> <span class="o">--</span><span class="n">s3</span><span class="o">-</span><span class="n">bucket</span> <span class="n">sibench_bucket</span> <span class="o">--</span><span class="n">s3</span><span class="o">-</span><span class="n">access</span><span class="o">-</span><span class="n">key</span> <span class="o">&lt;</span><span class="n">key</span><span class="o">&gt;</span> \
+  <span class="o">--</span><span class="n">s3</span><span class="o">-</span><span class="n">secret</span><span class="o">-</span><span class="n">key</span> <span class="o">&lt;</span><span class="n">secret</span> <span class="n">key</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">servers</span> <span class="o">&lt;</span><span class="n">driver1</span><span class="p">,</span><span class="n">driver1</span><span class="o">...&gt;</span> \
+  <span class="o">&lt;</span><span class="n">List</span> <span class="n">of</span> <span class="n">Rados</span> <span class="n">Gateway</span> <span class="n">servers</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> will automatically create and delete the bucket for you. Avoid
+using an existing bucket.</p>
+</div>
+<details>
+<summary>Example output</summary><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sibench s3 run  --s3-bucket sibench_bucket --s3-access-key Q2ZUTESFMIF43V9CXOR9 \
+&gt;   --s3-secret-key OXHtTFvLBVAoj7eyC1uZnySx0TP3c0UB2dKvjpd6  ceph-rgw1 ceph-rgw2 ceph-rgw3
+Creating report: sibench.json
+Creating S3 Connection to ceph-rgw1:7480
+Creating bucket on ceph-rgw1: sibench_bucket
+Connecting to sibench server at localhost:5150
+
+---------- Sibench driver capabilities discovery ----------
+localhost: 4 cores, 15.5 GB of RAM
+
+----------------------- WRITE -----------------------------
+0: [Write] ops: 35,  bw: 280.0 Mb/s,  ofail: 0,  vfail: 0
+1: [Write] ops: 43,  bw: 344.0 Mb/s,  ofail: 0,  vfail: 0
+2: [Write] ops: 44,  bw: 352.0 Mb/s,  ofail: 0,  vfail: 0
+3: [Write] ops: 47,  bw: 376.0 Mb/s,  ofail: 0,  vfail: 0
+4: [Write] ops: 43,  bw: 344.0 Mb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+5: [Write] ops: 48,  bw: 384.0 Mb/s,  ofail: 0,  vfail: 0
+6: [Write] ops: 45,  bw: 360.0 Mb/s,  ofail: 0,  vfail: 0
+7: [Write] ops: 44,  bw: 352.0 Mb/s,  ofail: 0,  vfail: 0
+8: [Write] ops: 46,  bw: 368.0 Mb/s,  ofail: 0,  vfail: 0
+9: [Write] ops: 47,  bw: 376.0 Mb/s,  ofail: 0,  vfail: 0
+10: [Write] ops: 45,  bw: 360.0 Mb/s,  ofail: 0,  vfail: 0
+11: [Write] ops: 46,  bw: 368.0 Mb/s,  ofail: 0,  vfail: 0
+12: [Write] ops: 45,  bw: 360.0 Mb/s,  ofail: 0,  vfail: 0
+13: [Write] ops: 45,  bw: 360.0 Mb/s,  ofail: 0,  vfail: 0
+14: [Write] ops: 45,  bw: 360.0 Mb/s,  ofail: 0,  vfail: 0
+15: [Write] ops: 44,  bw: 352.0 Mb/s,  ofail: 0,  vfail: 0
+16: [Write] ops: 43,  bw: 344.0 Mb/s,  ofail: 0,  vfail: 0
+17: [Write] ops: 44,  bw: 352.0 Mb/s,  ofail: 0,  vfail: 0
+18: [Write] ops: 46,  bw: 368.0 Mb/s,  ofail: 0,  vfail: 0
+19: [Write] ops: 45,  bw: 360.0 Mb/s,  ofail: 0,  vfail: 0
+20: [Write] ops: 43,  bw: 344.0 Mb/s,  ofail: 0,  vfail: 0
+21: [Write] ops: 46,  bw: 368.0 Mb/s,  ofail: 0,  vfail: 0
+22: [Write] ops: 45,  bw: 360.0 Mb/s,  ofail: 0,  vfail: 0
+23: [Write] ops: 47,  bw: 376.0 Mb/s,  ofail: 0,  vfail: 0
+24: [Write] ops: 48,  bw: 384.0 Mb/s,  ofail: 0,  vfail: 0
+25: [Write] ops: 43,  bw: 344.0 Mb/s,  ofail: 0,  vfail: 0
+26: [Write] ops: 45,  bw: 360.0 Mb/s,  ofail: 0,  vfail: 0
+27: [Write] ops: 41,  bw: 328.0 Mb/s,  ofail: 0,  vfail: 0
+28: [Write] ops: 43,  bw: 344.0 Mb/s,  ofail: 0,  vfail: 0
+29: [Write] ops: 39,  bw: 312.0 Mb/s,  ofail: 0,  vfail: 0
+30: [Write] ops: 42,  bw: 336.0 Mb/s,  ofail: 0,  vfail: 0
+31: [Write] ops: 42,  bw: 336.0 Mb/s,  ofail: 0,  vfail: 0
+32: [Write] ops: 40,  bw: 320.0 Mb/s,  ofail: 0,  vfail: 0
+33: [Write] ops: 42,  bw: 336.0 Mb/s,  ofail: 0,  vfail: 0
+34: [Write] ops: 42,  bw: 336.0 Mb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+35: [Write] ops: 41,  bw: 328.0 Mb/s,  ofail: 0,  vfail: 0
+36: [Write] ops: 44,  bw: 352.0 Mb/s,  ofail: 0,  vfail: 0
+Retrieving stats from servers
+1675 stats retrieved in 0.012 seconds
+
+---------------------- PREPARE ----------------------------
+Retrieving stats from servers
+0 stats retrieved in 0.020 seconds
+
+----------------------- READ ------------------------------
+0: [Read] ops: 55,  bw: 440.0 Mb/s,  ofail: 0,  vfail: 0
+1: [Read] ops: 72,  bw: 576.0 Mb/s,  ofail: 0,  vfail: 0
+2: [Read] ops: 68,  bw: 544.0 Mb/s,  ofail: 0,  vfail: 0
+3: [Read] ops: 73,  bw: 584.0 Mb/s,  ofail: 0,  vfail: 0
+4: [Read] ops: 75,  bw: 600.0 Mb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+5: [Read] ops: 73,  bw: 584.0 Mb/s,  ofail: 0,  vfail: 0
+6: [Read] ops: 69,  bw: 552.0 Mb/s,  ofail: 0,  vfail: 0
+7: [Read] ops: 71,  bw: 568.0 Mb/s,  ofail: 0,  vfail: 0
+8: [Read] ops: 69,  bw: 552.0 Mb/s,  ofail: 0,  vfail: 0
+9: [Read] ops: 63,  bw: 504.0 Mb/s,  ofail: 0,  vfail: 0
+10: [Read] ops: 65,  bw: 520.0 Mb/s,  ofail: 0,  vfail: 0
+11: [Read] ops: 62,  bw: 496.0 Mb/s,  ofail: 0,  vfail: 0
+12: [Read] ops: 61,  bw: 488.0 Mb/s,  ofail: 0,  vfail: 0
+13: [Read] ops: 63,  bw: 504.0 Mb/s,  ofail: 0,  vfail: 0
+14: [Read] ops: 64,  bw: 512.0 Mb/s,  ofail: 0,  vfail: 0
+15: [Read] ops: 76,  bw: 608.0 Mb/s,  ofail: 0,  vfail: 0
+16: [Read] ops: 83,  bw: 664.0 Mb/s,  ofail: 0,  vfail: 0
+17: [Read] ops: 84,  bw: 672.0 Mb/s,  ofail: 0,  vfail: 0
+18: [Read] ops: 87,  bw: 696.0 Mb/s,  ofail: 0,  vfail: 0
+19: [Read] ops: 91,  bw: 728.0 Mb/s,  ofail: 0,  vfail: 0
+20: [Read] ops: 91,  bw: 728.0 Mb/s,  ofail: 0,  vfail: 0
+21: [Read] ops: 89,  bw: 712.0 Mb/s,  ofail: 0,  vfail: 0
+22: [Read] ops: 85,  bw: 680.0 Mb/s,  ofail: 0,  vfail: 0
+23: [Read] ops: 95,  bw: 760.0 Mb/s,  ofail: 0,  vfail: 0
+24: [Read] ops: 79,  bw: 632.0 Mb/s,  ofail: 0,  vfail: 0
+25: [Read] ops: 76,  bw: 608.0 Mb/s,  ofail: 0,  vfail: 0
+26: [Read] ops: 80,  bw: 640.0 Mb/s,  ofail: 0,  vfail: 0
+27: [Read] ops: 81,  bw: 648.0 Mb/s,  ofail: 0,  vfail: 0
+28: [Read] ops: 78,  bw: 624.0 Mb/s,  ofail: 0,  vfail: 0
+29: [Read] ops: 78,  bw: 624.0 Mb/s,  ofail: 0,  vfail: 0
+30: [Read] ops: 78,  bw: 624.0 Mb/s,  ofail: 0,  vfail: 0
+31: [Read] ops: 78,  bw: 624.0 Mb/s,  ofail: 0,  vfail: 0
+32: [Read] ops: 81,  bw: 648.0 Mb/s,  ofail: 0,  vfail: 0
+33: [Read] ops: 81,  bw: 648.0 Mb/s,  ofail: 0,  vfail: 0
+34: [Read] ops: 80,  bw: 640.0 Mb/s,  ofail: 0,  vfail: 0
+-----------------------------------------------------------
+35: [Read] ops: 79,  bw: 632.0 Mb/s,  ofail: 0,  vfail: 0
+36: [Read] ops: 77,  bw: 616.0 Mb/s,  ofail: 0,  vfail: 0
+Retrieving stats from servers
+2908 stats retrieved in 0.045 seconds
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Target[ceph-rgw1] Write        bandwidth: 117.9 Mb/s,  ok:    442,  fail:      0,  res-min:    62 ms,  res-max:   250 ms,  res-95:    111 ms, res-avg:     91 ms
+Target[ceph-rgw2] Write        bandwidth: 117.9 Mb/s,  ok:    442,  fail:      0,  res-min:    59 ms,  res-max:   265 ms,  res-95:    109 ms, res-avg:     88 ms
+Target[ceph-rgw3] Write        bandwidth: 117.6 Mb/s,  ok:    441,  fail:      0,  res-min:    61 ms,  res-max:   232 ms,  res-95:    111 ms, res-avg:     90 ms
+Server[localhost] Write        bandwidth: 353.3 Mb/s,  ok:   1325,  fail:      0,  res-min:    59 ms,  res-max:   265 ms,  res-95:    111 ms, res-avg:     90 ms
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Target[ceph-rgw1] Read         bandwidth: 205.6 Mb/s,  ok:    771,  fail:      0,  res-min:    28 ms,  res-max:   233 ms,  res-95:     73 ms, res-avg:     50 ms
+Target[ceph-rgw2] Read         bandwidth: 205.6 Mb/s,  ok:    771,  fail:      0,  res-min:    24 ms,  res-max:   174 ms,  res-95:     72 ms, res-avg:     51 ms
+Target[ceph-rgw3] Read         bandwidth: 205.1 Mb/s,  ok:    769,  fail:      0,  res-min:    25 ms,  res-max:   152 ms,  res-95:     72 ms, res-avg:     51 ms
+Server[localhost] Read         bandwidth: 616.3 Mb/s,  ok:   2311,  fail:      0,  res-min:    24 ms,  res-max:   233 ms,  res-95:     73 ms, res-avg:     51 ms
+================================================================================================================================================================
+Total Write                    bandwidth: 353.3 Mb/s,  ok:   1325,  fail:      0,  res-min:    59 ms,  res-max:   265 ms,  res-95:    111 ms, res-avg:     90 ms
+Total Read                     bandwidth: 616.3 Mb/s,  ok:   2311,  fail:      0,  res-min:    24 ms,  res-max:   233 ms,  res-95:     73 ms, res-avg:     51 ms
+================================================================================================================================================================
+
+Disconnecting from servers
+Disconnected
+Deleting bucket on ceph-rgw1: sibench_bucket
+Done
+</pre></div>
+</div>
+</details></section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="best-practices.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Best practices</div>
+              </div>
+              <svg><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="manual.html">
+              <svg><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Manual</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, SoftIron
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            Contents
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Examples</a><ul>
+<li><a class="reference internal" href="#rados-and-rbd-benchmarking">Rados and RBD benchmarking</a><ul>
+<li><a class="reference internal" href="#running-sibench-using-the-rados-object-protocol">Running <code class="docutils literal notranslate"><span class="pre">sibench</span></code> using the Rados object protocol</a></li>
+<li><a class="reference internal" href="#using-rbd-protocol">Using RBD protocol</a></li>
+<li><a class="reference internal" href="#multiple-sibench-servers">Multiple <code class="docutils literal notranslate"><span class="pre">sibench</span></code> servers</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#s3-benchmarking">S3 benchmarking</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/scripts/furo.js"></script>
+    </body>
+</html>
