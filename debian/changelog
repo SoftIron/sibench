@@ -1,3 +1,6 @@
+sibench (1.0.1) buster; urgency=low
+  [ Harry Richardson ]
+  * Added a per-run object name prefix to make each run use a unique set of objects
 sibench (1.0.0) buster; urgency=low
   [ Pedro Alvarez ]
   * Added dependency versions to avoid broken Sibench installs
