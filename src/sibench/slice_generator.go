@@ -96,8 +96,8 @@ func CreateSliceGenerator(seed uint64, config GeneratorConfig) (*SliceGenerator,
 
 
 /*
- * Load a slice if data at random from the contents of the files in our slice directory.
- * The slice can span across multiple files: in effect we are concatenating the contents
+ * Load a slice if data at random from the buffer of the files in our slice directory.
+ * The slice can span across multiple files: in effect we are concatenating the buffer
  * of all the files in the directory into a buffer, and then picking a random position 
  * in that buffer to read as many bytes as we need for our slice.
  * (We don't actually do it like, obviously, but the effect is the same).
@@ -145,40 +145,37 @@ func (sg *SliceGenerator) loadSlice(totalBytes uint64, dirname string, infos []f
 
 
 
-func (sg *SliceGenerator) Generate(size uint64, key string, cycle uint64) []byte {
+func (sg *SliceGenerator) Generate(size uint64, key string, cycle uint64, buffer *[]byte) {
     seed := uint32(sg.prng.Int())
-    return sg.generateFromSeed(size, seed)
+    sg.generateFromSeed(size, seed, buffer)
 }
 
 
 
-func (sg *SliceGenerator) generateFromSeed(size uint64, seed uint32) []byte {
-    result := make([]byte, size)
-    binary.LittleEndian.PutUint32(result, seed)
+func (sg *SliceGenerator) generateFromSeed(size uint64, seed uint32, buffer *[]byte) {
+    binary.LittleEndian.PutUint32(*buffer, seed)
     tmp_prng := rand.New(rand.NewSource(int64(seed)))
 
     for start := uint64(4); start < size; start += uint64(sg.sliceSize) {
         /* Copy does the computation of min( len(src), len(dst) ) for us, so we don't need to worry */
-        copy(result[start:], sg.slices[tmp_prng.Int63n(int64(sg.sliceCount))])
+        copy((*buffer)[start:], sg.slices[tmp_prng.Int63n(int64(sg.sliceCount))])
     }
-
-    return result
 }
 
 
 
-func (sg *SliceGenerator) Verify(size uint64, key string, contents []byte) error {
-    if uint64(len(contents)) != size {
-        return fmt.Errorf("Incorrect size: expected %v but got %v\n", size, len(contents))
+func (sg *SliceGenerator) Verify(size uint64, key string, buffer *[]byte, scratch *[]byte) error {
+    if uint64(len(*buffer)) != size {
+        return fmt.Errorf("Incorrect size: expected %v but got %v\n", size, len(*buffer))
     }
 
     // Read the seed from the header of the payload
-    seed := binary.LittleEndian.Uint32(contents)
+    seed := binary.LittleEndian.Uint32(*buffer)
 
     // Now we can generate the expected buffer to compare against.
-    expected := sg.generateFromSeed(size, seed)
+    sg.generateFromSeed(size, seed, scratch)
 
-    if bytes.Compare(contents, expected) != 0 {
+    if bytes.Compare(*buffer, *scratch) != 0 {
         return fmt.Errorf("Buffers do not match\n")
     }
 

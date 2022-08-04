@@ -32,8 +32,8 @@ type Connection interface {
      * operations inside Put or Get (ie, not while we're inside the timed section of the code).
      */
 
-    PutObject(key string, id uint64, contents []byte) error
-    GetObject(key string, id uint64) ([]byte, error)
+    PutObject(key string, id uint64, buffer []byte) error
+    GetObject(key string, id uint64, buffer []byte) error
 
     InvalidateCache() error
 }

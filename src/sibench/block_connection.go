@@ -88,17 +88,17 @@ func (conn *BlockConnection) objectOffset(id uint64) int64 {
 }
 
 
-func (conn *BlockConnection) PutObject(key string, id uint64, contents []byte) error {
+func (conn *BlockConnection) PutObject(key string, id uint64, buffer []byte) error {
     offset := conn.objectOffset(id)
-    logger.Tracef("Put block object %v on %v with size %v and offset %v\n", id, conn.device, len(contents), offset)
+    logger.Tracef("Put block object %v on %v with size %v and offset %v\n", id, conn.device, len(buffer), offset)
 
-    for len(contents) > 0 {
-        n, err := conn.fd.Pwrite(contents, offset)
+    for len(buffer) > 0 {
+        n, err := conn.fd.Pwrite(buffer, offset)
         if err == nil {
             return err
         }
 
-        contents = contents[n:]
+        buffer = buffer[n:]
         offset += int64(n)
     }
 
@@ -106,18 +106,17 @@ func (conn *BlockConnection) PutObject(key string, id uint64, contents []byte) e
 }
 
 
-func (conn *BlockConnection) GetObject(key string, id uint64) ([]byte, error) {
+func (conn *BlockConnection) GetObject(key string, id uint64, buffer []byte) error {
     offset := conn.objectOffset(id)
     logger.Tracef("Get block object %v on %v with size %v and offset %v\n", key, conn.device, conn.worker.ObjectSize, offset)
 
-    contents := make([]byte, conn.worker.ObjectSize)
     remaining := conn.worker.ObjectSize
     start := 0
 
     for remaining > 0 {
-        n, err := conn.fd.Pread(contents[start:], offset)
+        n, err := conn.fd.Pread(buffer[start:], offset)
         if err != nil {
-            return nil, err
+            return err
         }
 
         start += n
@@ -125,7 +124,7 @@ func (conn *BlockConnection) GetObject(key string, id uint64) ([]byte, error) {
         remaining -= uint64(n)
     }
 
-    return contents, nil
+    return nil
 }
 
 

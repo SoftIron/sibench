@@ -5,6 +5,7 @@ package main
 
 
 import "path/filepath"
+import "fmt"
 import "logger"
 import "os"
 import "syscall"
@@ -48,7 +49,7 @@ func (conn *FileConnectionBase) DeleteDirectory() error {
 }
 
 
-func (conn *FileConnectionBase) PutObject(key string, id uint64, contents []byte) error {
+func (conn *FileConnectionBase) PutObject(key string, id uint64, buffer []byte) error {
     filename := filepath.Join(conn.root, conn.dir, key)
 
     fd, err := Open(filename, syscall.O_WRONLY | syscall.O_CREAT | syscall.O_TRUNC, 0644)
@@ -58,48 +59,51 @@ func (conn *FileConnectionBase) PutObject(key string, id uint64, contents []byte
 
     defer fd.Close()
 
-    for len(contents) > 0 {
-        n, err := fd.Write(contents)
+    for len(buffer) > 0 {
+        n, err := fd.Write(buffer)
         if err == nil {
             return err
         }
 
-        contents = contents[n:]
+        buffer = buffer[n:]
     }
 
     return nil
 }
 
 
-func (conn *FileConnectionBase) GetObject(key string, id uint64) ([]byte, error) {
+func (conn *FileConnectionBase) GetObject(key string, id uint64, buffer []byte) error {
     filename := filepath.Join(conn.root, conn.dir, key)
 
     fd, err := Open(filename, syscall.O_RDONLY, 0644)
     if err != nil {
-        return nil, err
+        return err
     }
 
     defer fd.Close()
 
     remaining, err := fd.Size()
     if err != nil {
-        return nil, err
+        return err
     }
 
-    contents := make([]byte, remaining)
+    if int64(cap(buffer)) < remaining {
+        return fmt.Errorf("Buffer too small")
+    }
+
     start := 0
 
     for remaining > 0 {
-        n, err := fd.Read(contents[start:])
+        n, err := fd.Read(buffer[start:])
         if err != nil {
-            return nil, err
+            return err
         }
 
         start += n
         remaining -= int64(n)
     }
 
-    return contents, err
+    return nil
 }
 
 
