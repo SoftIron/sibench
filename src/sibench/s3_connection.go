@@ -10,7 +10,6 @@ import "github.com/aws/aws-sdk-go/aws/credentials"
 import "github.com/aws/aws-sdk-go/aws/session"
 import "github.com/aws/aws-sdk-go/service/s3"
 import "logger"
-import "io"
 
 
 /*
@@ -155,8 +154,8 @@ func (conn *S3Connection) deleteObjects(bucket string) error {
 }
 
 
-func (conn *S3Connection) PutObject(key string, id uint64, contents []byte) error {
-    reader := bytes.NewReader(contents)
+func (conn *S3Connection) PutObject(key string, id uint64, buffer []byte) error {
+    reader := bytes.NewReader(buffer)
 
 	_, err := conn.client.PutObject(&s3.PutObjectInput{
 		Body:   reader,
@@ -168,20 +167,15 @@ func (conn *S3Connection) PutObject(key string, id uint64, contents []byte) erro
 }
 
 
-func (conn *S3Connection) GetObject(key string, id uint64) ([]byte, error) {
+func (conn *S3Connection) GetObject(key string, id uint64, buffer []byte) error {
 
 	obj, err := conn.client.GetObject(&s3.GetObjectInput{Bucket: aws.String(conn.bucket), Key: aws.String(key)})
     if err != nil {
-        return nil, err
+        return err
     }
 
-    buf := bytes.NewBuffer(nil)
-    _, err = io.Copy(buf, obj.Body)
-    if err != nil {
-	    return nil, err
-	}
-
-    return buf.Bytes(), nil
+    _, err = obj.Body.Read(buffer)
+    return err
 }
 
 

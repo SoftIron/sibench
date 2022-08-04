@@ -126,7 +126,7 @@ func (conn *RbdConnection) objectOffset(id uint64) int64 {
 }
 
 
-func (conn *RbdConnection) PutObject(key string, id uint64, contents []byte) error {
+func (conn *RbdConnection) PutObject(key string, id uint64, buffer []byte) error {
     logger.Tracef("Put rados object %v on %v: start\n", key, conn.monitor)
 
     offset := conn.objectOffset(id)
@@ -135,7 +135,7 @@ func (conn *RbdConnection) PutObject(key string, id uint64, contents []byte) err
         return fmt.Errorf("Failure in PutObject for RBD: %v", err)
     }
 
-    nwrite, err := conn.image.Write(contents)
+    nwrite, err := conn.image.Write(buffer)
 
     logger.Tracef("Put rados object %v on %v: end\n", key, conn.monitor)
 
@@ -153,25 +153,24 @@ func (conn *RbdConnection) PutObject(key string, id uint64, contents []byte) err
 
 
 
-func (conn *RbdConnection) GetObject(key string, id uint64) ([]byte, error) {
+func (conn *RbdConnection) GetObject(key string, id uint64, buffer []byte) error {
     offset := conn.objectOffset(id)
     _, err := conn.image.Seek(offset, rbd.SeekSet)
     if err != nil {
-        return nil, fmt.Errorf("Failure in RBD image seek: %v", err)
+        return fmt.Errorf("Failure in RBD image seek: %v", err)
     }
 
-    buffer := make([]byte, conn.worker.ObjectSize)
     nread, err := conn.image.Read2(buffer, rbd.LIBRADOS_OP_FLAG_FADVISE_NOCACHE)
 
     if err != nil {
-        return nil, fmt.Errorf("Failure in RBD image read: %v", err)
+        return fmt.Errorf("Failure in RBD image read: %v", err)
     }
 
     if uint64(nread) != conn.worker.ObjectSize {
-        return nil, fmt.Errorf("Short read: wanted %v bytes, but got %v", conn.worker.ObjectSize, nread)
+        return fmt.Errorf("Short read: wanted %v bytes, but got %v", conn.worker.ObjectSize, nread)
     }
 
-    return buffer, nil
+    return nil
 }
 
 

@@ -239,8 +239,8 @@ func validateArguments(args *Arguments) error {
         return fmt.Errorf("S3 Port not in range: %v", args.S3Port)
     }
 
-    if (args.Workers < 0.1) || (args.Workers > 20.0) {
-        return fmt.Errorf("Worker factor not in range 0.1 - 20.0 : %v", args.Workers)
+    if (args.Workers < 0.1) {
+        args.Workers = 0.1
     }
 
     var err error
@@ -359,6 +359,11 @@ func startRun(args *Arguments) {
     j.order.WorkerFactor = args.Workers
     j.order.SkipReadValidation = args.SkipReadVerification
     j.order.GeneratorType = args.Generator
+
+    if uint64(len(j.servers)) > j.order.RangeEnd {
+        logger.Infof("There are more servers than objects! We will only use %v for this run", j.order.RangeEnd)
+        j.servers = j.servers[0:j.order.RangeEnd]
+    }
 
     // Determine our generator configuration.
     switch args.Generator {

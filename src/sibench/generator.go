@@ -21,14 +21,17 @@ type Generator interface {
      * size is the size of the payload in bytes.
      * key is the object name.
      * cycle is a counter that should be incremented if overwriting an object, so that the contents will not be the same as before. 
+     * buffer is the buffer into which we will write the object.  It must be at least as big as size.
      */
-    Generate(size uint64, key string, cycle uint64) []byte
+    Generate(size uint64, key string, cycle uint64, buffer *[]byte)
 
     /*
-     * Verify checks if the contents of a payload are well-formed. 
+     * Verify checks if the contents of a payload are well-formed.
+     * buffer is the actual contents of the object.
+     * Scratch is a scratch buffer, and should be at least as big as the expected object.
      * Returns nil on success, or an error on failure.
      */
-    Verify(size uint64, key string, contents []byte) error
+    Verify(size uint64, key string, buffer *[]byte, scratch *[]byte) error
 }
 
 

@@ -427,7 +427,7 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
 
 /* Handle a new connection (with its attendant WorkOrder). */
 func (f *Foreman) connect() {
-    logger.Infof("Connect for work order in job %v\n", f.order.JobId)
+    logger.Infof("Connect for work order in job %v for range %v:%v\n", f.order.JobId, f.order.RangeStart, f.order.RangeEnd)
 
     // Create everything we need before we begin
     f.workerResponseChannel = make(chan *WorkerResponse)
@@ -441,10 +441,14 @@ func (f *Foreman) connect() {
     // We divvy up our object range between them.
 
     nWorkers := uint64(float64(runtime.NumCPU()) * f.order.WorkerFactor)
-    f.workerInfos = make([]*WorkerInfo, 0, nWorkers)
-
     rangeStart := float32(f.order.RangeStart)
     rangeLen := f.order.RangeEnd - f.order.RangeStart
+
+    if nWorkers > rangeLen {
+        nWorkers = rangeLen
+    }
+
+    f.workerInfos = make([]*WorkerInfo, 0, nWorkers)
     rangeStride := float32(rangeLen) / float32(nWorkers)
 
     hostname, err := os.Hostname()

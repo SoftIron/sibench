@@ -127,6 +127,8 @@ type Worker struct {
     connections []Connection
     connIndex uint64
     phaseStart time.Time
+    objectBuffer []byte
+    verifyBuffer []byte
 
     /* These fields are used for the bandwidth-limiting delays code */
 
@@ -145,6 +147,9 @@ func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
     w.order = *order
     w.objectIndex = order.RangeStart
     w.setState(WS_Init)
+
+    w.objectBuffer = make([]byte, w.order.ObjectSize)
+    w.verifyBuffer = make([]byte, w.order.ObjectSize)
 
     var err error
     w.generator, err = CreateGenerator(order.GeneratorType, order.Seed, order.GeneratorConfig)
@@ -273,7 +278,7 @@ func (w *Worker) connect() {
 
 func (w *Worker) writeOrPrepare(phase StatPhase) {
     key := fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
-    contents := w.generator.Generate(w.order.ObjectSize, key, w.cycle)
+    w.generator.Generate(w.order.ObjectSize, key, w.cycle, &w.objectBuffer)
     conn := w.connections[w.connIndex]
 
     var err error
@@ -283,7 +288,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
 
     go func() {
         start = time.Now()
-        err = conn.PutObject(key, w.objectIndex, contents)
+        err = conn.PutObject(key, w.objectIndex, w.objectBuffer)
         end = time.Now()
         done <- true
     }()
@@ -354,14 +359,13 @@ func (w *Worker) read() {
     conn := w.connections[w.connIndex]
 
     var err error
-    var contents []byte
     var start time.Time
     var end time.Time
     done := make(chan bool, 1)
 
     go func() {
         start = time.Now()
-        contents, err = conn.GetObject(key, w.objectIndex)
+        err = conn.GetObject(key, w.objectIndex, w.objectBuffer)
         end = time.Now()
         done <- true
     }()
@@ -390,7 +394,7 @@ func (w *Worker) read() {
         s.Error = SE_OperationFailure
     } else {
         if !w.order.SkipReadValidation {
-            err = w.generator.Verify(w.order.ObjectSize, key, contents)
+            err = w.generator.Verify(w.order.ObjectSize, key, &w.objectBuffer, &w.verifyBuffer)
             if err != nil {
                 logger.Warnf("[worker %v] failure verfiying object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
                 s.Error = SE_VerifyFailure
