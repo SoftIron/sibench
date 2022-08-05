@@ -278,7 +278,7 @@ func (w *Worker) connect() {
 
 func (w *Worker) writeOrPrepare(phase StatPhase) {
     key := fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
-    w.generator.Generate(w.order.ObjectSize, key, w.cycle, &w.objectBuffer)
+    w.generator.Generate(w.order.ObjectSize, w.objectIndex, w.cycle, &w.objectBuffer)
     conn := w.connections[w.connIndex]
 
     var err error
@@ -394,7 +394,7 @@ func (w *Worker) read() {
         s.Error = SE_OperationFailure
     } else {
         if !w.order.SkipReadValidation {
-            err = w.generator.Verify(w.order.ObjectSize, key, &w.objectBuffer, &w.verifyBuffer)
+            err = w.generator.Verify(w.order.ObjectSize, w.objectIndex, &w.objectBuffer, &w.verifyBuffer)
             if err != nil {
                 logger.Warnf("[worker %v] failure verfiying object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
                 s.Error = SE_VerifyFailure

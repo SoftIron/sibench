@@ -21,17 +21,6 @@ func prng(lastValue uint64) uint64 {
 /*
  * The PRNG generator is the default content generator for sibench.
  *
- * It creates test objects of the following form:
- *
- *   1. Object size (8 bytes)
- *   2. Cycle (8 bytes): every time we overwrite an object, we use different buffer using the cycle 
- *      number to distinguish.
- *   3. A PRNG Seeed (8 bytes).
- *   4. Key length (8 bytes)
- *   5. Key (variable number of bytes).
- *   6. Padding to take us to an eight byte boundary.
- *   7. Random data derived from the seed in (3).  This fills in any remaining space in the object.
- *
  * We don't technically need anything other than a seed in the header, but storing the other fields 
  * allows verification that the back-end storage really is doing what we expect it to do (getting
  * keys correct and so forth).
@@ -51,61 +40,50 @@ func CreatePrngGenerator(seed uint64, config GeneratorConfig) (*PrngGenerator, e
 }
 
 
-func (pg *PrngGenerator) Generate(size uint64, key string, cycle uint64, buf *[]byte) {
-    i := 0
+func (pg *PrngGenerator) Generate(size uint64, id uint64, cycle uint64, buf *[]byte) {
+    pos := 0
 
     // Write our size
-    binary.LittleEndian.PutUint64((*buf)[i:], size)
-    i += 8
+    binary.LittleEndian.PutUint64((*buf)[pos:], size)
+    pos += 8
 
     // Write our cycle
-    binary.LittleEndian.PutUint64((*buf)[i:], cycle)
-    i += 8
+    binary.LittleEndian.PutUint64((*buf)[pos:], cycle)
+    pos += 8
 
     // Write our seed
-    binary.LittleEndian.PutUint64((*buf)[i:], pg.seed)
-    i += 8
+    binary.LittleEndian.PutUint64((*buf)[pos:], pg.seed)
+    pos += 8
 
-    // Write our key length
-    binary.LittleEndian.PutUint64((*buf)[i:], uint64(len(key)))
-    i += 8
+    // Write our id
+    binary.LittleEndian.PutUint64((*buf)[pos:], id)
+    pos += 8
 
-    // Write our key
-    i += copy((*buf)[i:], key)
-
-    // Pad to an 8-byte boundary
-    pad_len := 7 - ((i + 7) % 8)
-    for j := 0; j < pad_len; j++ {
-        (*buf)[i] = 0
-        i += 1
-    }
-
-    // Seed our prng from the global seed, and from the data we've marshalled so far.
+    // Seed our prng from the global seed, and the first few fields that make us unique.
     next := pg.seed
-    for _, b := range *buf {
-        next = prng(next ^ uint64(b))
-    }
+    next = prng(next ^ size)
+    next = prng(next ^ cycle)
+    next = prng(next ^ id)
 
-    remaining_buf := size - uint64(len(*buf))
+    remaining_buf := size - uint64(pos)
     remaining_64s := remaining_buf / 8
 
-    for i := uint64(0); i < remaining_64s; i ++ {
-        binary.LittleEndian.PutUint64((*buf)[i:], next)
-        i += 8
+    for i := uint64(0); i < remaining_64s; i++ {
+        binary.LittleEndian.PutUint64((*buf)[pos:], next)
+        pos += 8
         next = prng(next)
     }
 
     // Pad with zeroes until the end
-    pad_len = int(remaining_buf % 8)
-    for j := 0; j < pad_len; j++ {
-        (*buf)[i] = 0
-        i += 1
+    pad_len := int(remaining_buf % 8)
+    for i := 0; i < pad_len; i++ {
+        (*buf)[pos] = 0
+        pos += 1
     }
 }
 
 
-
-func (pg *PrngGenerator) Verify(size uint64, key string, buffer *[]byte, scratch *[]byte) error {
+func (pg *PrngGenerator) Verify(size uint64, id uint64, buffer *[]byte, scratch *[]byte) error {
     if uint64(len(*buffer)) != size {
         return fmt.Errorf("Incorrect size: expected %v but got %v\n", size, len(*buffer))
     }
@@ -114,10 +92,15 @@ func (pg *PrngGenerator) Verify(size uint64, key string, buffer *[]byte, scratch
     cycle := binary.LittleEndian.Uint64((*buffer)[8:])
 
     // Now we can generate the expected buffer to compare against.
-    pg.Generate(size, key, cycle, scratch)
+    pg.Generate(size, id, cycle, scratch)
 
     if bytes.Compare(*buffer, *scratch) != 0 {
-        return fmt.Errorf("Buffers do not match\n")
+        for i := uint64(0); i < size; i++ {
+            if (*buffer)[i] != (*scratch)[i] {
+                return fmt.Errorf("Buffers do not match at position %v\n", i)
+            }
+        }
+
     }
 
     return nil

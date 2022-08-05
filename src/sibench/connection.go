@@ -30,6 +30,8 @@ type Connection interface {
      *
      * Key and ID are redundant, but we provide both so that we don't need to do any string
      * operations inside Put or Get (ie, not while we're inside the timed section of the code).
+     *
+     * Both methods take a slice with exactly the capacity we expect to read or write.
      */
 
     PutObject(key string, id uint64, buffer []byte) error

@@ -113,6 +113,10 @@ func (conn *BlockConnection) GetObject(key string, id uint64, buffer []byte) err
     remaining := conn.worker.ObjectSize
     start := 0
 
+    if remaining != uint64(cap(buffer)) {
+        return fmt.Errorf("Object has wrong size: expected %v, but got %v", cap(buffer), remaining)
+    }
+
     for remaining > 0 {
         n, err := conn.fd.Pread(buffer[start:], offset)
         if err != nil {

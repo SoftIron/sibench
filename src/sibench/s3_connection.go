@@ -9,6 +9,7 @@ import "github.com/aws/aws-sdk-go/aws"
 import "github.com/aws/aws-sdk-go/aws/credentials"
 import "github.com/aws/aws-sdk-go/aws/session"
 import "github.com/aws/aws-sdk-go/service/s3"
+import "io"
 import "logger"
 
 
@@ -48,14 +49,7 @@ func (conn *S3Connection) ManagerConnect() error {
 
 
 func (conn *S3Connection) ManagerClose() error {
-    err1 := conn.deleteBucket(conn.bucket)
-    err2 := conn.WorkerClose()
-
-    if err1 != nil {
-        return err1
-    }
-
-    return err2
+    return conn.WorkerClose()
 }
 
 
@@ -108,52 +102,6 @@ func (conn *S3Connection) createBucket(bucket string) error {
 }
 
 
-func (conn *S3Connection) deleteBucket(bucket string) error {
-    logger.Infof("Deleting bucket on %v: %v\n", conn.gateway, bucket)
-
-    // We first have to delete the objects in the bucket.
-    err := conn.deleteObjects(bucket)
-    if err != nil {
-        return err
-    }
-
-	_, err = conn.client.DeleteBucket(&s3.DeleteBucketInput{ Bucket: aws.String(bucket) })
-	return err
-}
-
-
-func (conn *S3Connection) listObjects(bucket string) ([]string, error) {
-	result, err := conn.client.ListObjects(&s3.ListObjectsInput{ Bucket: aws.String(bucket) })
-
-    var objects []string
-    for _, o := range result.Contents {
-        objects = append(objects, aws.StringValue(o.Key))
-    }
-
-	return objects, err
-}
-
-
-func (conn *S3Connection) deleteObjects(bucket string) error {
-    objKeys, err := conn.listObjects(bucket)
-    if err != nil {
-        return  err
-    }
-
-	var objs = make([]*s3.ObjectIdentifier, len(objKeys))
-
-	for i, key := range objKeys {
-		objs[i] = &s3.ObjectIdentifier{Key: aws.String(key)}
-	}
-
-	var items s3.Delete
-	items.SetObjects(objs)
-	_, err = conn.client.DeleteObjects(&s3.DeleteObjectsInput{Bucket: &bucket, Delete: &items})
-
-	return err
-}
-
-
 func (conn *S3Connection) PutObject(key string, id uint64, buffer []byte) error {
     reader := bytes.NewReader(buffer)
 
@@ -169,13 +117,27 @@ func (conn *S3Connection) PutObject(key string, id uint64, buffer []byte) error 
 
 func (conn *S3Connection) GetObject(key string, id uint64, buffer []byte) error {
 
-	obj, err := conn.client.GetObject(&s3.GetObjectInput{Bucket: aws.String(conn.bucket), Key: aws.String(key)})
+    resp, err := conn.client.GetObject(&s3.GetObjectInput{Bucket: aws.String(conn.bucket), Key: aws.String(key)})
     if err != nil {
         return err
     }
 
-    _, err = obj.Body.Read(buffer)
-    return err
+    if *resp.ContentLength != int64(cap(buffer)) {
+        return fmt.Errorf("Object has wrong size: expected %v, but got %v", cap(buffer), *resp.ContentLength)
+    }
+
+    pos := 0
+	for true {
+		n, err := resp.Body.Read(buffer[pos:])
+
+        switch err {
+            case nil:     pos += n
+            case io.EOF:  return nil
+            default:      return err
+        }
+	}
+
+    return nil
 }
 
 
