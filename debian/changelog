@@ -1,6 +1,9 @@
 sibench (1.0.1) buster; urgency=low
   [ Harry Richardson ]
-  * Added a per-run object name prefix to make each run use a unique set of objects
+  * Added a per-run object name prefix to make each run use a unique set of objectsQ
+  * Fixes for very low objects counts with large number of nodes and/or workers
+  * Removed upper limit on worker factor
+  * No longer deletes S3 objects or buckets (since Ceph was hiding the work it did in the background)
 sibench (1.0.0) buster; urgency=low
   [ Pedro Alvarez ]
   * Added dependency versions to avoid broken Sibench installs
