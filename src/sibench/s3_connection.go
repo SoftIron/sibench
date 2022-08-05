@@ -135,7 +135,7 @@ func (conn *S3Connection) GetObject(key string, id uint64, buffer []byte) error 
             case io.EOF:  return nil
             default:      return err
         }
-	}
+    }
 
     return nil
 }

@@ -100,7 +100,6 @@ func (pg *PrngGenerator) Verify(size uint64, id uint64, buffer *[]byte, scratch 
                 return fmt.Errorf("Buffers do not match at position %v\n", i)
             }
         }
-
     }
 
     return nil
