@@ -145,7 +145,7 @@ func (sg *SliceGenerator) loadSlice(totalBytes uint64, dirname string, infos []f
 
 
 
-func (sg *SliceGenerator) Generate(size uint64, key string, cycle uint64, buffer *[]byte) {
+func (sg *SliceGenerator) Generate(size uint64, id uint64, cycle uint64, buffer *[]byte) {
     seed := uint32(sg.prng.Int())
     sg.generateFromSeed(size, seed, buffer)
 }
@@ -164,7 +164,7 @@ func (sg *SliceGenerator) generateFromSeed(size uint64, seed uint32, buffer *[]b
 
 
 
-func (sg *SliceGenerator) Verify(size uint64, key string, buffer *[]byte, scratch *[]byte) error {
+func (sg *SliceGenerator) Verify(size uint64, id uint64, buffer *[]byte, scratch *[]byte) error {
     if uint64(len(*buffer)) != size {
         return fmt.Errorf("Incorrect size: expected %v but got %v\n", size, len(*buffer))
     }

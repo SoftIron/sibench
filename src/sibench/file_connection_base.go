@@ -87,8 +87,8 @@ func (conn *FileConnectionBase) GetObject(key string, id uint64, buffer []byte) 
         return err
     }
 
-    if int64(cap(buffer)) < remaining {
-        return fmt.Errorf("Buffer too small")
+    if int64(cap(buffer)) != remaining {
+        return fmt.Errorf("File has wrong size: expected %v, but got %v", cap(buffer), remaining)
     }
 
     start := 0

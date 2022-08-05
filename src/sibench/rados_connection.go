@@ -78,8 +78,8 @@ func (conn *RadosConnection) GetObject(key string, id uint64, buffer []byte) err
         return err
     }
 
-    if uint64(cap(buffer)) < stat.Size {
-        return fmt.Errorf("Buffer too small to read object - unexpected size")
+    if uint64(cap(buffer)) != stat.Size {
+        return fmt.Errorf("Object has wrong size: expected v, but got %v", cap(buffer), stat.Size)
     }
 
     var nread int
