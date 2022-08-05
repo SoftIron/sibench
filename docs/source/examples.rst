@@ -358,8 +358,9 @@ In this case you will need to create an S3 user and bucket to run ``sibench``::
 
 .. warning::
 
-    ``sibench`` will automatically create and delete the bucket for you. Avoid
-    using an existing bucket.
+    ``sibench`` will automatically create the bucket for you if non existing.
+    The bucket will not be deleted afterwards to avoid creating background load
+    on your next run.
 
 
 .. raw:: html
@@ -487,7 +488,6 @@ In this case you will need to create an S3 user and bucket to run ``sibench``::
 
     Disconnecting from servers
     Disconnected
-    Deleting bucket on ceph-rgw1: sibench_bucket
     Done
 
 .. raw:: html
