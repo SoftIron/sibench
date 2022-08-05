@@ -514,8 +514,9 @@ sibench-driver2: 4 cores, 15.5 GB of RAM
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> will automatically create and delete the bucket for you. Avoid
-using an existing bucket.</p>
+<p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> will automatically create the bucket for you if non existing.
+The bucket will not be deleted afterwards to avoid creating background load
+on your next run.</p>
 </div>
 <details>
 <summary>Example output</summary><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sibench s3 run  --s3-bucket sibench_bucket --s3-access-key Q2ZUTESFMIF43V9CXOR9 \
@@ -635,7 +636,6 @@ Total Read                     bandwidth: 616.3 Mb/s,  ok:   2311,  fail:      0
 
 Disconnecting from servers
 Disconnected
-Deleting bucket on ceph-rgw1: sibench_bucket
 Done
 </pre></div>
 </div>
