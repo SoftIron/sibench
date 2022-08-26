@@ -1,3 +1,7 @@
+sibench (1.1) buster; urgency=low
+  [ Harry Richardson ]
+  * Many performance improvements (in terms of both CPU and memory usage)
+  * Json output generation now not enabled by default
 sibench (1.0.1) buster; urgency=low
   [ Harry Richardson ]
   * Added a per-run object name prefix to make each run use a unique set of objects
