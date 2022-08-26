@@ -64,6 +64,11 @@ func (conn *RadosConnection) WorkerClose() error {
 }
 
 
+func (conn *RadosConnection) RequiresKey() bool {
+    return true
+}
+
+
 func (conn *RadosConnection) PutObject(key string, id uint64, buffer []byte) error {
     logger.Tracef("Put rados object %v on %v: start\n", key, conn.monitor)
     err := conn.ioctx.WriteFull(key, buffer)

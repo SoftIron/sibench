@@ -3,7 +3,7 @@
 
 package main
 
-
+import "comms"
 import "fmt"
 import "logger"
 import "math/rand"
@@ -95,7 +95,6 @@ const (
 const HangTimeoutSecs = 90
 
 
-
 /*
  * WorkerResponse reports the error from an opcode, which is nil if the opcode succeeded. 
  */
@@ -106,13 +105,23 @@ type WorkerResponse struct {
 }
 
 
+/**
+ * Bundles a StatSummary together with a worker ID so that we can stick them in a channel.
+ */
+type WorkerSummary struct {
+    data StatSummary
+    workerId uint64
+}
+
+
 /* The arguments used to construct a worker.  They have been bundled into a struct purely for readability. */
 type WorkerSpec struct {
     Id uint64
     ConnConfig WorkerConnectionConfig
     OpChannel <-chan Opcode
     ResponseChannel chan<- *WorkerResponse
-    StatChannel chan<- *Stat
+    SummaryChannel chan<- WorkerSummary
+    StatPreallocationCount uint64
 }
 
 
@@ -129,6 +138,12 @@ type Worker struct {
     phaseStart time.Time
     objectBuffer []byte
     verifyBuffer []byte
+    lastSummary time.Time
+    summary WorkerSummary
+    stats [][]Stat
+    nextStatIndex int
+    statSliceIndex int
+    statLastSliceIndex int
 
     /* These fields are used for the bandwidth-limiting delays code */
 
@@ -150,6 +165,11 @@ func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
 
     w.objectBuffer = make([]byte, w.order.ObjectSize)
     w.verifyBuffer = make([]byte, w.order.ObjectSize)
+    w.summary.workerId = spec.Id
+
+    w.stats = make([][]Stat, 0, 100)
+    w.stats = append(w.stats, make([]Stat, w.spec.StatPreallocationCount))
+    w.clearStats()
 
     var err error
     w.generator, err = CreateGenerator(order.GeneratorType, order.Seed, order.GeneratorConfig)
@@ -162,6 +182,60 @@ func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
     go w.eventLoop()
 
     return &w, nil
+}
+
+
+/**
+ * Clears our stats (but does not free them).
+ */
+func (w *Worker) clearStats() {
+    w.nextStatIndex = 0
+    w.statLastSliceIndex = 0
+    w.statSliceIndex = 0
+}
+
+
+/**
+ * Returns a pointer to the next Stat object to fill in when we complete an op.
+ *
+ * This will allocate a new slice of Stats whenever our current slice fills up. 
+ * (We don't append to slices, so their no grow-then-copy, and no GC.
+ */
+func (w *Worker) nextStat() *Stat {
+    result := &(w.stats[w.statSliceIndex][w.nextStatIndex])
+
+    w.nextStatIndex++
+    if w.nextStatIndex == len(w.stats[w.statSliceIndex]) {
+        w.nextStatIndex = 0
+        w.statSliceIndex++
+        if w.statSliceIndex >= w.statLastSliceIndex {
+            w.statLastSliceIndex++
+            w.stats = append(w.stats, make([]Stat, w.spec.StatPreallocationCount))
+        }
+    }
+
+    return result
+}
+
+
+/**
+ * At the end of a phase, the Foreman asks each worker in turn to send their Stats back to the 
+ * manager, using a TCP connection that the Foreman provides.
+ *
+ * When we're done, we clear our stats so we can reuse them.
+ */
+func (w *Worker) UploadStats(tcpConnection *comms.MessageConnection) {
+    for i := 0; i <= w.statSliceIndex; i++ {
+        if i != w.statSliceIndex {
+            logger.Debugf("Worker[%v] sending complete stats buffer: %v entries\n", w.spec.Id, len(w.stats[i]))
+            tcpConnection.Send(OP_StatDetails, w.stats[i])
+        } else {
+            logger.Debugf("Worker[%v] sending partial stats buffer: %v entries\n", w.spec.Id, w.nextStatIndex)
+            tcpConnection.Send(OP_StatDetails, w.stats[i][:w.nextStatIndex])
+        }
+    }
+
+    w.clearStats()
 }
 
 
@@ -213,8 +287,10 @@ func (w *Worker) handleOpcode(op Opcode) {
     }
 
     w.setState(nextState)
-    w.phaseStart = time.Now()
     w.phaseFirstOp = true
+    w.phaseStart = time.Now()
+    w.lastSummary = w.phaseStart
+    w.summary.data.Zero()
 }
 
 
@@ -255,7 +331,7 @@ func (w *Worker) connect() {
             select {
                 case <-time.After(HangTimeoutSecs * time.Second):
                     // We can't tell if this is a slow operation or a hang in a ceph library, so assume the worst.
-                    w.hung(fmt.Errorf("[worker %v] Timeout on write to %v", w.spec.Id, conn.Target()))
+                    w.hung(fmt.Errorf("[worker %v] Timeout on connect to %v", w.spec.Id, conn.Target()))
                     return
 
                 case <-done:
@@ -276,49 +352,42 @@ func (w *Worker) connect() {
 }
 
 
+func (w *Worker) sendSummary(t *time.Time) {
+    if (*t).Sub(w.lastSummary) > (250 * time.Millisecond) {
+        w.lastSummary = *t
+        w.spec.SummaryChannel <- w.summary
+        w.summary.data.Zero()
+    }
+}
+
+
 func (w *Worker) writeOrPrepare(phase StatPhase) {
-    key := fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
     w.generator.Generate(w.order.ObjectSize, w.objectIndex, w.cycle, &w.objectBuffer)
     conn := w.connections[w.connIndex]
 
-    var err error
-    var start time.Time
-    var end time.Time
-    done := make(chan bool, 1)
-
-    go func() {
-        start = time.Now()
-        err = conn.PutObject(key, w.objectIndex, w.objectBuffer)
-        end = time.Now()
-        done <- true
-    }()
-
-    // See which happens first: a result, or a timeout.
-    select {
-        case <-time.After(HangTimeoutSecs * time.Second):
-            // We can't tell if this is a slow operation or a hang in a ceph library, so assume the worst.
-            w.hung(fmt.Errorf("[worker %v] Timeout on write to %v", w.spec.Id, conn.Target()))
-            return
-
-        case <-done:
-            logger.Tracef("[worker %v] completed write\n", w.spec.Id)
-
+    var key string
+    if conn.RequiresKey() {
+        key = fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
     }
 
-    var s Stat
+    start := time.Now()
+    err := conn.PutObject(key, w.objectIndex, w.objectBuffer)
+    end := time.Now()
+
+    s := w.nextStat()
     s.Error = SE_None
     s.Phase = phase
-    s.TimeSincePhaseStart = end.Sub(w.phaseStart)
-    s.Duration = end.Sub(start)
+    s.TimeSincePhaseStartMillis = uint32(start.Sub(w.phaseStart) / (1000 * 1000))
+    s.DurationMicros = uint32(end.Sub(start) / 1000)
     s.TargetIndex = uint16(w.connIndex)
 
     if err != nil {
-        logger.Warnf("[worker %v] failure putting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+        logger.Warnf("[worker %v] failure putting object<%v> to %v: %v\n", w.spec.Id, w.objectIndex, conn.Target(), err)
         s.Error = SE_OperationFailure
     }
 
-    // Submit a stat
-    w.spec.StatChannel <- &s
+    w.summary.data[phase][s.Error]++
+    w.sendSummary(&end)
 
     // Advance our object ID ready for next time.
     w.objectIndex++
@@ -355,55 +424,39 @@ func (w *Worker) prepare() {
 func (w *Worker) read() {
     w.limitBandwidth()
 
-    key := fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
     conn := w.connections[w.connIndex]
 
-    var err error
-    var start time.Time
-    var end time.Time
-    done := make(chan bool, 1)
-
-    go func() {
-        start = time.Now()
-        err = conn.GetObject(key, w.objectIndex, w.objectBuffer)
-        end = time.Now()
-        done <- true
-    }()
-
-    // See which happens first: a result, or a timeout.
-    select {
-        case <-time.After(HangTimeoutSecs * time.Second):
-            // We can't tell if this is a slow operation or a hang in a ceph library, so assume the worst.
-            w.hung(fmt.Errorf("[worker %v] Timeout on read from %v", w.spec.Id, conn.Target()))
-            return
-
-        case <-done:
-            logger.Tracef("[worker %v] completed read\n", w.spec.Id)
-
+    var key string
+    if conn.RequiresKey() {
+        key = fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
     }
 
-    var s Stat
+    start := time.Now()
+    err := conn.GetObject(key, w.objectIndex, w.objectBuffer)
+    end := time.Now()
+
+    s := w.nextStat()
     s.Error = SE_None
     s.Phase = SP_Read
-    s.TimeSincePhaseStart = end.Sub(w.phaseStart)
-    s.Duration = end.Sub(start)
+    s.TimeSincePhaseStartMillis = uint32(start.Sub(w.phaseStart) / (1000 * 1000))
+    s.DurationMicros = uint32(end.Sub(start) / 1000)
     s.TargetIndex = uint16(w.connIndex)
 
     if err != nil {
-        logger.Warnf("[worker %v] failure getting object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+        logger.Warnf("[worker %v] failure getting object<%v> to %v: %v\n", w.spec.Id, w.objectIndex, conn.Target(), err)
         s.Error = SE_OperationFailure
     } else {
         if !w.order.SkipReadValidation {
             err = w.generator.Verify(w.order.ObjectSize, w.objectIndex, &w.objectBuffer, &w.verifyBuffer)
             if err != nil {
-                logger.Warnf("[worker %v] failure verfiying object<%v> to %v: %v\n", w.spec.Id, key, conn.Target(), err)
+                logger.Warnf("[worker %v] failure verfiying object<%v> to %v: %v\n", w.spec.Id, w.objectIndex, conn.Target(), err)
                 s.Error = SE_VerifyFailure
             }
         }
     }
 
-    // Submit the stat
-    w.spec.StatChannel <- &s
+    w.summary.data[SP_Read][s.Error]++
+    w.sendSummary(&end)
 
     // Advance our object ID ready for next time.
     w.objectIndex++

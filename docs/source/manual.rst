@@ -117,7 +117,7 @@ Option Definitions
 |                                |        |           | When the read/write mix is not zero - that is, when we are not doing separate passes    |                    |
 |                                |        |           | for read and write - then this is the bandwidth of the combined operations.             |                    |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
-| **\-\-output**                 | **-o** | *FILE*    | The file to which we write our json results.                                            | sibench.json       |
+| **\-\-output**                 | **-o** | *FILE*    | The file to which we write our json results.                                            |                    |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-workers**                | **-w** | *FACTOR*  | Number of worker threads per server as a factor x number of CPU cores.                  | 1.0                |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+

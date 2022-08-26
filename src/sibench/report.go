@@ -59,18 +59,20 @@ func MakeReport(job *Job) (*Report, error) {
     var r Report
     r.job = job
 
-    logger.Infof("Creating report: %s\n", job.arguments.Output)
+    if job.arguments.Output != "" {
+        logger.Infof("Creating report: %s\n", job.arguments.Output)
 
-    r.jsonFile, r.jsonErr = os.Create(job.arguments.Output)
-    if r.jsonErr != nil {
-        logger.Errorf("Failure creating file: %s, %v\n", job.arguments.Output, r.jsonErr)
+        r.jsonFile, r.jsonErr = os.Create(job.arguments.Output)
+        if r.jsonErr != nil {
+            logger.Errorf("Failure creating file: %s, %v\n", job.arguments.Output, r.jsonErr)
+        }
+
+        r.jsonWriter = bufio.NewWriter(r.jsonFile)
+
+        r.writeString("{\n  \"Arguments\": ")
+        r.writeJson(job.arguments)
+        r.writeString(",\n  \"Stats\": [\n")
     }
-
-    r.jsonWriter = bufio.NewWriter(r.jsonFile)
-
-    r.writeString("{\n  \"Arguments\": ")
-    r.writeJson(job.arguments)
-    r.writeString(",\n  \"Stats\": [\n")
 
     return &r, r.jsonErr
 }
@@ -81,7 +83,7 @@ func MakeReport(job *Job) (*Report, error) {
  * any last sections to it.
  */
 func (r *Report) Close() {
-    if r.jsonErr != nil {
+    if (r.jsonFile == nil) || (r.jsonErr != nil) {
         return
     }
 
@@ -103,7 +105,7 @@ func (r *Report) Close() {
  * This method will do nothing if we have previously encountered an error.
  */
 func (r *Report) writeJson(val interface{}) {
-    if r.jsonErr != nil {
+    if (r.jsonFile == nil) || (r.jsonErr != nil) {
         return
     }
 
@@ -131,7 +133,7 @@ func (r *Report) writeJson(val interface{}) {
  * This method will do nothing if we have previously encountered an error.
  */
 func (r *Report) writeString(val string) {
-    if r.jsonErr != nil {
+    if (r.jsonFile == nil) || (r.jsonErr != nil) {
         return
     }
 
@@ -149,16 +151,21 @@ func (r *Report) writeString(val string) {
  * The Stat will be held on to in memory until AnalyseStats is next called.
  */
 func (r *Report) AddStat(s *ServerStat) {
-    template := `%s    {"Start": %v, "Duration": %v, "Phase": "%s", "Error": "%s", "Target": "%s", "Server": "%s"}`
+    r.stats = append(r.stats, s)
 
+    if (r.jsonFile == nil) || (r.jsonErr != nil) {
+        return
+    }
+
+    template := `%s    {"StartMillis": %v, "DurationMicros": %v, "Phase": "%s", "Error": "%s", "Target": "%s", "Server": "%s"}`
     target := r.job.order.Targets[s.TargetIndex]
     server := r.job.servers[s.ServerIndex]
 
     val := fmt.Sprintf(
             template,
             r.jsonStatSeparator,
-            s.TimeSincePhaseStart.Seconds(),
-            s.Duration.Seconds(),
+            s.TimeSincePhaseStartMillis,
+            s.DurationMicros,
             s.Phase.ToString(),
             s.Error.ToString(),
             target,
@@ -166,7 +173,6 @@ func (r *Report) AddStat(s *ServerStat) {
 
     r.writeString(val)
     r.jsonStatSeparator = ",\n"
-    r.stats = append(r.stats, s)
 }
 
 

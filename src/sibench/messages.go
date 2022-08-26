@@ -8,8 +8,6 @@
 
 package main
 
-import "time"
-
 
 /* 
  * Opcodes used as the TCP Message type identifier for messages between the manager and its
@@ -134,11 +132,11 @@ type StatSummary [SP_Len][SE_Len] uint64
  * Each stat describes a single operation (such as a single object read or write).
  */
 type Stat struct {
-    TimeSincePhaseStart time.Duration
-    Duration time.Duration
     Phase StatPhase
     Error StatError
     TargetIndex uint16
+    TimeSincePhaseStartMillis uint32
+    DurationMicros uint32
 }
 
 

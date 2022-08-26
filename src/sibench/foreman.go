@@ -9,7 +9,9 @@ import "io"
 import "logger"
 import "os"
 import "runtime"
+import "runtime/pprof"
 import "time"
+import "unsafe"
 
 
 /* 
@@ -194,6 +196,7 @@ const (
 type WorkerInfo struct {
     Worker *Worker
     OpChannel chan Opcode
+    lastSummary time.Time
 }
 
 
@@ -226,8 +229,8 @@ type Foreman struct {
      * They all share the same channel. */
     workerResponseChannel chan *WorkerResponse
 
-    /* Channel used by workers to send us stats */
-    statChannel chan *Stat
+    /* Channel used by workers to send us stat summaries */
+    summaryChannel chan WorkerSummary
 
     /* Channel used to send control messages to our stats procesing go-routine. */
     statControlChannel chan statControl
@@ -244,14 +247,20 @@ type Foreman struct {
     /* The TCP connection we are currently using to talk to a Manager. */
     tcpConnection *comms.MessageConnection
 
-    /* We give each new worker a unique ID, which is not reused when we start a new WorkOrder. */
-    nextWorkerId uint64
-
     /* How many workers have yet to respond to the last opcode we sent them */
     responsePending int
 
     /* Our current state. */
     state foremanState
+
+    /* Filename prefix for our profile output (or empty). */
+    profilePrefix string
+
+    /* Suffix we'll put on to our profile filename, incremented for each benchmark */
+    profileIndex int
+
+    /* Current profiling file (or nil) */
+    profileFile *os.File
 }
 
 
@@ -264,10 +273,11 @@ type Foreman struct {
  * should be run as a new go-routine if you need to continue to do things in your current 
  * go-routine.
  */
-func StartForeman() error {
+func StartForeman(profileFilename string) error {
     var err error
     var f Foreman
     f.setState(FS_Idle)
+    f.profilePrefix = profileFilename
 
     endpoint := fmt.Sprintf(":%v", globalConfig.ListenPort)
     f.tcpControlChannel = make(chan *comms.MessageConnection, 100)
@@ -425,20 +435,33 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
 }
 
 
+/**
+ * Fiund the greatest power-of-two number that is less than or equal to x.
+ * (Credit to Hacker's Delight for the cunning branchless way of doing this!  A very cool trick...)
+ */
+func previousPowerOfTwo(x uint64) uint64 {
+    x = x | (x >> 1);
+    x = x | (x >> 2);
+    x = x | (x >> 4);
+    x = x | (x >> 8);
+    x = x | (x >> 16);
+    x = x | (x >> 32);
+
+    return x - (x >> 1);
+}
+
+
 /* Handle a new connection (with its attendant WorkOrder). */
 func (f *Foreman) connect() {
     logger.Infof("Connect for work order in job %v for range %v:%v\n", f.order.JobId, f.order.RangeStart, f.order.RangeEnd)
 
     // Create everything we need before we begin
     f.workerResponseChannel = make(chan *WorkerResponse)
-    f.statChannel = make(chan *Stat, 1000)
+    f.summaryChannel = make(chan WorkerSummary, 1000)
     f.statControlChannel = make(chan statControl)
     f.statResponseChannel = make(chan statControl)
 
-    go processStats(f.statChannel, f.statControlChannel, f.statResponseChannel, f.tcpConnection)
-
-    // Create our workers.
-    // We divvy up our object range between them.
+    // Work out how many workers we need to create.
 
     nWorkers := uint64(float64(runtime.NumCPU()) * f.order.WorkerFactor)
     rangeStart := float32(f.order.RangeStart)
@@ -447,6 +470,22 @@ func (f *Foreman) connect() {
     if nWorkers > rangeLen {
         nWorkers = rangeLen
     }
+
+    // Determine how much memory each worker should pre-allocate for stats.
+    // (They can allocate more than this, but we'll pick something usable to start with).
+    // We'll take a quarter of the physical memory on the box and then divide it between the 
+    // workers. Then we round down to the nearest power of two.  Finally, we limit it to a 
+    // million stats.
+    var stat Stat
+    statPreallocationCount := previousPowerOfTwo(GetPhysicalMemorySize() / (4 * uint64(unsafe.Sizeof(stat)) * nWorkers))
+    if statPreallocationCount > (1024 * 1024) {
+        statPreallocationCount = 1024 * 1024
+    }
+
+    logger.Infof("Pre-allocating %v stats entries per worker\n", ToUnits(statPreallocationCount))
+
+    // Create our workers.
+    // We divvy up our object range between them.
 
     f.workerInfos = make([]*WorkerInfo, 0, nWorkers)
     rangeStride := float32(rangeLen) / float32(nWorkers)
@@ -462,10 +501,11 @@ func (f *Foreman) connect() {
         opChannel := make(chan Opcode, 10)
 
         s := &WorkerSpec {
-            Id: f.nextWorkerId,
+            Id: i,
             OpChannel: opChannel,
             ResponseChannel: f.workerResponseChannel,
-            StatChannel: f.statChannel,
+            SummaryChannel: f.summaryChannel,
+            StatPreallocationCount: statPreallocationCount,
         }
 
         rangeEnd := rangeStart + rangeStride
@@ -491,14 +531,14 @@ func (f *Foreman) connect() {
             info := WorkerInfo{OpChannel: opChannel, Worker: w}
             f.workerInfos = append(f.workerInfos, &info)
         }
-
-        f.nextWorkerId++
     }
 
     if err != nil {
         f.fail(err)
         return
     }
+
+    go f.processStats()
 
     // We're all good.  Time to connect.
     f.setState(FS_Connect)
@@ -533,10 +573,11 @@ func (f *Foreman) fail(err error) {
     f.terminate()
 }
 
+
 func (f *Foreman) hung(err error) {
     logger.Errorf("Hung with error: %v\n", err)
     f.sendOpcodeToManager(OP_Hung,  err)
-    f.terminate()
+    f.terminateTCP()
 
     logger.Infof("Exiting process to allow daemon to restart\n")
     os.Exit(-1)
@@ -556,10 +597,83 @@ func (f *Foreman) sendOpcodeToWorkers(op Opcode) {
 }
 
 
+func (f *Foreman) clearHangTimeouts() {
+    now := time.Now()
+    for i, _  := range f.workerInfos {
+        f.workerInfos[i].lastSummary = now
+    }
+}
+
+
 /* Set state.  Mostly a place to put a loggerging statement. */
 func (f *Foreman) setState(state foremanState) {
     logger.Debugf("Foreman changing state: %v -> %v\n", foremanStateToStr(f.state), foremanStateToStr(state))
     f.state = state
+
+    var start_suffix string
+    var stop_suffix string
+
+    switch f.state {
+        case FS_WriteStart:     start_suffix = "write"
+        case FS_ReadStart:      start_suffix = "read"
+        case FS_ReadWriteStart: start_suffix = "read_write"
+        case FS_WriteStop:      stop_suffix = "write"
+        case FS_ReadStop:       stop_suffix = "read"
+        case FS_ReadWriteStop:  stop_suffix = "read_write"
+        default:
+    }
+
+    // If we're starting a new phase, then reset our heartbeats
+    if start_suffix != "" {
+        f.clearHangTimeouts()
+    }
+
+    // If profiling is enabled and we're entering the start of a Read or Write phase, then start capturing...
+    // Conversely, if profiling is enabled and we're leaving a Read or Write phase, then stop capturing!
+    if f.profilePrefix != "" {
+        var err error
+
+        if start_suffix != "" {
+            f.profileIndex++;
+            filename := fmt.Sprintf("%v-cpu-%v.%v", f.profilePrefix, start_suffix, f.profileIndex)
+            logger.Infof("Creating profile output in %v\n", filename)
+
+            f.profileFile, err = os.Create(filename)
+            if err != nil {
+                f.fail(fmt.Errorf("Unable to create CPU profile results file %v: %v", filename, err))
+                return
+            }
+
+            pprof.StartCPUProfile(f.profileFile)
+        }
+
+        if stop_suffix != "" {
+            logger.Infof("Closing profile output\n")
+            pprof.StopCPUProfile()
+            f.profileFile.Close()
+
+            filename := fmt.Sprintf("%v-heap-%v.%v", f.profilePrefix, stop_suffix, f.profileIndex)
+            mf, err2 := os.Create(filename)
+            if err2 != nil {
+                f.fail(fmt.Errorf("Unable to create heap profile results file %v: %v", filename, err2))
+                return
+            }
+
+            pprof.WriteHeapProfile(mf)
+            mf.Close()
+        }
+    }
+}
+
+
+func (f *Foreman) terminateTCP() {
+    if f.tcpConnection != nil {
+        f.sendOpcodeToManager(OP_Terminate, nil);
+        f.tcpConnection.Close()
+        f.tcpConnection = nil
+        f.tcpMessageChannel = nil
+        logger.Infof("TCP connection closed\n")
+    }
 }
 
 
@@ -589,17 +703,10 @@ func (f *Foreman) terminate() {
 
     logger.Infof("Stats terminated\n")
 
-    if f.tcpConnection != nil {
-        f.sendOpcodeToManager(OP_Terminate, nil);
-        f.tcpConnection.Close()
-        f.tcpConnection = nil
-        f.tcpMessageChannel = nil
-        logger.Infof("TCP connection closed\n")
-    }
-
+    f.terminateTCP()
     logger.Infof("WorkOrder Terminated\n")
 
-    f.state = FS_Idle
+    f.setState(FS_Idle)
 }
 
 
@@ -617,71 +724,65 @@ func (f *Foreman) setStatControl(sc statControl) {
 /* 
  * Stats handling function, to be run as its own go-routine.
  *
- * statChannel is a channel to receive the stats which the workers are generating.
- * controlChannel is a channel to receive incoming state changes (including 'shut down please').
- * repsponseChannel is a channel on which we acknowledge receipt of control requests.
- * tcpConnection is a connection back to the Manager so that we can send it stats and summaries 
- * when appropriate. 
- *
  * We start a Ticker to trigger sending a summary back to the Manager once per second.  
  * This can be enabled and disabled by using the controlChannel.
  */
-func processStats(statChannel chan *Stat, controlChannel chan statControl, responseChannel chan statControl, tcpConnection *comms.MessageConnection) {
+func (f *Foreman) processStats() {
     ticker := time.NewTicker(1 * time.Second)
     var summary = new(StatSummary)
-    var stats []*Stat
     sendSummaries := false
 
     for {
         select {
-            case stat := <-statChannel:
-                summary[stat.Phase][stat.Error]++
-                stats = append(stats, stat)
+            case s := <-f.summaryChannel:
+                summary.Add(&s.data)
+                f.workerInfos[s.workerId].lastSummary = time.Now()
 
             case <-ticker.C:
                 if sendSummaries {
-                    tcpConnection.Send(OP_StatSummary, summary)
+                    f.tcpConnection.Send(OP_StatSummary, summary)
                     summary = new(StatSummary)
                 }
 
-            case ctl := <-controlChannel:
+                // And check for hung workers (defined as any worker that has not send a summary in the 
+                // last 90 or so seconds).
+                now := time.Now()
+                for i, _  := range f.workerInfos {
+                    if now.Sub(f.workerInfos[i].lastSummary) > (HangTimeoutSecs * time.Second) {
+                        err := fmt.Errorf("No update from worker[%v] in %v seconds", i, HangTimeoutSecs)
+                        f.workerResponseChannel <- &WorkerResponse{ WorkerId: uint64(i), Op: OP_Hung, Error: err }
+                    }
+                }
+
+            case ctl := <-f.statControlChannel:
                 switch ctl {
                     case SC_SendDetails:
-                        // Send Stats 64 at a time, if we have that many.
-
-                        step := 64
-                        count := len(stats) - (len(stats) % step)
-                        var i int
-                        for i = 0; i < count; i += step {
-                            tcpConnection.Send(OP_StatDetails, stats[i:i + step])
+                        // Tell each worker to send its stats back to the manager.
+                        for i, _  := range f.workerInfos {
+                            f.workerInfos[i].Worker.UploadStats(f.tcpConnection)
                         }
 
-                        if i < len(stats) {
-                            tcpConnection.Send(OP_StatDetails, stats[i:])
-                        }
-
-                        logger.Debugf("Sent %v detailed stats\n", len(stats))
-                        stats = nil
-                        tcpConnection.Send(OP_StatDetailsDone, nil)
+                        f.clearHangTimeouts()
+                        f.tcpConnection.Send(OP_StatDetailsDone, nil)
 
                     case SC_StartSummaries:
                         logger.Debugf("Enabling summaries\n")
                         summary = new(StatSummary)
                         sendSummaries = true
-                        tcpConnection.Send(OP_StatSummaryStart, nil)
+                        f.tcpConnection.Send(OP_StatSummaryStart, nil)
 
                     case SC_StopSummaries:
                         logger.Debugf("Disabling summaries\n")
                         sendSummaries = false
-                        tcpConnection.Send(OP_StatSummaryStop, nil)
+                        f.tcpConnection.Send(OP_StatSummaryStop, nil)
 
                     case SC_Terminate:
                         ticker.Stop()
-                        responseChannel <- SC_Terminate
+                        f.statResponseChannel <- SC_Terminate
                         return
                 }
 
-                responseChannel <- ctl
+                f.statResponseChannel <- ctl
         }
     }
 }
