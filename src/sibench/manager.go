@@ -115,7 +115,7 @@ func RunBenchmark(j *Job) error {
 
     if m.err != nil {
         m.report.AddError(m.err)
-        logger.Errorf("%v", m.err)
+        logger.Errorf("%v\n", m.err)
     }
 
     m.report.Close()
@@ -237,7 +237,12 @@ func (m* Manager) drainStats() {
 
     end := time.Now()
     logger.Infof("%v stats retrieved in %.3f seconds\n", len(m.report.stats), end.Sub(start).Seconds())
+
+    start = time.Now()
     m.report.AnalyseStats()
+    end = time.Now()
+    logger.Infof("Stats merged and analysed in %.3f seconds\n", end.Sub(start).Seconds())
+
     return
 }
 
@@ -509,23 +514,6 @@ func (m *Manager) sendJobToServers() {
         // Tell the server to connect...
         logger.Debugf("Sending job to %s with start: %v, end: %v, bandwidth: %v\n", details.Name, o.RangeStart, o.RangeEnd, o.Bandwidth)
         conn.Send(OP_Connect, &o)
-    }
-
-    // Check if we should warn about hosts with low RAM
-    if len(hostsWithLowRam) > 0 {
-        logger.Warnf("--------------------------------------------------------------------\n")
-        logger.Warnf("\n")
-        logger.Warnf("The job may take large proportion of the RAM on the following hosts:\n")
-
-        for _, host := range(hostsWithLowRam) {
-            logger.Warnf("    %v\n", host)
-        }
-
-        logger.Warnf("\n")
-        logger.Warnf("This may result in swapping (which will make the benchmarks invalid),\n")
-        logger.Warnf("Or the OS may choose to kill the sibench daemon without warning.\n")
-        logger.Warnf("\n")
-        logger.Warnf("--------------------------------------------------------------------\n")
     }
 
     m.waitForResponses(OP_Connect)

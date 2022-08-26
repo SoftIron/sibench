@@ -23,6 +23,17 @@ type Connection interface {
     WorkerClose() error
 
     /* 
+     * Returns true if the Put/Get methods make use of a string key, or if we can get away with
+     * just an integer id.
+     *
+     * We do this because:
+     *   (a) generating the string key can be expensive, and we don't want to do it INSIDE our
+     *       timing code.
+     *   (b) We don't want to do it all if we don't need to.  This lets a worker decide...
+     */
+    RequiresKey() bool
+
+    /* 
      * Both Key and ID uniquely identify the same object.
      *
      * FileSystems tend to want string-based keys.  Block devices usually want to use

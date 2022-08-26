@@ -102,6 +102,11 @@ func (conn *S3Connection) createBucket(bucket string) error {
 }
 
 
+func (conn *S3Connection) RequiresKey() bool {
+    return true
+}
+
+
 func (conn *S3Connection) PutObject(key string, id uint64, buffer []byte) error {
     reader := bytes.NewReader(buffer)
 

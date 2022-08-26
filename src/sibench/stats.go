@@ -7,6 +7,7 @@ import "fmt"
 import "sort"
 
 
+
 /* 
  * A ServerStat wraps a Stat to add a field for Server ID. 
  */
@@ -120,12 +121,12 @@ func errorFilter(err StatError) filterFunc {
 /* Filter out stats that are not in the relevant time period */
 func rampFilter(job *Job) filterFunc {
 
-    // Durations are in ns, so convert our values from seconds
-    up := job.rampUp * 1000 * 1000 * 1000
-    time := job.runTime * 1000 * 1000 * 1000
+    // Convert seonds to milliseconds
+    up := uint32(job.rampUp * 1000)
+    time := uint32(job.runTime * 1000)
 
     return func(s *ServerStat) bool {
-        start := uint64(s.TimeSincePhaseStart)
+        start := uint32(s.TimeSincePhaseStartMillis)
         return (start > up) && (start <= up + time)
     }
 }
@@ -177,7 +178,7 @@ func filter(stats []*ServerStat, fns ...filterFunc) []*ServerStat {
 /* Sort a slice of stats to fastest first, slowest last. */
 func sortByDuration(stats []*ServerStat) {
     sort.Slice(stats, func(i, j int) bool {
-        return stats[i].Duration < stats[j].Duration
+        return stats[i].DurationMicros < stats[j].DurationMicros
     })
 }
 
@@ -229,10 +230,10 @@ func (a *Analysis) String(useBytes bool) string {
         bwstr,
         a.Successes,
         a.Failures,
-        a.ResTimeMin / (1000 * 1000),
-        a.ResTimeMax / (1000 * 1000),
-        a.ResTime95  / (1000 * 1000),
-        a.ResTimeAvg / (1000 * 1000))
+        a.ResTimeMin / 1000,
+        a.ResTimeMax / 1000,
+        a.ResTime95  / 1000,
+        a.ResTimeAvg / 1000)
 }
 
 
@@ -255,16 +256,16 @@ func NewAnalysis(stats []*ServerStat, name string, phase StatPhase, isTotal bool
         sortByDuration(good)
 
         // Would like to use Duration.Milliseconds, but it doesn't exist in our go version.
-        result.ResTimeMin = uint64(good[0].Duration)
-        result.ResTimeMax = uint64(good[len(good) - 1].Duration)
-        result.ResTime95  = uint64(good[int(float64(len(good)) * 0.95)].Duration)
+        result.ResTimeMin = uint64(good[0].DurationMicros)
+        result.ResTimeMax = uint64(good[len(good) - 1].DurationMicros)
+        result.ResTime95  = uint64(good[int(float64(len(good)) * 0.95)].DurationMicros)
         result.Bandwidth  = uint64(8 * len(good)) * job.order.ObjectSize / job.runTime
         result.BandwidthBytes  = uint64(len(good)) * job.order.ObjectSize / job.runTime
 
 
         total := uint64(0)
         for i, _ := range(good) {
-            total += uint64(good[i].Duration)
+            total += uint64(good[i].DurationMicros)
         }
 
         result.ResTimeAvg = total / uint64(len(good))

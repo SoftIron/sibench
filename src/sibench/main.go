@@ -53,6 +53,9 @@ type Arguments struct {
     SkipReadVerification bool
     UseBytes bool
 
+    // Server options
+    ProfilePrefix string
+
     // S3 options
     S3AccessKey string
     S3SecretKey string
@@ -90,7 +93,7 @@ func usage() string {
     s := `SoftIron Benchmark Tool.
 Usage:
   sibench version
-  sibench server     [-v LEVEL] [-p PORT] [-m DIR]
+  sibench server     [-v LEVEL] [-p PORT] [-m DIR] [--profile-prefix FILE]
   sibench s3 run     [-v LEVEL] [-p PORT] [-o FILE]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
@@ -137,11 +140,11 @@ Options:
   -r TIME, --run-time TIME        Seconds spent on each phase of the benchmark.                    [default: 30]
   -u TIME, --ramp-up TIME         Seconds at the start of each phase where we don't record data.   [default: 5]
   -d TIME, --ramp-down TIME       Seconds at the end of each phase where we don't record data.     [default: 2]
-  -o FILE, --output FILE          The file to which we write our json results.                     [default: sibench.json]
   -w FACTOR, --workers FACTOR     Number of workers per server as a factor x number of CPU cores   [default: 1.0]
   -b BW, --bandwidth BW           Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
   -x MIX, --read-write-mix MIX    Do a mix of read and writes, giving the percentage of reads.     [default: 0]
   -g GEN, --generator GEN         Which object generator to use: "prng" or "slice"                 [default: prng]
+  -o FILE, --output FILE          The file to which we write our json results.
   --use-bytes                     Bandwidth output in Bytes
   --skip-read-verification        Disable validation on reads (for when sibench CPU is a limit).
   --servers SERVERS               A comma-separated list of sibench servers to connect to.         [default: localhost]
@@ -158,7 +161,8 @@ Options:
   --file-dir DIR                  The directory to use (must already exist).
   --slice-dir DIR                 The directory of files to be sliced up to form new workload objects.
   --slice-count COUNT             The number of slices to construct for workload generation        [default: 10000]
-  --slice-size BYTES              The size of each slice in bytes.                                 [default: 4096]
+  --slice-size BYTES              The size of each slice in bytes.                                 [default: 4097]
+  --profile-prefix FILE           Enable profiling, using tne given prefex for any output.
 `
     return s
 }
@@ -319,8 +323,7 @@ func main() {
 
 /* Start a server, listening on a TCP port */
 func startServer(args *Arguments) {
-
-    err := StartForeman()
+    err := StartForeman(args.ProfilePrefix)
     dieOnError(err, "Failure creating server")
 }
 

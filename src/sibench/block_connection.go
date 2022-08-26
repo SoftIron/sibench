@@ -80,8 +80,12 @@ func (conn *BlockConnection) WorkerClose() error {
 }
 
 
+func (conn *BlockConnection) RequiresKey() bool {
+    return false
+}
+
 /* 
- * Helper function to determine an object's offset into the image from an object key 
+ * Helper function to determine an object's offset into the image from an object id
  */
 func (conn *BlockConnection) objectOffset(id uint64) int64 {
     return int64((id - conn.worker.ForemanRangeStart) * conn.worker.ObjectSize)

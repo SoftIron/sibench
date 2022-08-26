@@ -49,6 +49,11 @@ func (conn *FileConnectionBase) DeleteDirectory() error {
 }
 
 
+func (conn *FileConnectionBase) RequiresKey() bool {
+    return true
+}
+
+
 func (conn *FileConnectionBase) PutObject(key string, id uint64, buffer []byte) error {
     filename := filepath.Join(conn.root, conn.dir, key)
 

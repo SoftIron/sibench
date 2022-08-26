@@ -126,6 +126,11 @@ func (conn *RbdConnection) objectOffset(id uint64) int64 {
 }
 
 
+func (conn *RbdConnection) RequiresKey() bool {
+    return false
+}
+
+
 func (conn *RbdConnection) PutObject(key string, id uint64, buffer []byte) error {
     logger.Tracef("Put rados object %v on %v: start\n", key, conn.monitor)
 
