@@ -164,7 +164,7 @@ Options:
   --slice-dir DIR                 The directory of files to be sliced up to form new workload objects.
   --slice-count COUNT             The number of slices to construct for workload generation        [default: 10000]
   --slice-size BYTES              The size of each slice in bytes.                                 [default: 4097]
-  --profile-prefix FILE           Enable profiling, using tne given prefex for any output.
+  --profile-prefix FILE           Enable profiling, using tne given prefix for any output.
 `
     return s
 }
