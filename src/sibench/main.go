@@ -48,6 +48,7 @@ type Arguments struct {
     Bandwidth string
     ReadWriteMix int
     Output string
+    IndividualStats bool
     Targets []string
     Workers float64
     SkipReadVerification bool
@@ -94,7 +95,7 @@ func usage() string {
 Usage:
   sibench version
   sibench server     [-v LEVEL] [-p PORT] [-m DIR] [--profile-prefix FILE]
-  sibench s3 run     [-v LEVEL] [-p PORT] [-o FILE]
+  sibench s3 run     [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
@@ -102,17 +103,17 @@ Usage:
 
     if runtime.GOOS == "linux" {
         s += ` 
-  sibench rados run  [-v LEVEL] [-p PORT] [-o FILE]
+  sibench rados run  [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
                      [--skip-read-verification] [--servers SERVERS] <targets> ...
-  sibench cephfs run [-v LEVEL] [-p PORT] [-o FILE]
+  sibench cephfs run [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [-m DIR] [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
                      [--skip-read-verification] [--servers SERVERS] <targets> ...
-  sibench rbd run    [-v LEVEL] [-p PORT] [-o FILE]
+  sibench rbd run    [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)
@@ -120,11 +121,11 @@ Usage:
     }
 
     s += ` 
-  sibench block run  [-v LEVEL] [-p PORT] [-o FILE]
+  sibench block run  [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [--block-device DEVICE] [--skip-read-verification] [--servers SERVERS] 
-  sibench file run   [-v LEVEL] [-p PORT] [-o FILE]
+  sibench file run   [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [--file-dir DIR] [--skip-read-verification] [--servers SERVERS] 
@@ -144,7 +145,8 @@ Options:
   -b BW, --bandwidth BW           Benchmark at a fixed bandwidth, in units of K, M or G bits/s..   [default: 0]
   -x MIX, --read-write-mix MIX    Do a mix of read and writes, giving the percentage of reads.     [default: 0]
   -g GEN, --generator GEN         Which object generator to use: "prng" or "slice"                 [default: prng]
-  -o FILE, --output FILE          The file to which we write our json results.
+  -o FILE, --output FILE          The file to which we write our json results.                     [default: sibench.json]
+  --individual-stats              Write full stats to the output file - may be big.
   --use-bytes                     Bandwidth output in Bytes
   --skip-read-verification        Disable validation on reads (for when sibench CPU is a limit).
   --servers SERVERS               A comma-separated list of sibench servers to connect to.         [default: localhost]

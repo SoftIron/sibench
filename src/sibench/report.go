@@ -59,20 +59,18 @@ func MakeReport(job *Job) (*Report, error) {
     var r Report
     r.job = job
 
-    if job.arguments.Output != "" {
-        logger.Infof("Creating report: %s\n", job.arguments.Output)
+    logger.Infof("Creating report: %s\n", job.arguments.Output)
 
-        r.jsonFile, r.jsonErr = os.Create(job.arguments.Output)
-        if r.jsonErr != nil {
-            logger.Errorf("Failure creating file: %s, %v\n", job.arguments.Output, r.jsonErr)
-        }
-
-        r.jsonWriter = bufio.NewWriter(r.jsonFile)
-
-        r.writeString("{\n  \"Arguments\": ")
-        r.writeJson(job.arguments)
-        r.writeString(",\n  \"Stats\": [\n")
+    r.jsonFile, r.jsonErr = os.Create(job.arguments.Output)
+    if r.jsonErr != nil {
+        logger.Errorf("Failure creating file: %s, %v\n", job.arguments.Output, r.jsonErr)
     }
+
+    r.jsonWriter = bufio.NewWriter(r.jsonFile)
+
+    r.writeString("{\n  \"Arguments\": ")
+    r.writeJson(job.arguments)
+    r.writeString(",\n  \"Stats\": [\n")
 
     return &r, r.jsonErr
 }
@@ -83,7 +81,7 @@ func MakeReport(job *Job) (*Report, error) {
  * any last sections to it.
  */
 func (r *Report) Close() {
-    if (r.jsonFile == nil) || (r.jsonErr != nil) {
+    if r.jsonErr != nil {
         return
     }
 
@@ -105,7 +103,7 @@ func (r *Report) Close() {
  * This method will do nothing if we have previously encountered an error.
  */
 func (r *Report) writeJson(val interface{}) {
-    if (r.jsonFile == nil) || (r.jsonErr != nil) {
+    if r.jsonErr != nil {
         return
     }
 
@@ -133,7 +131,7 @@ func (r *Report) writeJson(val interface{}) {
  * This method will do nothing if we have previously encountered an error.
  */
 func (r *Report) writeString(val string) {
-    if (r.jsonFile == nil) || (r.jsonErr != nil) {
+    if r.jsonErr != nil {
         return
     }
 
@@ -153,7 +151,7 @@ func (r *Report) writeString(val string) {
 func (r *Report) AddStat(s *ServerStat) {
     r.stats = append(r.stats, s)
 
-    if (r.jsonFile == nil) || (r.jsonErr != nil) {
+    if (!r.job.arguments.IndividualStats) || (r.jsonErr != nil) {
         return
     }
 
