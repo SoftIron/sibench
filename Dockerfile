@@ -27,4 +27,3 @@ RUN python3 -m pip install https://github.com/SoftIron/benchmaster/archive/refs/
 
 # install previously built sibench
 COPY --from=builder /src/sibench/bin/sibench /usr/local/bin
-WORKDIR /root
