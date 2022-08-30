@@ -1,4 +1,4 @@
-sibench (1.1) buster; urgency=low
+sibench (1.1.0) buster; urgency=low
   [ Harry Richardson ]
   * Many performance improvements (in terms of both CPU and memory usage)
   * Json output of individual stats now not enabled by default
