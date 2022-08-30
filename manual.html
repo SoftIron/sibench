@@ -264,6 +264,7 @@ it may result in higher memory usage on that node.</p>
 <li><p>[--skip-read-verification]</p></li>
 <li><p>[--servers SERVERS]</p></li>
 <li><p>[--use-bytes]</p></li>
+<li><p>[--individual-stats]</p></li>
 </ul>
 <section id="option-definitions">
 <h3>Option Definitions<a class="headerlink" href="#option-definitions" title="Permalink to this heading">#</a></h3>
@@ -351,7 +352,7 @@ for read and write - then this is the bandwidth of the combined operations.</p><
 <td><p><strong>-o</strong></p></td>
 <td><p><em>FILE</em></p></td>
 <td><p>The file to which we write our json results.</p></td>
-<td><p>sibench.json</p></td>
+<td></td>
 </tr>
 <tr class="row-odd"><td><p><strong>--workers</strong></p></td>
 <td><p><strong>-w</strong></p></td>
@@ -475,6 +476,12 @@ by <code class="docutils literal notranslate"><span class="pre">sibench</span></
 <td></td>
 <td><p>-</p></td>
 <td><p>Show bandwidth in Bytes</p></td>
+<td><p>off</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>--individual-stats</strong></p></td>
+<td></td>
+<td><p>-</p></td>
+<td><p>Record the individual stats in the output file.  This may be VERY big</p></td>
 <td><p>off</p></td>
 </tr>
 </tbody>

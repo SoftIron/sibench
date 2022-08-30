@@ -80,6 +80,7 @@ Additional options **shared by all run commands**, omitted from above for clarit
 - [\-\-skip-read-verification]
 - [\-\-servers SERVERS]
 - [\-\-use-bytes]
+- [\-\-individual-stats]
 
 
 Option Definitions
@@ -117,7 +118,7 @@ Option Definitions
 |                                |        |           | When the read/write mix is not zero - that is, when we are not doing separate passes    |                    |
 |                                |        |           | for read and write - then this is the bandwidth of the combined operations.             |                    |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
-| **\-\-output**                 | **-o** | *FILE*    | The file to which we write our json results.                                            | sibench.json       |
+| **\-\-output**                 | **-o** | *FILE*    | The file to which we write our json results.                                            |                    |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-workers**                | **-w** | *FACTOR*  | Number of worker threads per server as a factor x number of CPU cores.                  | 1.0                |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
@@ -162,6 +163,8 @@ Option Definitions
 | **\-\-slice-size**             |        | *BYTES*   | The size of each slice in bytes.                                                        | 4096               |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-use-bytes**              |        | \-        | Show bandwidth in Bytes                                                                 | off                |
++--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
+| **\-\-individual-stats**       |        | \-        | Record the individual stats in the output file.  This may be VERY big                   | off                |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 
 
