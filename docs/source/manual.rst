@@ -80,6 +80,7 @@ Additional options **shared by all run commands**, omitted from above for clarit
 - [\-\-skip-read-verification]
 - [\-\-servers SERVERS]
 - [\-\-use-bytes]
+- [\-\-individual-stats]
 
 
 Option Definitions
@@ -162,6 +163,8 @@ Option Definitions
 | **\-\-slice-size**             |        | *BYTES*   | The size of each slice in bytes.                                                        | 4096               |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-use-bytes**              |        | \-        | Show bandwidth in Bytes                                                                 | off                |
++--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
+| **\-\-individual-stats**       |        | \-        | Record the individual stats in the output file.  This may be VERY big                   | off                |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 
 
