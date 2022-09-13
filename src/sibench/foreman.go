@@ -528,7 +528,7 @@ func (f *Foreman) connect() {
 
         w, err := NewWorker(s, &o)
         if err == nil {
-            info := WorkerInfo{OpChannel: opChannel, Worker: w}
+            info := WorkerInfo{OpChannel: opChannel, Worker: w, lastSummary: time.Now()}
             f.workerInfos = append(f.workerInfos, &info)
         }
     }
