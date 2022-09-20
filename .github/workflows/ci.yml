@@ -1,0 +1,31 @@
+name: CI Build Debian Package
+on:
+  push:
+
+permissions:
+  contents: write
+jobs:
+  build-debian-package:
+    runs-on: "ubuntu-20.04"
+    container:
+      image: debian/buildd:bullseye
+    steps:
+      - name: Install git before checkout
+        run: apt-get update && apt-get install -y git
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Build package
+        run: |
+          echo "deb http://deb.debian.org/debian bullseye-backports main" >> /etc/apt/sources.list
+          DEBIAN_FRONTEND=noninteractive apt -o Acquire::Check-Valid-Until=false update
+          DEBIAN_FRONTEND=noninteractive apt --yes install build-essential devscripts
+          mk-build-deps
+          DEBIAN_FRONTEND=noninteractive apt --yes install ./sibench-build-deps_*.deb
+          rm ./sibench-build-deps_*
+          ln -sf /usr/lib/go-1.18/bin/* /usr/bin/
+          debuild -us -uc
+          mkdir output
+          dcmd mv -v ../*changes output/
