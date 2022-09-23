@@ -2,7 +2,7 @@ Source: sibench
 Section: net
 Priority: optional
 Maintainer: Harry Richardson <harry@softiron.com>
-Build-Depends: debhelper (>= 9), golang-1.16, golang-1.16-go, librados-dev, librbd-dev (>=14.2.9), docutils-common
+Build-Depends: debhelper (>= 9), golang-1.18, golang-1.18-go, librados-dev, librbd-dev (>=14.2.9), docutils-common
 Standards-Version: 3.9.8
 Homepage: https://sibench.io
 
