@@ -1,6 +1,9 @@
 sibench (1.1.1) buster; urgency=low
   [ Harry Richardson ]
   * Fix for a race-condition in the formeman hang detection initialisation.
+  [ Pedro Alvarez ]
+  * Use golang-1.18 to build
+sibench (1.1.0) buster; urgency=low
   [ Harry Richardson ]
   * Many performance improvements (in terms of both CPU and memory usage)
   * Json output of individual stats now not enabled by default
