@@ -146,6 +146,7 @@ type Stat struct {
 type Discovery struct {
     Cores uint64
     Ram uint64
+    Version string
 }
 
 
