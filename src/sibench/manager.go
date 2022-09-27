@@ -559,7 +559,7 @@ func (m *Manager) discoverServerCapabilities() {
 
         // Find our details object
 
-        logger.Infof("%s: %v cores, %vB of RAM\n", d.Name, d.Cores, ToUnits(d.Ram))
+        logger.Infof("%s: %v cores, %vB of RAM, sibench build %s\n", d.Name, d.Cores, ToUnits(d.Ram), d.Version)
         m.totalCoreCount += d.Cores
 
         pending--

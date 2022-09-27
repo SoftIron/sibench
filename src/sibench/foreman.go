@@ -381,6 +381,7 @@ func (f *Foreman) handleTcpMsg(msgInfo *comms.ReceivedMessageInfo) {
             msg.Data(&d)
             d.Cores = uint64(runtime.NumCPU())
             d.Ram = GetPhysicalMemorySize()
+            d.Version = fmt.Sprintf("%s - %s", Version, BuildDate)
             f.tcpConnection.Send(OP_Discovery, d)
 
         case OP_Connect:
