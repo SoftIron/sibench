@@ -234,11 +234,14 @@ instructions.</p>
 </li>
 </ol>
 <ol class="arabic" start="3">
-<li><p>Install <code class="docutils literal notranslate"><span class="pre">sibench</span></code></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">update</span>
-<span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">sibench</span> <span class="o">-</span><span class="n">t</span> <span class="n">buster</span><span class="o">-</span><span class="n">backports</span>
+<li><p>Install <code class="docutils literal notranslate"><span class="pre">sibench</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">..</span> <span class="n">code</span><span class="o">-</span><span class="n">block</span><span class="p">::</span>
 </pre></div>
 </div>
+<blockquote>
+<div><p>sudo apt-get update
+sudo apt-get install sibench -t buster-backports</p>
+</div></blockquote>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This step assumes you have buster-backports enabled. Not
@@ -281,9 +284,14 @@ recommended on environments with Ceph already installed.</p>
 </li>
 </ol>
 <ol class="arabic" start="2">
-<li><p>Download a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> release from <a class="reference external" href="https://github.com/SoftIron/sibench/releases">https://github.com/SoftIron/sibench/releases</a>, for example</p>
-<pre class="literal-block">wget https://github.com/SoftIron/sibench/releases/download/1.1.1/sibench-amd64-1.1.1.tar.gz
-tar -xvf sibench-amd64-1.1.1.tar.gz</pre>
+<li><p>Download a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> release from <a class="reference external" href="https://github.com/SoftIron/sibench/releases">https://github.com/SoftIron/sibench/releases</a>, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">..</span> <span class="n">parsed</span><span class="o">-</span><span class="n">literal</span><span class="p">::</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>wget https://github.com/SoftIron/sibench/releases/download/1.1.1/sibench-amd64-1.1.1.tar.gz
+tar -xvf sibench-amd64-1.1.1.tar.gz</p>
+</div></blockquote>
 </li>
 <li><p>Copy the binary somewhere in your <code class="docutils literal notranslate"><span class="pre">$PATH</span></code>, for example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">cp</span> <span class="n">sibench</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span>
@@ -291,8 +299,8 @@ tar -xvf sibench-amd64-1.1.1.tar.gz</pre>
 </div>
 </li>
 </ol>
-<p>You will not have a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> sever running if only installing the binary. You
-can run it manually using <code class="docutils literal notranslate"><span class="pre">sibench</span> <span class="pre">server</span></code> command, or you can create a
+<p>You will not have a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> server running if only installing the binary.
+You can run it manually using <code class="docutils literal notranslate"><span class="pre">sibench</span> <span class="pre">server</span></code> command, or you can create a
 systemd unit like <a class="reference external" href="https://github.com/SoftIron/sibench/blob/master/lib/systemd/system/sibench.service">this one.</a></p>
 </div><div aria-labelledby="tab-1-1-1" class="sphinx-tabs-panel" hidden="true" id="panel-1-1-1" name="1-1" role="tabpanel" tabindex="0"><ol class="arabic">
 <li><p>Install dependencies:</p>
@@ -302,9 +310,14 @@ systemd unit like <a class="reference external" href="https://github.com/SoftIro
 </li>
 </ol>
 <ol class="arabic" start="2">
-<li><p>Download a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> release from <a class="reference external" href="https://github.com/SoftIron/sibench/releases">https://github.com/SoftIron/sibench/releases</a>, for example</p>
-<pre class="literal-block">wget https://github.com/SoftIron/sibench/releases/download/1.1.1/sibench-amd64-1.1.1.tar.gz
-tar -xvf sibench-amd64-1.1.1.tar.gz</pre>
+<li><p>Download a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> release from <a class="reference external" href="https://github.com/SoftIron/sibench/releases">https://github.com/SoftIron/sibench/releases</a>, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">..</span> <span class="n">parsed</span><span class="o">-</span><span class="n">literal</span><span class="p">::</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>wget https://github.com/SoftIron/sibench/releases/download/1.1.1/sibench-amd64-1.1.1.tar.gz
+tar -xvf sibench-amd64-1.1.1.tar.gz</p>
+</div></blockquote>
 </li>
 <li><p>Copy the binary somewhere in your <code class="docutils literal notranslate"><span class="pre">$PATH</span></code>, for example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">cp</span> <span class="n">sibench</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span>
@@ -312,8 +325,8 @@ tar -xvf sibench-amd64-1.1.1.tar.gz</pre>
 </div>
 </li>
 </ol>
-<p>You will not have a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> sever running if only installing the binary. You
-can run it manually using <code class="docutils literal notranslate"><span class="pre">sibench</span> <span class="pre">server</span></code> command, or you can create a
+<p>You will not have a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> server running if only installing the binary.
+You can run it manually using <code class="docutils literal notranslate"><span class="pre">sibench</span> <span class="pre">server</span></code> command, or you can create a
 systemd unit like <a class="reference external" href="https://github.com/SoftIron/sibench/blob/master/lib/systemd/system/sibench.service">this one.</a></p>
 </div><div aria-labelledby="tab-1-1-2" class="sphinx-tabs-panel" hidden="true" id="panel-1-1-2" name="1-2" role="tabpanel" tabindex="0"><ol class="arabic">
 <li><p>Install dependencies:</p>
@@ -323,9 +336,14 @@ systemd unit like <a class="reference external" href="https://github.com/SoftIro
 </li>
 </ol>
 <ol class="arabic" start="2">
-<li><p>Download a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> release from <a class="reference external" href="https://github.com/SoftIron/sibench/releases">https://github.com/SoftIron/sibench/releases</a>, for example</p>
-<pre class="literal-block">wget https://github.com/SoftIron/sibench/releases/download/1.1.1/sibench-amd64-1.1.1.tar.gz
-tar -xvf sibench-amd64-1.1.1.tar.gz</pre>
+<li><p>Download a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> release from <a class="reference external" href="https://github.com/SoftIron/sibench/releases">https://github.com/SoftIron/sibench/releases</a>, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">..</span> <span class="n">parsed</span><span class="o">-</span><span class="n">literal</span><span class="p">::</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>wget https://github.com/SoftIron/sibench/releases/download/1.1.1/sibench-amd64-1.1.1.tar.gz
+tar -xvf sibench-amd64-1.1.1.tar.gz</p>
+</div></blockquote>
 </li>
 <li><p>Copy the binary somewhere in your <code class="docutils literal notranslate"><span class="pre">$PATH</span></code>, for example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">cp</span> <span class="n">sibench</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span>
@@ -333,8 +351,8 @@ tar -xvf sibench-amd64-1.1.1.tar.gz</pre>
 </div>
 </li>
 </ol>
-<p>You will not have a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> sever running if only installing the binary. You
-can run it manually using <code class="docutils literal notranslate"><span class="pre">sibench</span> <span class="pre">server</span></code> command, or you can create a
+<p>You will not have a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> server running if only installing the binary.
+You can run it manually using <code class="docutils literal notranslate"><span class="pre">sibench</span> <span class="pre">server</span></code> command, or you can create a
 systemd unit like <a class="reference external" href="https://github.com/SoftIron/sibench/blob/master/lib/systemd/system/sibench.service">this one.</a></p>
 </div></div>
 </section>
