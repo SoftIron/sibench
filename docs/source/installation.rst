@@ -27,7 +27,7 @@ Package install
 
       .. include:: installation/debian-repo-setup.txt
 
-      3. Install ``sibench``::
+      3. Install ``sibench``
 
          .. code-block::
 
