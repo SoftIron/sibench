@@ -377,6 +377,7 @@ func (m *Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
             case <-timer.C:
                 ticker.Stop()
                 m.sendOpToServers(OP_StatSummaryStop, true)
+                logger.Infof("Waiting for all workers to complete their current operation\n");
                 m.sendOpToServers(stopOp, true)
                 m.drainStats()
                 return
