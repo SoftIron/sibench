@@ -14,6 +14,16 @@ import "time"
 import "unsafe"
 
 
+// Initial value for how long we will wait for a worker to report a summary
+// before we conclude that it has hung.
+// Note that we will dynamically adjust the actual value in response to incoming
+// summaries.
+const InitialHangTimeoutSecs = 90
+
+// The value below which our dynamically adjusted hang timeout will not drop.
+const MinHangTimeoutSecs = 60
+
+
 /* 
  * All the states a Foreman can be in. 
  *
@@ -261,6 +271,9 @@ type Foreman struct {
 
     /* Current profiling file (or nil) */
     profileFile *os.File
+
+    /* The dynamically adjusted timeout value for workers */
+    hangTimeout time.Duration
 }
 
 
@@ -599,10 +612,14 @@ func (f *Foreman) sendOpcodeToWorkers(op Opcode) {
 
 
 func (f *Foreman) clearHangTimeouts() {
+    logger.Debugf("Clearing hang timeout value\n");
+
     now := time.Now()
     for i, _  := range f.workerInfos {
         f.workerInfos[i].lastSummary = now
     }
+
+    f.hangTimeout = InitialHangTimeoutSecs * time.Second
 }
 
 
@@ -736,22 +753,33 @@ func (f *Foreman) processStats() {
     for {
         select {
             case s := <-f.summaryChannel:
+                now := time.Now()
                 summary.Add(&s.data)
-                f.workerInfos[s.workerId].lastSummary = time.Now()
+
+                // Adjust our rolling average for operarion duration, so that we can dynamically adjust our timeout.
+                time_per_op := now.Sub(f.workerInfos[s.workerId].lastSummary) / time.Duration(s.data.Total())
+                f.hangTimeout = ((7 * f.hangTimeout) + (8 * time_per_op)) / 8
+                if (f.hangTimeout < MinHangTimeoutSecs * time.Second) {
+                    f.hangTimeout = MinHangTimeoutSecs * time.Second
+                }
+
+                logger.Debugf("Setting new timeout to %0.2f\n", f.hangTimeout.Seconds())
+
+                f.workerInfos[s.workerId].lastSummary = now
 
             case <-ticker.C:
                 if sendSummaries {
                     f.tcpConnection.Send(OP_StatSummary, summary)
                     summary = new(StatSummary)
-                }
 
-                // And check for hung workers (defined as any worker that has not send a summary in the 
-                // last 90 or so seconds).
-                now := time.Now()
-                for i, _  := range f.workerInfos {
-                    if now.Sub(f.workerInfos[i].lastSummary) > (HangTimeoutSecs * time.Second) {
-                        err := fmt.Errorf("No update from worker[%v] in %v seconds", i, HangTimeoutSecs)
-                        f.workerResponseChannel <- &WorkerResponse{ WorkerId: uint64(i), Op: OP_Hung, Error: err }
+                    // And check for hung workers (defined as any worker that has not send a summary in the 
+                    // last 90 or so seconds).
+                    now := time.Now()
+                    for i, _  := range f.workerInfos {
+                        if now.Sub(f.workerInfos[i].lastSummary) > f.hangTimeout {
+                            err := fmt.Errorf("No update from worker[%v] in %0.2f seconds", i, f.hangTimeout.Seconds())
+                            f.workerResponseChannel <- &WorkerResponse{ WorkerId: uint64(i), Op: OP_Hung, Error: err }
+                        }
                     }
                 }
 

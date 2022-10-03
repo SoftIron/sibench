@@ -92,7 +92,7 @@ const (
 
 
 
-const HangTimeoutSecs = 90
+const ConnectHangTimeoutSecs = 60
 
 
 /*
@@ -329,7 +329,7 @@ func (w *Worker) connect() {
 
             // See which happens first: a result, or a timeout.
             select {
-                case <-time.After(HangTimeoutSecs * time.Second):
+                case <-time.After(ConnectHangTimeoutSecs * time.Second):
                     // We can't tell if this is a slow operation or a hang in a ceph library, so assume the worst.
                     w.hung(fmt.Errorf("[worker %v] Timeout on connect to %v", w.spec.Id, conn.Target()))
                     return

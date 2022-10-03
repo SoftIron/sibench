@@ -38,6 +38,19 @@ func (s *StatSummary) Add(other *StatSummary) {
 }
 
 
+func (s *StatSummary) Total() uint64 {
+    total := uint64(0)
+
+    for phase := 0; phase < int(SP_Len); phase++ {
+        for err :=0; err < int(SE_Len); err++ {
+            total += s[phase][err]
+        }
+    }
+
+    return total
+}
+
+
 /* Helper to convert values into to K, G, M etc. units */
 func ToUnits(val uint64) string {
     const unit = 1024
