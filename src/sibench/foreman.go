@@ -14,6 +14,22 @@ import "time"
 import "unsafe"
 
 
+/**
+ * Find the greatest power-of-two number that is less than or equal to x.
+ * (Credit to Hacker's Delight for the cunning branchless way of doing this!  A very cool trick...)
+ */
+func previousPowerOfTwo(x uint64) uint64 {
+    x = x | (x >> 1);
+    x = x | (x >> 2);
+    x = x | (x >> 4);
+    x = x | (x >> 8);
+    x = x | (x >> 16);
+    x = x | (x >> 32);
+
+    return x - (x >> 1);
+}
+
+
 // Initial value for how long we will wait for a worker to report a summary
 // before we conclude that it has hung.
 // Note that we will dynamically adjust the actual value in response to incoming
@@ -56,31 +72,52 @@ const(
 )
 
 
+/* 
+ * Extra information associated with each state.
+ */
+type foremanStateDetails struct {
+    /* Human readable name for debug statements. */
+    name string
+
+    /* If set, on entering this state we should clear out worker timeouts */
+    clearTimeouts bool
+
+    /* If set, on entering this state we should start a new CPU profile, using the suffix with the filename. */
+    profileStartSuffix string
+
+    /* If set, on entering this state we should finish our CPU profiling, then write a Heap profile, using the
+       suffix with the filename. */
+    profileStopSuffix string
+}
+
+
+var stateDetails = map[foremanState]foremanStateDetails {
+    FS_BadTransition:      { "BadTranstition",      false,  "",             "" },
+    FS_Idle:               { "Idle",                false,  "",             "" },
+    FS_Connect:            { "Connect",             false,  "",             "" },
+    FS_ConnectDone:        { "ConnectDone",         false,  "",             "" },
+    FS_WriteStart:         { "WriteStart",          true,   "write",        "" },
+    FS_WriteStartDone:     { "WriteStartDone",      false,  "",             "" },
+    FS_WriteStop:          { "WriteStop",           false,  "",             "write" },
+    FS_WriteStopDone:      { "WriteStopDone",       false,  "",             "" },
+    FS_Prepare:            { "Prepare",             true,   "",             "" },
+    FS_PrepareDone:        { "PrepareDone",         false,  "",             "" },
+    FS_ReadStart:          { "ReadStart",           true,   "read",         "" },
+    FS_ReadStartDone:      { "ReadStartDone",       false,  "",             "" },
+    FS_ReadStop:           { "ReadStop",            false,  "",             "read" },
+    FS_ReadStopDone:       { "ReadStopDone",        false,  "",             "" },
+    FS_ReadWriteStart:     { "ReadWriteStart",      true,   "read_write",   "" },
+    FS_ReadWriteStartDone: { "ReadWriteStartDone",  false,  "",             "" },
+    FS_ReadWriteStop:      { "ReadWriteStop",       false,  "",             "read_write" },
+    FS_ReadWriteStopDone:  { "ReadWriteStopDone",   false,  "",             "" },
+    FS_Terminate:          { "Terminate",           false,  "",             "" },
+    FS_Hung:               { "Hung",                false,  "",             "" },
+}
+
+
 /* Return a human-readable string for each state. */
 func foremanStateToStr(state foremanState) string {
-    switch state {
-        case FS_BadTransition:      return "BadTranstition"
-        case FS_Idle:               return "Idle"
-        case FS_Connect:            return "Connect"
-        case FS_ConnectDone:        return "ConnectDone"
-        case FS_WriteStart:         return "WriteStart"
-        case FS_WriteStartDone:     return "WriteStartDone"
-        case FS_WriteStop:          return "WriteStop"
-        case FS_WriteStopDone:      return "WriteStopDone"
-        case FS_Prepare:            return "Prepare"
-        case FS_PrepareDone:        return "PrepareDone"
-        case FS_ReadStart:          return "ReadStart"
-        case FS_ReadStartDone:      return "ReadStartDone"
-        case FS_ReadStop:           return "ReadStop"
-        case FS_ReadStopDone:       return "ReadStopDone"
-        case FS_ReadWriteStart:     return "ReadWriteStart"
-        case FS_ReadWriteStartDone: return "ReadWriteStartDone"
-        case FS_ReadWriteStop:      return "ReadWriteStop"
-        case FS_ReadWriteStopDone:  return "ReadWriteStopDone"
-        case FS_Terminate:          return "Terminate"
-        case FS_Hung:               return "Hung"
-        default:                    return "UnknownState"
-    }
+    return stateDetails[state].name;
 }
 
 /*
@@ -198,15 +235,23 @@ const (
     SC_SendDetails statControl = iota
     SC_StartSummaries
     SC_StopSummaries
+    SC_ClearTimeouts
     SC_Terminate
 )
 
 
-/* Simple type to bundle up a Worker with the channel through which we control it */
+/* Simple type to bundle up a Worker with the extra information we need about it. */
 type WorkerInfo struct {
     Worker *Worker
+
+    /* The channel we use to control the worker. */
     OpChannel chan Opcode
+
+    /* The last time we saw a summary/heartbeat message from the woker. */
     lastSummary time.Time
+
+    /* Whether the worker is currently running benchmark ops. */
+    canTimeout bool
 }
 
 
@@ -414,6 +459,26 @@ func (f *Foreman) handleTcpMsg(msgInfo *comms.ReceivedMessageInfo) {
 }
 
 
+/* Send a response to an opcode back to our manager */
+func (f *Foreman) sendOpcodeToManager(op Opcode, err error) {
+    // If our connection died, then don't bother trying to send anything.
+    if f.tcpConnection == nil {
+        logger.Debugf("No connection: not sending response for %v\n", op.ToString())
+        return
+    }
+
+    var resp ForemanGenericResponse
+
+    if err != nil {
+        resp.Error = err.Error()
+    }
+
+    logger.Debugf("Send response to manager: %v, %v\n", op.ToString(), err)
+
+    f.tcpConnection.Send(uint8(op), &resp)
+}
+
+
 /*
  * Handle a response from a worker, after we asked it to perform some operation.
  *
@@ -423,45 +488,39 @@ func (f *Foreman) handleTcpMsg(msgInfo *comms.ReceivedMessageInfo) {
  * operation and change our state.
  */
 func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
-    if resp.Op == OP_Fail {
-        f.fail(resp.Error)
-        return
-    }
+    switch resp.Op {
+        // Handle the special failure cases first.
+        case OP_Fail: f.fail(resp.Error)
+        case OP_Hung: f.hung(resp.Error)
 
-    if resp.Op == OP_Hung {
-        f.hung(resp.Error)
-        return
-    }
+        // Everything wlse is handled the same way.
+        default:
+            nextState := validWorkerTransitions[resp.Op][f.state]
+            if nextState == FS_BadTransition {
+                f.fail(fmt.Errorf("Bad Worker state transition: %v, %v", foremanStateToStr(f.state), resp.Op.ToString()))
+                return
+            }
 
-    // Check if this is a bad message.
-    nextState := validWorkerTransitions[resp.Op][f.state]
-    if nextState == FS_BadTransition {
-        f.fail(fmt.Errorf("Bad Worker state transition: %v, %v", foremanStateToStr(f.state), resp.Op.ToString()))
-        return
-    }
+            f.responsePending--
 
-    f.responsePending--
-
-    if f.responsePending == 0 {
-        f.setState(nextState)
-        f.sendOpcodeToManager(resp.Op, nil)
+            if f.responsePending == 0 {
+                f.setState(nextState)
+                f.sendOpcodeToManager(resp.Op, nil)
+            }
     }
 }
 
 
-/**
- * Fiund the greatest power-of-two number that is less than or equal to x.
- * (Credit to Hacker's Delight for the cunning branchless way of doing this!  A very cool trick...)
- */
-func previousPowerOfTwo(x uint64) uint64 {
-    x = x | (x >> 1);
-    x = x | (x >> 2);
-    x = x | (x >> 4);
-    x = x | (x >> 8);
-    x = x | (x >> 16);
-    x = x | (x >> 32);
+/* Send an opcode to all our workers */
+func (f *Foreman) sendOpcodeToWorkers(op Opcode) {
+    logger.Debugf("Sending op to workers: %v\n", op.ToString())
 
-    return x - (x >> 1);
+    // When we send out this message, we expect to see each of our workers acknowledge it.
+    f.responsePending = len(f.workerInfos)
+
+    for _, wi := range f.workerInfos {
+        wi.OpChannel <- op
+    }
 }
 
 
@@ -560,26 +619,6 @@ func (f *Foreman) connect() {
 }
 
 
-/* Send a response to an opcode back to our manager */
-func (f *Foreman) sendOpcodeToManager(op Opcode, err error) {
-    // If our connection died, then don't bother trying to send anything.
-    if f.tcpConnection == nil {
-        logger.Debugf("No connection: not sending response for %v\n", op.ToString())
-        return
-    }
-
-    var resp ForemanGenericResponse
-
-    if err != nil {
-        resp.Error = err.Error()
-    }
-
-    logger.Debugf("Send response to manager: %v, %v\n", op.ToString(), err)
-
-    f.tcpConnection.Send(uint8(op), &resp)
-}
-
-
 /* Helper function to terminate the current WorkOrder when we hit a failure */
 func (f *Foreman) fail(err error) {
     logger.Errorf("Failing with error: %v\n", err)
@@ -598,62 +637,26 @@ func (f *Foreman) hung(err error) {
 }
 
 
-/* Send an opcode to all our workers */
-func (f *Foreman) sendOpcodeToWorkers(op Opcode) {
-    logger.Debugf("Sending op to workers: %v\n", op.ToString())
-
-    // When we send out this message, we expect to see each of our workers acknowledge it.
-    f.responsePending = len(f.workerInfos)
-
-    for _, wi := range f.workerInfos {
-        wi.OpChannel <- op
-    }
-}
-
-
-func (f *Foreman) clearHangTimeouts() {
-    logger.Debugf("Clearing hang timeout value\n");
-
-    now := time.Now()
-    for i, _  := range f.workerInfos {
-        f.workerInfos[i].lastSummary = now
-    }
-
-    f.hangTimeout = InitialHangTimeoutSecs * time.Second
-}
-
-
 /* Set state.  Mostly a place to put a loggerging statement. */
 func (f *Foreman) setState(state foremanState) {
     logger.Debugf("Foreman changing state: %v -> %v\n", foremanStateToStr(f.state), foremanStateToStr(state))
     f.state = state
 
-    var start_suffix string
-    var stop_suffix string
+    details := stateDetails[state]
 
-    switch f.state {
-        case FS_WriteStart:     start_suffix = "write"
-        case FS_ReadStart:      start_suffix = "read"
-        case FS_ReadWriteStart: start_suffix = "read_write"
-        case FS_WriteStop:      stop_suffix = "write"
-        case FS_ReadStop:       stop_suffix = "read"
-        case FS_ReadWriteStop:  stop_suffix = "read_write"
-        default:
-    }
-
-    // If we're starting a new phase, then reset our heartbeats
-    if start_suffix != "" {
-        f.clearHangTimeouts()
+    if details.clearTimeouts {
+        f.setStatControl(SC_ClearTimeouts)
     }
 
     // If profiling is enabled and we're entering the start of a Read or Write phase, then start capturing...
     // Conversely, if profiling is enabled and we're leaving a Read or Write phase, then stop capturing!
+
     if f.profilePrefix != "" {
         var err error
 
-        if start_suffix != "" {
+        if details.profileStartSuffix != "" {
             f.profileIndex++;
-            filename := fmt.Sprintf("%v-cpu-%v.%v", f.profilePrefix, start_suffix, f.profileIndex)
+            filename := fmt.Sprintf("%v-cpu-%v.%v", f.profilePrefix, details.profileStartSuffix, f.profileIndex)
             logger.Infof("Creating profile output in %v\n", filename)
 
             f.profileFile, err = os.Create(filename)
@@ -665,12 +668,12 @@ func (f *Foreman) setState(state foremanState) {
             pprof.StartCPUProfile(f.profileFile)
         }
 
-        if stop_suffix != "" {
+        if details.profileStopSuffix != "" {
             logger.Infof("Closing profile output\n")
             pprof.StopCPUProfile()
             f.profileFile.Close()
 
-            filename := fmt.Sprintf("%v-heap-%v.%v", f.profilePrefix, stop_suffix, f.profileIndex)
+            filename := fmt.Sprintf("%v-heap-%v.%v", f.profilePrefix, details.profileStopSuffix, f.profileIndex)
             mf, err2 := os.Create(filename)
             if err2 != nil {
                 f.fail(fmt.Errorf("Unable to create heap profile results file %v: %v", filename, err2))
@@ -739,8 +742,25 @@ func (f *Foreman) setStatControl(sc statControl) {
 }
 
 
+/* Reset the worker timeouts.  Only called from the processStats go routine */
+func (f *Foreman) clearHangTimeouts() {
+    logger.Debugf("Clearing hang timeout value\n");
+
+    now := time.Now()
+    for i, _  := range f.workerInfos {
+        f.workerInfos[i].lastSummary = now
+    }
+
+    f.hangTimeout = InitialHangTimeoutSecs * time.Second
+}
+
+
 /* 
  * Stats handling function, to be run as its own go-routine.
+ *
+ * Workers send us stats summaries periodically.  These also function as heartbeats, and their absence
+ * is used to determine if a worker has hung.  (Note that we only check for this if the worker is in
+ * the middle of benchmark phase and thus is running operations on its connections.
  *
  * We start a Ticker to trigger sending a summary back to the Manager once per second.  
  * This can be enabled and disabled by using the controlChannel.
@@ -753,19 +773,34 @@ func (f *Foreman) processStats() {
     for {
         select {
             case s := <-f.summaryChannel:
-                now := time.Now()
                 summary.Add(&s.data)
 
+                now := time.Now()
+                wi := f.workerInfos[s.workerId]
+                wi.lastSummary = now
+
                 // Adjust our rolling average for operarion duration, so that we can dynamically adjust our timeout.
-                time_per_op := now.Sub(f.workerInfos[s.workerId].lastSummary) / time.Duration(s.data.Total())
-                f.hangTimeout = ((7 * f.hangTimeout) + (8 * time_per_op)) / 8
-                if (f.hangTimeout < MinHangTimeoutSecs * time.Second) {
-                    f.hangTimeout = MinHangTimeoutSecs * time.Second
+
+                ops := s.data.Total()
+
+                if ops > 0 {
+                    time_per_op := now.Sub(wi.lastSummary) / time.Duration(ops)
+                    f.hangTimeout = ((7 * f.hangTimeout) + (8 * time_per_op)) / 8
+                    if (f.hangTimeout < MinHangTimeoutSecs * time.Second) {
+                        f.hangTimeout = MinHangTimeoutSecs * time.Second
+                    }
+
+                    logger.Tracef("Update from [worker %v] at %v - setting foreman timeout to %0.2f\n", s.workerId, now, f.hangTimeout.Seconds())
                 }
 
-                logger.Debugf("Setting new timeout to %0.2f\n", f.hangTimeout.Seconds())
-
-                f.workerInfos[s.workerId].lastSummary = now
+                if wi.canTimeout != s.canTimeout {
+                    wi.canTimeout = s.canTimeout
+                    if s.canTimeout {
+                        logger.Debugf("Enabling timeout monitoring for [worker %v]\n", s.workerId)
+                    } else {
+                        logger.Debugf("Disabling timeout monitoring for [worker %v]\n", s.workerId)
+                    }
+                }
 
             case <-ticker.C:
                 if sendSummaries {
@@ -773,25 +808,30 @@ func (f *Foreman) processStats() {
                     summary = new(StatSummary)
 
                     // And check for hung workers (defined as any worker that has not send a summary in the 
-                    // last 90 or so seconds).
+                    // last 90 or so seconds, provided that it should be in the middle of running benchmark ops).
+
                     now := time.Now()
-                    for i, _  := range f.workerInfos {
-                        if now.Sub(f.workerInfos[i].lastSummary) > f.hangTimeout {
-                            err := fmt.Errorf("No update from worker[%v] in %0.2f seconds", i, f.hangTimeout.Seconds())
-                            f.workerResponseChannel <- &WorkerResponse{ WorkerId: uint64(i), Op: OP_Hung, Error: err }
+                    for i, wi  := range f.workerInfos {
+                        if wi.canTimeout {
+                            if now.Sub(wi.lastSummary) > f.hangTimeout {
+                                err := fmt.Errorf("No update from [worker %v] in %0.2f seconds at %v\n", i, f.hangTimeout.Seconds(), now)
+                                f.workerResponseChannel <- &WorkerResponse{ WorkerId: uint64(i), Op: OP_Hung, Error: err }
+                            }
                         }
                     }
                 }
 
             case ctl := <-f.statControlChannel:
                 switch ctl {
+                    case SC_ClearTimeouts:
+                        f.clearHangTimeouts()
+
                     case SC_SendDetails:
                         // Tell each worker to send its stats back to the manager.
                         for i, _  := range f.workerInfos {
                             f.workerInfos[i].Worker.UploadStats(f.tcpConnection)
                         }
 
-                        f.clearHangTimeouts()
                         f.tcpConnection.Send(OP_StatDetailsDone, nil)
 
                     case SC_StartSummaries:
