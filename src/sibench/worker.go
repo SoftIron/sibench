@@ -30,23 +30,38 @@ const (
 )
 
 
+/* 
+ * Extra information associated with each state.
+ */
+type workerStateDetails struct {
+    /* Human readable name for debug statements. */
+    name string
+
+    /* Whether or not this is a state for which the Foreman should track our summary/heartbeat messages
+       in order to handle hung operations */
+    canTimeout bool
+}
+
+
+var wsDetails = map[workerState]workerStateDetails {
+    WS_BadTransition:  { "BadTranstition",  false },
+    WS_Init:           { "Init",            false },
+    WS_Connect:        { "Connecting",      true },
+    WS_ConnectDone:    { "ConnectingDone",  false },
+    WS_Write:          { "Writing",         true },
+    WS_WriteDone:      { "WritingDone",     false },
+    WS_Prepare:        { "Prepare",         true },
+    WS_PrepareDone:    { "PrepareDone",     false },
+    WS_Read:           { "Reading",         true },
+    WS_ReadDone:       { "ReadingDone",     false },
+    WS_ReadWrite:      { "ReadWrite",       true },
+    WS_ReadWriteDone:  { "ReadWriteDone",   false },
+    WS_Terminated:     { "Terminated",      false },
+}
+
+
 func workerStateToStr(state workerState) string {
-    switch state {
-        case WS_BadTransition:  return "BadTranstition"
-        case WS_Init:           return "Init"
-        case WS_Connect:        return "Connecting"
-        case WS_ConnectDone:    return "ConnectingDone"
-        case WS_Write:          return "Writing"
-        case WS_WriteDone:      return "WritingDone"
-        case WS_Prepare:        return "Prepare"
-        case WS_PrepareDone:    return "PrepareDone"
-        case WS_Read:           return "Reading"
-        case WS_ReadDone:       return "ReadingDone"
-        case WS_ReadWrite:      return "ReadWrite"
-        case WS_ReadWriteDone:  return "ReadWriteDone"
-        case WS_Terminated:     return "Terminated"
-        default:                return "UnknownState"
-    }
+    return wsDetails[state].name
 }
 
 
@@ -92,9 +107,6 @@ const (
 
 
 
-const ConnectHangTimeoutSecs = 60
-
-
 /*
  * WorkerResponse reports the error from an opcode, which is nil if the opcode succeeded. 
  */
@@ -111,6 +123,7 @@ type WorkerResponse struct {
 type WorkerSummary struct {
     data StatSummary
     workerId uint64
+    canTimeout bool // Indicates whether or not the worker is running in a phase.
 }
 
 
@@ -199,7 +212,7 @@ func (w *Worker) clearStats() {
  * Returns a pointer to the next Stat object to fill in when we complete an op.
  *
  * This will allocate a new slice of Stats whenever our current slice fills up. 
- * (We don't append to slices, so their no grow-then-copy, and no GC.
+ * (We don't append to slices, so thee isn't any grow-then-copy or GC.
  */
 func (w *Worker) nextStat() *Stat {
     result := &(w.stats[w.statSliceIndex][w.nextStatIndex])
@@ -227,10 +240,10 @@ func (w *Worker) nextStat() *Stat {
 func (w *Worker) UploadStats(tcpConnection *comms.MessageConnection) {
     for i := 0; i <= w.statSliceIndex; i++ {
         if i != w.statSliceIndex {
-            logger.Debugf("Worker[%v] sending complete stats buffer: %v entries\n", w.spec.Id, len(w.stats[i]))
+            logger.Debugf("[worker %v] sending complete stats buffer: %v entries\n", w.spec.Id, len(w.stats[i]))
             tcpConnection.Send(OP_StatDetails, w.stats[i])
         } else {
-            logger.Debugf("Worker[%v] sending partial stats buffer: %v entries\n", w.spec.Id, w.nextStatIndex)
+            logger.Debugf("[worker %v] sending partial stats buffer: %v entries\n", w.spec.Id, w.nextStatIndex)
             tcpConnection.Send(OP_StatDetails, w.stats[i][:w.nextStatIndex])
         }
     }
@@ -315,28 +328,10 @@ func (w *Worker) hung(err error) {
 
 
 func (w *Worker) connect() {
-    w.setState(WS_ConnectDone)
-
     for _, t := range w.order.Targets {
         conn, err := NewConnection(w.order.ConnectionType, t, w.order.ProtocolConfig, w.spec.ConnConfig)
         if err == nil {
-            done := make(chan bool, 1)
-
-            go func() {
-                err = conn.WorkerConnect()
-                done <- true
-            }()
-
-            // See which happens first: a result, or a timeout.
-            select {
-                case <-time.After(ConnectHangTimeoutSecs * time.Second):
-                    // We can't tell if this is a slow operation or a hang in a ceph library, so assume the worst.
-                    w.hung(fmt.Errorf("[worker %v] Timeout on connect to %v", w.spec.Id, conn.Target()))
-                    return
-
-                case <-done:
-                    logger.Tracef("[worker %v] completed connect to %v\n", w.spec.Id, t)
-            }
+            err = conn.WorkerConnect()
         }
 
         if err != nil {
@@ -344,16 +339,25 @@ func (w *Worker) connect() {
             return
         }
 
+        logger.Tracef("[worker %v] completed connect to %v\n", w.spec.Id, t)
         w.connections = append(w.connections, conn)
     }
 
     logger.Debugf("[worker %v] successfully connected\n", w.spec.Id)
+
+    w.setState(WS_ConnectDone)
     w.sendResponse(OP_Connect, nil)
 }
 
 
-func (w *Worker) sendSummary(t *time.Time) {
-    if (*t).Sub(w.lastSummary) > (250 * time.Millisecond) {
+/* 
+ * Sends a summary of our stats to our foreman, and then clears our summary data.
+ *
+ * This only does anything if either it's been at least 250ms since our last time,
+ * or if force is set true.
+ */
+func (w *Worker) sendSummary(t *time.Time, force bool) {
+    if force || ((*t).Sub(w.lastSummary) > (250 * time.Millisecond)) {
         w.lastSummary = *t
         w.spec.SummaryChannel <- w.summary
         w.summary.data.Zero()
@@ -370,9 +374,13 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
         key = fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
     }
 
+    logger.Tracef("[worker %v] starting put for object<%v> on %v at %v\n", w.spec.Id, w.objectIndex, conn.Target(), time.Now())
+
     start := time.Now()
     err := conn.PutObject(key, w.objectIndex, w.objectBuffer)
     end := time.Now()
+
+    logger.Tracef("[worker %v] completed put for object<%v> on %v\n", w.spec.Id, w.objectIndex, conn.Target())
 
     s := w.nextStat()
     s.Error = SE_None
@@ -387,7 +395,7 @@ func (w *Worker) writeOrPrepare(phase StatPhase) {
     }
 
     w.summary.data[phase][s.Error]++
-    w.sendSummary(&end)
+    w.sendSummary(&end, true)
 
     // Advance our object ID ready for next time.
     w.objectIndex++
@@ -411,6 +419,8 @@ func (w *Worker) write() {
 func (w *Worker) prepare() {
     // See if we've prepared a whole cycle of objects.
     if w.cycle > 0 {
+        logger.Debugf("[worker %v] finished preparing\n", w.spec.Id)
+
         w.invalidateConnectionCaches()
         w.setState(WS_PrepareDone)
         w.sendResponse(OP_Prepare, nil)
@@ -431,9 +441,13 @@ func (w *Worker) read() {
         key = fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
     }
 
+    logger.Tracef("[worker %v] starting get for object<%v> on %v\n", w.spec.Id, w.objectIndex, conn.Target())
+
     start := time.Now()
     err := conn.GetObject(key, w.objectIndex, w.objectBuffer)
     end := time.Now()
+
+    logger.Tracef("[worker %v] completed get for object<%v> on %v\n", w.spec.Id, w.objectIndex, conn.Target())
 
     s := w.nextStat()
     s.Error = SE_None
@@ -456,7 +470,7 @@ func (w *Worker) read() {
     }
 
     w.summary.data[SP_Read][s.Error]++
-    w.sendSummary(&end)
+    w.sendSummary(&end, true)
 
     // Advance our object ID ready for next time.
     w.objectIndex++
@@ -532,10 +546,18 @@ func (w *Worker) limitBandwidth() {
 
 
 func (w *Worker) setState(state workerState) {
-    logger.Debugf("[worker %v] Worker changing state: %v -> %v\n", w.spec.Id, workerStateToStr(w.state), workerStateToStr(state))
+    logger.Debugf("[worker %v] changing state: %v -> %v\n", w.spec.Id, workerStateToStr(w.state), workerStateToStr(state))
     w.state = state
-}
 
+    // If we're changing from a state which needs timeout monitoring from one which doesn't, or vice versa,
+    // then let the foreman's stat processing routine know with a summary update.
+
+    if w.summary.canTimeout != wsDetails[state].canTimeout {
+        w.summary.canTimeout = wsDetails[state].canTimeout
+        now := time.Now()
+        w.sendSummary(&now, true)
+    }
+}
 
 /*
  * Tell all of our connections to invalidate their caches 

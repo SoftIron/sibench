@@ -6,7 +6,6 @@
 package main
 
 import "fmt"
-import "logger"
 import "github.com/ceph/go-ceph/rados"
 
 
@@ -70,9 +69,7 @@ func (conn *RadosConnection) RequiresKey() bool {
 
 
 func (conn *RadosConnection) PutObject(key string, id uint64, buffer []byte) error {
-    logger.Tracef("Put rados object %v on %v: start\n", key, conn.monitor)
     err := conn.ioctx.WriteFull(key, buffer)
-    logger.Tracef("Put rados object %v on %v: end\n", key, conn.monitor)
     return err
 }
 
