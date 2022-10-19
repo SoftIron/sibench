@@ -157,7 +157,6 @@ func (conn *RbdConnection) PutObject(key string, id uint64, buffer []byte) error
 }
 
 
-
 func (conn *RbdConnection) GetObject(key string, id uint64, buffer []byte) error {
     offset := conn.objectOffset(id)
     _, err := conn.image.Seek(offset, rbd.SeekSet)
@@ -175,6 +174,11 @@ func (conn *RbdConnection) GetObject(key string, id uint64, buffer []byte) error
         return fmt.Errorf("Short read: wanted %v bytes, but got %v", conn.worker.ObjectSize, nread)
     }
 
+    return nil
+}
+
+
+func (conn *RbdConnection) DeleteObject(key string, id uint64) error {
     return nil
 }
 

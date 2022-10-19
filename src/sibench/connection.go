@@ -47,6 +47,7 @@ type Connection interface {
 
     PutObject(key string, id uint64, buffer []byte) error
     GetObject(key string, id uint64, buffer []byte) error
+    DeleteObject(key string, id uint64) error
 
     InvalidateCache() error
 }

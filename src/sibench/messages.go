@@ -16,8 +16,11 @@ package main
  */
 type Opcode uint8
 const(
+    // Never sent, but used as a nil value
+    OP_None = iota
+
     // Opcodes used between Worker->Foreman and Foreman->Manager.
-    OP_Fail = iota
+    OP_Fail
     OP_Hung
 
     // Opcodes only used between Foreman->Manager
@@ -40,12 +43,14 @@ const(
     OP_ReadStop
     OP_ReadWriteStart
     OP_ReadWriteStop
+    OP_Clean
     OP_Terminate
 )
 
 
 func (op Opcode) ToString() string {
     switch op {
+        case OP_None: return "None"
         case OP_Fail: return "Fail"
         case OP_Hung: return "Hung"
         case OP_StatSummary: return "StatSummary"
@@ -63,6 +68,7 @@ func (op Opcode) ToString() string {
         case OP_ReadStop: return "ReadStop"
         case OP_ReadWriteStart: return "ReadWriteStart"
         case OP_ReadWriteStop: return "ReadWriteStop"
+        case OP_Clean: return "Clean"
         case OP_Terminate: return "Terminate"
         default: return "Unknown"
     }
@@ -87,6 +93,7 @@ const (
     SP_Write StatPhase = iota
     SP_Prepare
     SP_Read
+    SP_Clean
     SP_Len // Not a phase, but a count of how many phases we have
 )
 
@@ -96,6 +103,7 @@ func (sp StatPhase) ToString() string {
         case SP_Write:    return "Write"
         case SP_Prepare:  return "Prepare"
         case SP_Read:     return "Read"
+        case SP_Clean:    return "Clean"
         default:          return "Unknown"
     }
 }

@@ -99,6 +99,12 @@ func (conn *RadosConnection) GetObject(key string, id uint64, buffer []byte) err
 }
 
 
+func (conn *RadosConnection) DeleteObject(key string, id uint64) error {
+    err := conn.ioctx.Delete(key)
+    return err
+}
+
+
 func (conn *RadosConnection) InvalidateCache() error {
     return nil
 }
