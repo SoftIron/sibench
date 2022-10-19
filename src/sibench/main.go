@@ -34,6 +34,7 @@ type Arguments struct {
     Block bool
     File bool
     Run bool
+    CleanUp bool
 
     // Common options
     Verbosity string
@@ -106,7 +107,7 @@ Usage:
   sibench rados run  [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
+                     [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY) [--clean-up]
                      [--skip-read-verification] [--servers SERVERS] <targets> ...
   sibench cephfs run [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
@@ -147,6 +148,7 @@ Options:
   -g GEN, --generator GEN         Which object generator to use: "prng" or "slice"                 [default: prng]
   -o FILE, --output FILE          The file to which we write our json results.                     [default: sibench.json]
   --individual-stats              Write full stats to the output file - may be big.
+  --clean-up                      Delete the data at the end of the benchmark run.
   --use-bytes                     Bandwidth output in Bytes
   --skip-read-verification        Disable validation on reads (for when sibench CPU is a limit).
   --servers SERVERS               A comma-separated list of sibench servers to connect to.         [default: localhost]
@@ -351,6 +353,7 @@ func startRun(args *Arguments) {
     j.rampUp = uint64(args.RampUp)
     j.rampDown = uint64(args.RampDown)
     j.useBytes = args.UseBytes
+    j.cleanUp = args.CleanUp
 
     j.order.JobId = 1
     j.order.ObjectKeyPrefix = createUniquePrefix()

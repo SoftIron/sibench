@@ -51,6 +51,8 @@ const(
     FS_ReadWriteStartDone
     FS_ReadWriteStop
     FS_ReadWriteStopDone
+    FS_Clean
+    FS_CleanDone
     FS_Terminate
     FS_Hung
 )
@@ -94,6 +96,8 @@ var stateDetails = map[foremanState]foremanStateDetails {
     FS_ReadWriteStartDone: { "ReadWriteStartDone",  false,  "",             "" },
     FS_ReadWriteStop:      { "ReadWriteStop",       false,  "",             "read_write" },
     FS_ReadWriteStopDone:  { "ReadWriteStopDone",   false,  "",             "" },
+    FS_Clean:              { "Clean",               true,   "",             "" },
+    FS_CleanDone:          { "CleanDone",           false,  "",             "" },
     FS_Terminate:          { "Terminate",           false,  "",             "" },
     FS_Hung:               { "Hung",                false,  "",             "" },
 }
@@ -122,10 +126,13 @@ var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
     OP_ReadStop:            { FS_ReadStartDone:         FS_ReadStop },
     OP_ReadWriteStart:      { FS_PrepareDone:           FS_ReadWriteStart },
     OP_ReadWriteStop:       { FS_ReadWriteStartDone:    FS_ReadWriteStop },
+    OP_Clean:               { FS_ReadStopDone:          FS_Clean,
+                              FS_ReadWriteStopDone:     FS_Clean },
     OP_StatDetails:         { FS_WriteStopDone:         FS_WriteStopDone,
                               FS_PrepareDone:           FS_PrepareDone,
                               FS_ReadStopDone:          FS_ReadStopDone,
-                              FS_ReadWriteStopDone:     FS_ReadWriteStopDone },
+                              FS_ReadWriteStopDone:     FS_ReadWriteStopDone,
+                              FS_CleanDone:             FS_CleanDone },
     OP_StatSummaryStart:    { FS_ConnectDone:           FS_ConnectDone,
                               FS_WriteStart:            FS_WriteStart,
                               FS_WriteStartDone:        FS_WriteStartDone,
@@ -140,7 +147,9 @@ var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
                               FS_ReadWriteStart:        FS_ReadWriteStart,
                               FS_ReadWriteStartDone:    FS_ReadWriteStartDone,
                               FS_ReadWriteStop:         FS_ReadWriteStop,
-                              FS_ReadWriteStopDone:     FS_ReadWriteStopDone },
+                              FS_ReadWriteStopDone:     FS_ReadWriteStopDone,
+                              FS_Clean:                 FS_Clean,
+                              FS_CleanDone:             FS_CleanDone },
     OP_StatSummaryStop:     { FS_WriteStart:            FS_WriteStart,
                               FS_WriteStartDone:        FS_WriteStartDone,
                               FS_WriteStop:             FS_WriteStop,
@@ -154,7 +163,9 @@ var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
                               FS_ReadWriteStart:        FS_ReadWriteStart,
                               FS_ReadWriteStartDone:    FS_ReadWriteStartDone,
                               FS_ReadWriteStop:         FS_ReadWriteStop,
-                              FS_ReadWriteStopDone:     FS_ReadWriteStopDone },
+                              FS_ReadWriteStopDone:     FS_ReadWriteStopDone,
+                              FS_Clean:                 FS_Clean,
+                              FS_CleanDone:             FS_CleanDone },
     OP_Terminate:           { FS_Idle:                  FS_Terminate,
                               FS_Connect:               FS_Terminate,
                               FS_ConnectDone:           FS_Terminate,
@@ -172,6 +183,8 @@ var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
                               FS_ReadWriteStartDone:    FS_Terminate,
                               FS_ReadWriteStop:         FS_Terminate,
                               FS_ReadWriteStopDone:     FS_Terminate,
+                              FS_Clean:                 FS_Clean,
+                              FS_CleanDone:             FS_CleanDone,
                               FS_Terminate:             FS_Terminate,
                               FS_Hung:                  FS_Hung },
 }
@@ -188,6 +201,7 @@ var validWorkerTransitions = map[Opcode]map[foremanState]foremanState {
     OP_ReadStop:        { FS_ReadStop:          FS_ReadStopDone },
     OP_ReadWriteStart:  { FS_ReadWriteStart:    FS_ReadWriteStartDone },
     OP_ReadWriteStop:   { FS_ReadWriteStop:     FS_ReadWriteStopDone },
+    OP_Clean:           { FS_Clean:             FS_CleanDone },
     OP_Terminate:       { FS_Terminate:         FS_Idle },
     OP_Fail:            { FS_Connect:           FS_Terminate,
                           FS_WriteStart:        FS_Terminate,
@@ -198,15 +212,6 @@ var validWorkerTransitions = map[Opcode]map[foremanState]foremanState {
                           FS_ReadWriteStart:    FS_Terminate,
                           FS_ReadWriteStop:     FS_Terminate,
                           FS_Terminate:         FS_Terminate },
-    OP_Hung:            { FS_Connect:           FS_Hung,
-                          FS_WriteStart:        FS_Hung,
-                          FS_WriteStop:         FS_Hung,
-                          FS_Prepare:           FS_Hung,
-                          FS_ReadStart:         FS_Hung,
-                          FS_ReadStop:          FS_Hung,
-                          FS_ReadWriteStart:    FS_Hung,
-                          FS_ReadWriteStop:     FS_Hung,
-                          FS_Terminate:         FS_Hung },
 }
 
 
@@ -475,7 +480,6 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
     switch resp.Op {
         // Handle the special failure cases first.
         case OP_Fail: f.fail(resp.Error)
-        case OP_Hung: f.hung(resp.Error)
 
         // Everything wlse is handled the same way.
         default:
