@@ -88,21 +88,26 @@ func RunBenchmark(j *Job) error {
         // Write/Prepare/Read
 
         logger.Infof("\n----------------------- WRITE -----------------------------\n")
-        m.runPhase(phaseTime, OP_WriteStart, OP_WriteStop)
+        m.runPhaseForTime(phaseTime, OP_WriteStart, OP_WriteStop)
 
         logger.Infof("\n---------------------- PREPARE ----------------------------\n")
-        m.prepare()
+        m.runPhaseToCompletion(OP_Prepare)
 
         logger.Infof("\n----------------------- READ ------------------------------\n")
-        m.runPhase(phaseTime, OP_ReadStart, OP_ReadStop)
+        m.runPhaseForTime(phaseTime, OP_ReadStart, OP_ReadStop)
     } else {
         // Prepare/Read-Write-Mix
 
         logger.Infof("\n---------------------- PREPARE ----------------------------\n")
-        m.prepare()
+        m.runPhaseToCompletion(OP_Prepare)
 
         logger.Infof("\n--------------------- READ/WRITE --------------------------\n")
-        m.runPhase(phaseTime, OP_ReadWriteStart, OP_ReadWriteStop)
+        m.runPhaseForTime(phaseTime, OP_ReadWriteStart, OP_ReadWriteStop)
+    }
+
+    if j.cleanUp {
+        logger.Infof("\n---------------------- CLEAN UP ---------------------------\n")
+        m.runPhaseToCompletion(OP_Clean)
     }
 
     // Process the stats.
@@ -248,14 +253,16 @@ func (m* Manager) drainStats() {
 
 
 /*
- * Works very much like runPhase, but this time we wait for the servers to tell us the're done,
+ * Works very much like runPhaseForTime, but this time we wait for the servers to tell us the're done,
  * rather the running for a specifed length of time.
+ *
+ * This is used for the Prepare and CleanUp phases.
  */
-func (m *Manager) prepare() {
+func (m *Manager) runPhaseToCompletion(phaseOp Opcode) {
     if (m.err != nil) || m.isInterrupted { return }
 
     m.sendOpToServers(OP_StatSummaryStart, true)
-    m.sendOpToServers(OP_Prepare, false)
+    m.sendOpToServers(phaseOp, false)
 
     ticker := time.NewTicker(time.Second)
 
@@ -282,7 +289,7 @@ func (m *Manager) prepare() {
 
                 op := Opcode(msg.ID())
                 switch op {
-                    case OP_Prepare:
+                    case phaseOp:
                         pending--
                         if pending == 0 {
                             m.sendOpToServers(OP_StatSummaryStop, true)
@@ -322,8 +329,10 @@ func (m *Manager) prepare() {
  * During this time, we accept StatSummary messages from the servers.   
  * These are aggragated, and printed out once per second so that the user can
  * see what the system is doing.
+ * 
+ * This is used for Read, Write and Read/Write phases.
  */
-func (m *Manager) runPhase(secs uint64, startOp Opcode, stopOp Opcode) {
+func (m *Manager) runPhaseForTime(secs uint64, startOp Opcode, stopOp Opcode) {
     if (m.err != nil) || m.isInterrupted { return }
 
     m.sendOpToServers(startOp, true)

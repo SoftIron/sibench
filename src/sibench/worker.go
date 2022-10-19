@@ -314,7 +314,6 @@ func (w *Worker) setState(state workerState) {
 }
 
 
-
 func (w *Worker) fail(err error) {
     w.state = WS_Terminated
     logger.Errorf("%v\n", err.Error())
@@ -425,10 +424,51 @@ func onReadWriteEvent(w *Worker) {
 
 
 func onClean(w *Worker) {
+    w.objectIndex = w.order.RangeStart
 }
 
 
 func onCleanEvent(w *Worker) {
+    conn := w.connections[w.connIndex]
+
+    var key string
+    if conn.RequiresKey() {
+        key = fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
+    }
+
+    logger.Tracef("[worker %v] starting delete for object<%v> on %v at %v\n", w.spec.Id, w.objectIndex, conn.Target(), time.Now())
+
+    start := time.Now()
+    err := conn.DeleteObject(key, w.objectIndex)
+    end := time.Now()
+
+    logger.Tracef("[worker %v] completed delete for object<%v> on %v\n", w.spec.Id, w.objectIndex, conn.Target())
+
+    s := w.nextStat()
+    s.Error = SE_None
+    s.Phase = SP_Clean
+    s.TimeSincePhaseStartMillis = uint32(start.Sub(w.phaseStart) / (1000 * 1000))
+    s.DurationMicros = uint32(end.Sub(start) / 1000)
+    s.TargetIndex = uint16(w.connIndex)
+
+    if err != nil {
+        logger.Warnf("[worker %v] failure deleting object<%v> from %v: %v\n", w.spec.Id, w.objectIndex, conn.Target(), err)
+        s.Error = SE_OperationFailure
+    }
+
+    w.summary.data[SP_Clean][s.Error]++
+    w.sendSummary(&end, true)
+
+    // Advance our object ID ready for next time.
+    w.objectIndex++
+    if w.objectIndex >= w.order.RangeEnd {
+        logger.Tracef("[worker %v] clean up completedv\n", w.spec.Id)
+        w.setState(WS_CleanDone)
+        return
+    }
+
+    // Advance our connection index ready for next time
+    w.connIndex = (w.connIndex + 1) % uint64(len(w.connections))
 }
 
 
