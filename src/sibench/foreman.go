@@ -14,22 +14,6 @@ import "time"
 import "unsafe"
 
 
-/**
- * Find the greatest power-of-two number that is less than or equal to x.
- * (Credit to Hacker's Delight for the cunning branchless way of doing this!  A very cool trick...)
- */
-func previousPowerOfTwo(x uint64) uint64 {
-    x = x | (x >> 1);
-    x = x | (x >> 2);
-    x = x | (x >> 4);
-    x = x | (x >> 8);
-    x = x | (x >> 16);
-    x = x | (x >> 32);
-
-    return x - (x >> 1);
-}
-
-
 // Initial value for how long we will wait for a worker to report a summary
 // before we conclude that it has hung.
 // Note that we will dynamically adjust the actual value in response to incoming

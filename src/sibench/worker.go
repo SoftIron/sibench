@@ -26,48 +26,91 @@ const (
     WS_ReadDone
     WS_ReadWrite
     WS_ReadWriteDone
+    WS_Clean
+    WS_CleanDone
     WS_Terminated
 )
 
 
-/* 
- * Extra information associated with each state.
- */
+func workerStateToStr(state workerState) string {
+    switch state {
+        case WS_BadTransition:  return "BadTransition"
+        case WS_Init:           return "Init"
+        case WS_Connect:        return "Connect"
+        case WS_ConnectDone:    return "ConnectDone"
+        case WS_Write:          return "Write"
+        case WS_WriteDone:      return "WriteDone"
+        case WS_Prepare:        return "Prepare"
+        case WS_PrepareDone:    return "PrepareDone"
+        case WS_Read:           return "Read"
+        case WS_ReadDone:       return "ReadDone"
+        case WS_ReadWrite:      return "ReadWrite"
+        case WS_ReadWriteDone:  return "ReadWriteDone"
+        case WS_Clean:          return "Clean"
+        case WS_CleanDone:      return "CleanDone"
+        case WS_Terminated:     return "Terminated"
+        default:                return "Unknown WorkerState"
+    }
+}
+
+
+/* Function type used when states change, or when we are in our event loop */
+type workerStateFunction func(w *Worker)
+
+/* Extra information associated with each state. */
 type workerStateDetails struct {
-    /* Human readable name for debug statements. */
-    name string
+    /* Whether or not this is the start of a phase. */
+    isStartOfPhase bool
 
     /* Whether or not this is a state for which the Foreman should track our summary/heartbeat messages
-       in order to handle hung operations */
+       in order to handle operations which might hang. */
     canTimeout bool
+
+    /* Opcode to send on entry to the state, or OP_None */
+    opcodeOnEntry Opcode
+
+    /* If not nil, a function tp be called when we enter this state */
+    onEntry workerStateFunction;
+
+    /* If not nil, a function to be called when we go round our event loop */
+    onEventLoop workerStateFunction;
 }
 
 
-var wsDetails = map[workerState]workerStateDetails {
-    WS_BadTransition:  { "BadTranstition",  false },
-    WS_Init:           { "Init",            false },
-    WS_Connect:        { "Connecting",      true },
-    WS_ConnectDone:    { "ConnectingDone",  false },
-    WS_Write:          { "Writing",         true },
-    WS_WriteDone:      { "WritingDone",     false },
-    WS_Prepare:        { "Prepare",         true },
-    WS_PrepareDone:    { "PrepareDone",     false },
-    WS_Read:           { "Reading",         true },
-    WS_ReadDone:       { "ReadingDone",     false },
-    WS_ReadWrite:      { "ReadWrite",       true },
-    WS_ReadWriteDone:  { "ReadWriteDone",   false },
-    WS_Terminated:     { "Terminated",      false },
-}
+var wsDetails map[workerState]workerStateDetails
 
 
-func workerStateToStr(state workerState) string {
-    return wsDetails[state].name
+/** 
+ * We need to initialise our table in the init() function to avoid circular references caused by the use of
+ * function pointers.  (Go is strange like this: in most languages, the function pointers would be resolved
+ * in a later phase by the compiler, and so this wouldn't be considered a circular reference).
+ */
+func init() {
+    wsDetails = map[workerState]workerStateDetails {
+    //  State                StartOfPhase  CanTimeout  OpcpdeOnEntry       onEntry     onEventLoop
+        WS_BadTransition:  { false,        false,      OP_None,            nil,        nil              },
+        WS_Init:           { false,        false,      OP_None,            nil,        nil              },
+        WS_Connect:        { false,        true,       OP_None,            onConnect,  nil              },
+        WS_ConnectDone:    { false,        false,      OP_Connect,         nil,        nil              },
+        WS_Write:          { true,         true,       OP_WriteStart,      nil,        onWriteEvent     },
+        WS_WriteDone:      { false,        false,      OP_WriteStop,       nil,        nil              },
+        WS_Prepare:        { true,         true,       OP_None,            nil,        onPrepareEvent   },
+        WS_PrepareDone:    { false,        false,      OP_Prepare,         nil,        nil              },
+        WS_Read:           { true,         true,       OP_ReadStart,       nil,        onReadEvent      },
+        WS_ReadDone:       { false,        false,      OP_ReadStop,        nil,        nil              },
+        WS_ReadWrite:      { true,         true,       OP_ReadWriteStart,  nil,        onReadWriteEvent },
+        WS_ReadWriteDone:  { false,        false,      OP_ReadWriteStop,   nil,        nil              },
+        WS_Clean:          { true,         true,       OP_None,            onClean,    onCleanEvent     },
+        WS_CleanDone:      { false,        false,      OP_Clean,           nil,        nil              },
+        WS_Terminated:     { false,        false,      OP_Terminate,       nil,        nil              },
+    }
 }
 
 
 /*
  * A map of the state transitions that may be triggered by incoming opcodes.
  * Each opcode maps to a map from current state to next state. 
+ *
  * If an opcode has no entry for the current state, then the output will be the zero value,
  * which in this case is BadTransition. 
  */
@@ -81,6 +124,8 @@ var validWSTransitions = map[Opcode]map[workerState]workerState {
     OP_ReadStop:        { WS_Read:           WS_ReadDone },
     OP_ReadWriteStart:  { WS_PrepareDone:    WS_ReadWrite },
     OP_ReadWriteStop:   { WS_ReadWrite:      WS_ReadWriteDone },
+    OP_Clean:           { WS_ReadDone:       WS_Clean,
+                          WS_ReadWriteDone:  WS_Clean },
     OP_Terminate:       { WS_Init:           WS_Terminated,
                           WS_Connect:        WS_Terminated,
                           WS_ConnectDone:    WS_Terminated,
@@ -92,6 +137,8 @@ var validWSTransitions = map[Opcode]map[workerState]workerState {
                           WS_ReadDone:       WS_Terminated,
                           WS_ReadWrite:      WS_Terminated,
                           WS_ReadWriteDone:  WS_Terminated,
+                          WS_Clean:          WS_Terminated,
+                          WS_CleanDone:      WS_Terminated,
                           WS_Terminated:     WS_Terminated },
 }
 
@@ -198,78 +245,16 @@ func NewWorker(spec *WorkerSpec, order *WorkOrder) (*Worker, error) {
 }
 
 
-/**
- * Clears our stats (but does not free them).
- */
-func (w *Worker) clearStats() {
-    w.nextStatIndex = 0
-    w.statLastSliceIndex = 0
-    w.statSliceIndex = 0
-}
-
-
-/**
- * Returns a pointer to the next Stat object to fill in when we complete an op.
- *
- * This will allocate a new slice of Stats whenever our current slice fills up. 
- * (We don't append to slices, so thee isn't any grow-then-copy or GC.
- */
-func (w *Worker) nextStat() *Stat {
-    result := &(w.stats[w.statSliceIndex][w.nextStatIndex])
-
-    w.nextStatIndex++
-    if w.nextStatIndex == len(w.stats[w.statSliceIndex]) {
-        w.nextStatIndex = 0
-        w.statSliceIndex++
-        if w.statSliceIndex >= w.statLastSliceIndex {
-            w.statLastSliceIndex++
-            w.stats = append(w.stats, make([]Stat, w.spec.StatPreallocationCount))
-        }
-    }
-
-    return result
-}
-
-
-/**
- * At the end of a phase, the Foreman asks each worker in turn to send their Stats back to the 
- * manager, using a TCP connection that the Foreman provides.
- *
- * When we're done, we clear our stats so we can reuse them.
- */
-func (w *Worker) UploadStats(tcpConnection *comms.MessageConnection) {
-    for i := 0; i <= w.statSliceIndex; i++ {
-        if i != w.statSliceIndex {
-            logger.Debugf("[worker %v] sending complete stats buffer: %v entries\n", w.spec.Id, len(w.stats[i]))
-            tcpConnection.Send(OP_StatDetails, w.stats[i])
-        } else {
-            logger.Debugf("[worker %v] sending partial stats buffer: %v entries\n", w.spec.Id, w.nextStatIndex)
-            tcpConnection.Send(OP_StatDetails, w.stats[i][:w.nextStatIndex])
-        }
-    }
-
-    w.clearStats()
-}
-
-
-func (w *Worker) Id() uint64 {
-    return w.spec.Id
-}
-
-
 func (w *Worker) eventLoop() {
     for w.state != WS_Terminated {
         select {
             case op := <-w.spec.OpChannel: w.handleOpcode(op)
 
-            default: switch w.state {
-                case WS_Connect:    w.connect()
-                case WS_Write:      w.write()
-                case WS_Prepare:    w.prepare()
-                case WS_Read:       w.read()
-                case WS_ReadWrite:  w.readWrite()
-                default:
-            }
+            default:
+                fn := wsDetails[w.state].onEventLoop
+                if fn != nil {
+                    fn(w)
+                }
         }
     }
 
@@ -291,26 +276,43 @@ func (w *Worker) handleOpcode(op Opcode) {
         return
     }
 
-    // Connect and Prepare are the two opcodes that take time to complete, and so we send responses for 
-    // them when they have actually completed their work.
-    // The rest of the opcodes take place immediately, so we can respond with acknowledgement here.
+    w.setState(nextState)
+}
 
-    if (op != OP_Connect) && (op != OP_Prepare) {
+
+func (w *Worker) setState(state workerState) {
+    logger.Debugf("[worker %v] changing state: %v -> %v\n", w.spec.Id, workerStateToStr(w.state), workerStateToStr(state))
+    w.state = state
+
+    // If we have an opcode to send when we enter this state, then send it.
+    op := wsDetails[state].opcodeOnEntry
+    if op != OP_None {
         w.sendResponse(op, nil)
     }
 
-    w.setState(nextState)
-    w.phaseFirstOp = true
-    w.phaseStart = time.Now()
-    w.lastSummary = w.phaseStart
-    w.summary.data.Zero()
+    // If we have a function to call when we enter this state, then invoke it.
+    fn := wsDetails[state].onEntry
+    if fn != nil {
+        fn(w)
+    }
+
+    // If we're starting a new phase, then clear our stats and set suitable flags.
+    if wsDetails[state].isStartOfPhase {
+        w.phaseFirstOp = true
+        w.phaseStart = time.Now()
+        w.lastSummary = w.phaseStart
+        w.summary.data.Zero()
+    }
+
+    // If we're changing from a state which needs timeout monitoring from one which doesn't, or vice versa,
+    // then let the foreman's stat processing routine know with a summary update.
+    if w.summary.canTimeout != wsDetails[state].canTimeout {
+        w.summary.canTimeout = wsDetails[state].canTimeout
+        now := time.Now()
+        w.sendSummary(&now, true)
+    }
 }
 
-
-func (w *Worker) sendResponse(op Opcode, err error) {
-    logger.Debugf("[worker %v] sending Response: %v, %v\n", w.spec.Id, op.ToString(), err)
-    w.spec.ResponseChannel <- &WorkerResponse{ WorkerId: w.spec.Id, Op: op, Error: err }
-}
 
 
 func (w *Worker) fail(err error) {
@@ -320,14 +322,7 @@ func (w *Worker) fail(err error) {
 }
 
 
-func (w *Worker) hung(err error) {
-    w.state = WS_Terminated
-    logger.Errorf("%v\n", err.Error())
-    w.sendResponse(OP_Hung, err)
-}
-
-
-func (w *Worker) connect() {
+func onConnect(w *Worker) {
     for _, t := range w.order.Targets {
         conn, err := NewConnection(w.order.ConnectionType, t, w.order.ProtocolConfig, w.spec.ConnConfig)
         if err == nil {
@@ -344,86 +339,22 @@ func (w *Worker) connect() {
     }
 
     logger.Debugf("[worker %v] successfully connected\n", w.spec.Id)
-
     w.setState(WS_ConnectDone)
-    w.sendResponse(OP_Connect, nil)
 }
 
 
-/* 
- * Sends a summary of our stats to our foreman, and then clears our summary data.
- *
- * This only does anything if either it's been at least 250ms since our last time,
- * or if force is set true.
- */
-func (w *Worker) sendSummary(t *time.Time, force bool) {
-    if force || ((*t).Sub(w.lastSummary) > (250 * time.Millisecond)) {
-        w.lastSummary = *t
-        w.spec.SummaryChannel <- w.summary
-        w.summary.data.Zero()
-    }
-}
-
-
-func (w *Worker) writeOrPrepare(phase StatPhase) {
-    w.generator.Generate(w.order.ObjectSize, w.objectIndex, w.cycle, &w.objectBuffer)
-    conn := w.connections[w.connIndex]
-
-    var key string
-    if conn.RequiresKey() {
-        key = fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
-    }
-
-    logger.Tracef("[worker %v] starting put for object<%v> on %v at %v\n", w.spec.Id, w.objectIndex, conn.Target(), time.Now())
-
-    start := time.Now()
-    err := conn.PutObject(key, w.objectIndex, w.objectBuffer)
-    end := time.Now()
-
-    logger.Tracef("[worker %v] completed put for object<%v> on %v\n", w.spec.Id, w.objectIndex, conn.Target())
-
-    s := w.nextStat()
-    s.Error = SE_None
-    s.Phase = phase
-    s.TimeSincePhaseStartMillis = uint32(start.Sub(w.phaseStart) / (1000 * 1000))
-    s.DurationMicros = uint32(end.Sub(start) / 1000)
-    s.TargetIndex = uint16(w.connIndex)
-
-    if err != nil {
-        logger.Warnf("[worker %v] failure putting object<%v> to %v: %v\n", w.spec.Id, w.objectIndex, conn.Target(), err)
-        s.Error = SE_OperationFailure
-    }
-
-    w.summary.data[phase][s.Error]++
-    w.sendSummary(&end, true)
-
-    // Advance our object ID ready for next time.
-    w.objectIndex++
-    if w.objectIndex >= w.order.RangeEnd {
-        w.objectIndex = w.order.RangeStart
-        w.cycle++
-        logger.Tracef("[worker %v] advancing cycle to %v\n", w.spec.Id, w.cycle)
-    }
-
-    // Advance our connection index ready for next time
-    w.connIndex = (w.connIndex + 1) % uint64(len(w.connections))
-}
-
-
-func (w *Worker) write() {
+func onWriteEvent(w *Worker) {
     w.limitBandwidth()
     w.writeOrPrepare(SP_Write)
 }
 
 
-func (w *Worker) prepare() {
+func onPrepareEvent(w *Worker) {
     // See if we've prepared a whole cycle of objects.
     if w.cycle > 0 {
         logger.Debugf("[worker %v] finished preparing\n", w.spec.Id)
-
         w.invalidateConnectionCaches()
         w.setState(WS_PrepareDone)
-        w.sendResponse(OP_Prepare, nil)
         return
     }
 
@@ -431,7 +362,7 @@ func (w *Worker) prepare() {
 }
 
 
-func (w *Worker) read() {
+func onReadEvent(w *Worker) {
     w.limitBandwidth()
 
     conn := w.connections[w.connIndex]
@@ -484,12 +415,66 @@ func (w *Worker) read() {
 }
 
 
-func (w *Worker) readWrite() {
+func onReadWriteEvent(w *Worker) {
     if int(w.order.ReadWriteMix) < rand.Intn(100) {
-        w.write()
+        onWriteEvent(w)
     } else {
-        w.read()
+        onReadEvent(w)
     }
+}
+
+
+func onClean(w *Worker) {
+}
+
+
+func onCleanEvent(w *Worker) {
+}
+
+
+
+func (w *Worker) writeOrPrepare(phase StatPhase) {
+    w.generator.Generate(w.order.ObjectSize, w.objectIndex, w.cycle, &w.objectBuffer)
+    conn := w.connections[w.connIndex]
+
+    var key string
+    if conn.RequiresKey() {
+        key = fmt.Sprintf("%v-%v", w.order.ObjectKeyPrefix, w.objectIndex)
+    }
+
+    logger.Tracef("[worker %v] starting put for object<%v> on %v at %v\n", w.spec.Id, w.objectIndex, conn.Target(), time.Now())
+
+    start := time.Now()
+    err := conn.PutObject(key, w.objectIndex, w.objectBuffer)
+    end := time.Now()
+
+    logger.Tracef("[worker %v] completed put for object<%v> on %v\n", w.spec.Id, w.objectIndex, conn.Target())
+
+    s := w.nextStat()
+    s.Error = SE_None
+    s.Phase = phase
+    s.TimeSincePhaseStartMillis = uint32(start.Sub(w.phaseStart) / (1000 * 1000))
+    s.DurationMicros = uint32(end.Sub(start) / 1000)
+    s.TargetIndex = uint16(w.connIndex)
+
+    if err != nil {
+        logger.Warnf("[worker %v] failure putting object<%v> to %v: %v\n", w.spec.Id, w.objectIndex, conn.Target(), err)
+        s.Error = SE_OperationFailure
+    }
+
+    w.summary.data[phase][s.Error]++
+    w.sendSummary(&end, true)
+
+    // Advance our object ID ready for next time.
+    w.objectIndex++
+    if w.objectIndex >= w.order.RangeEnd {
+        w.objectIndex = w.order.RangeStart
+        w.cycle++
+        logger.Tracef("[worker %v] advancing cycle to %v\n", w.spec.Id, w.cycle)
+    }
+
+    // Advance our connection index ready for next time
+    w.connIndex = (w.connIndex + 1) % uint64(len(w.connections))
 }
 
 
@@ -545,19 +530,16 @@ func (w *Worker) limitBandwidth() {
 }
 
 
-func (w *Worker) setState(state workerState) {
-    logger.Debugf("[worker %v] changing state: %v -> %v\n", w.spec.Id, workerStateToStr(w.state), workerStateToStr(state))
-    w.state = state
-
-    // If we're changing from a state which needs timeout monitoring from one which doesn't, or vice versa,
-    // then let the foreman's stat processing routine know with a summary update.
-
-    if w.summary.canTimeout != wsDetails[state].canTimeout {
-        w.summary.canTimeout = wsDetails[state].canTimeout
-        now := time.Now()
-        w.sendSummary(&now, true)
-    }
+func (w *Worker) Id() uint64 {
+    return w.spec.Id
 }
+
+
+func (w *Worker) sendResponse(op Opcode, err error) {
+    logger.Debugf("[worker %v] sending Response: %v, %v\n", w.spec.Id, op.ToString(), err)
+    w.spec.ResponseChannel <- &WorkerResponse{ WorkerId: w.spec.Id, Op: op, Error: err }
+}
+
 
 /*
  * Tell all of our connections to invalidate their caches 
@@ -567,3 +549,73 @@ func (w* Worker) invalidateConnectionCaches() {
         conn.InvalidateCache()
     }
 }
+
+
+/**
+ * Clears our stats (but does not free them).
+ */
+func (w *Worker) clearStats() {
+    w.nextStatIndex = 0
+    w.statLastSliceIndex = 0
+    w.statSliceIndex = 0
+}
+
+
+/**
+ * Returns a pointer to the next Stat object to fill in when we complete an op.
+ *
+ * This will allocate a new slice of Stats whenever our current slice fills up. 
+ * (We don't append to slices, so thee isn't any grow-then-copy or GC.
+ */
+func (w *Worker) nextStat() *Stat {
+    result := &(w.stats[w.statSliceIndex][w.nextStatIndex])
+
+    w.nextStatIndex++
+    if w.nextStatIndex == len(w.stats[w.statSliceIndex]) {
+        w.nextStatIndex = 0
+        w.statSliceIndex++
+        if w.statSliceIndex >= w.statLastSliceIndex {
+            w.statLastSliceIndex++
+            w.stats = append(w.stats, make([]Stat, w.spec.StatPreallocationCount))
+        }
+    }
+
+    return result
+}
+
+
+/**
+ * At the end of a phase, the Foreman asks each worker in turn to send their Stats back to the 
+ * manager, using a TCP connection that the Foreman provides.
+ *
+ * When we're done, we clear our stats so we can reuse them.
+ */
+func (w *Worker) UploadStats(tcpConnection *comms.MessageConnection) {
+    for i := 0; i <= w.statSliceIndex; i++ {
+        if i != w.statSliceIndex {
+            logger.Debugf("[worker %v] sending complete stats buffer: %v entries\n", w.spec.Id, len(w.stats[i]))
+            tcpConnection.Send(OP_StatDetails, w.stats[i])
+        } else {
+            logger.Debugf("[worker %v] sending partial stats buffer: %v entries\n", w.spec.Id, w.nextStatIndex)
+            tcpConnection.Send(OP_StatDetails, w.stats[i][:w.nextStatIndex])
+        }
+    }
+
+    w.clearStats()
+}
+
+
+/* 
+ * Sends a summary of our stats to our foreman, and then clears our summary data.
+ *
+ * This only does anything if either it's been at least 250ms since our last time,
+ * or if force is set true.
+ */
+func (w *Worker) sendSummary(t *time.Time, force bool) {
+    if force || ((*t).Sub(w.lastSummary) > (250 * time.Millisecond)) {
+        w.lastSummary = *t
+        w.spec.SummaryChannel <- w.summary
+        w.summary.data.Zero()
+    }
+}
+

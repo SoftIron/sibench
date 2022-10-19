@@ -112,6 +112,12 @@ func (conn *FileConnectionBase) GetObject(key string, id uint64, buffer []byte) 
 }
 
 
+func (conn *FileConnectionBase) DeleteObject(key string, id uint64) error {
+    filename := filepath.Join(conn.root, conn.dir, key)
+    return os.Remove(filename)
+}
+
+
 func (conn *FileConnectionBase) InvalidateCache() error {
     return nil
 }

@@ -51,25 +51,6 @@ func (s *StatSummary) Total() uint64 {
 }
 
 
-/* Helper to convert values into to K, G, M etc. units */
-func ToUnits(val uint64) string {
-    const unit = 1024
-
-    if val < unit {
-        return fmt.Sprintf("%d", val)
-    }
-
-    div, exp := uint64(unit), 0
-
-    for n := val / unit; n >= unit; n /= unit {
-        div *= unit
-        exp++
-    }
-
-    return fmt.Sprintf("%.1f %c", float64(val) / float64(div), "KMGTPE"[exp])
-}
-
-
 /* Produce a human readable string from a StatSummary object */
 func (s *StatSummary) String(objectSize uint64, useBytes bool) string {
     result := ""

@@ -136,6 +136,11 @@ func (conn *BlockConnection) GetObject(key string, id uint64, buffer []byte) err
 }
 
 
+func (conn *BlockConnection) DeleteObject(key string, id uint64) error {
+    return nil
+}
+
+
 func (conn *BlockConnection) InvalidateCache() error {
     return nil
 }

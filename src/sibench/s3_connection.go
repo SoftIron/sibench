@@ -146,6 +146,11 @@ func (conn *S3Connection) GetObject(key string, id uint64, buffer []byte) error 
 }
 
 
+func (conn *S3Connection) DeleteObject(key string, id uint64) error {
+    return nil
+}
+
+
 func (conn *S3Connection) InvalidateCache() error {
     return nil
 }
