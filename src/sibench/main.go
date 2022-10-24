@@ -99,8 +99,8 @@ Usage:
   sibench s3 run     [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY)
-                     [--skip-read-verification] [--servers SERVERS] <targets> ...`
+                     [--s3-port PORT] [--s3-bucket BUCKET] (--s3-access-key KEY) (--s3-secret-key KEY) 
+                     [--clean-up] [--skip-read-verification] [--servers SERVERS] <targets> ...`
 
     if runtime.GOOS == "linux" {
         s += ` 
