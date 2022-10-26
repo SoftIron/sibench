@@ -26,8 +26,8 @@ const (
     WS_ReadDone
     WS_ReadWrite
     WS_ReadWriteDone
-    WS_Clean
-    WS_CleanDone
+    WS_Delete
+    WS_DeleteDone
     WS_Terminated
 )
 
@@ -46,8 +46,8 @@ func workerStateToStr(state workerState) string {
         case WS_ReadDone:       return "ReadDone"
         case WS_ReadWrite:      return "ReadWrite"
         case WS_ReadWriteDone:  return "ReadWriteDone"
-        case WS_Clean:          return "Clean"
-        case WS_CleanDone:      return "CleanDone"
+        case WS_Delete:         return "Delete"
+        case WS_DeleteDone:     return "DeleteDone"
         case WS_Terminated:     return "Terminated"
         default:                return "Unknown WorkerState"
     }
@@ -100,8 +100,8 @@ func init() {
         WS_ReadDone:       { false,        false,      OP_ReadStop,        nil,        nil              },
         WS_ReadWrite:      { true,         true,       OP_ReadWriteStart,  nil,        onReadWriteEvent },
         WS_ReadWriteDone:  { false,        false,      OP_ReadWriteStop,   nil,        nil              },
-        WS_Clean:          { true,         true,       OP_None,            onClean,    onCleanEvent     },
-        WS_CleanDone:      { false,        false,      OP_Clean,           nil,        nil              },
+        WS_Delete:         { true,         true,       OP_None,            onDelete,   onDeleteEvent    },
+        WS_DeleteDone:     { false,        false,      OP_Delete,          nil,        nil              },
         WS_Terminated:     { false,        false,      OP_Terminate,       nil,        nil              },
     }
 }
@@ -124,8 +124,8 @@ var validWSTransitions = map[Opcode]map[workerState]workerState {
     OP_ReadStop:        { WS_Read:           WS_ReadDone },
     OP_ReadWriteStart:  { WS_PrepareDone:    WS_ReadWrite },
     OP_ReadWriteStop:   { WS_ReadWrite:      WS_ReadWriteDone },
-    OP_Clean:           { WS_ReadDone:       WS_Clean,
-                          WS_ReadWriteDone:  WS_Clean },
+    OP_Delete:          { WS_ReadDone:       WS_Delete,
+                          WS_ReadWriteDone:  WS_Delete },
     OP_Terminate:       { WS_Init:           WS_Terminated,
                           WS_Connect:        WS_Terminated,
                           WS_ConnectDone:    WS_Terminated,
@@ -137,8 +137,8 @@ var validWSTransitions = map[Opcode]map[workerState]workerState {
                           WS_ReadDone:       WS_Terminated,
                           WS_ReadWrite:      WS_Terminated,
                           WS_ReadWriteDone:  WS_Terminated,
-                          WS_Clean:          WS_Terminated,
-                          WS_CleanDone:      WS_Terminated,
+                          WS_Delete:         WS_Terminated,
+                          WS_DeleteDone:     WS_Terminated,
                           WS_Terminated:     WS_Terminated },
 }
 
@@ -261,7 +261,7 @@ func (w *Worker) eventLoop() {
     logger.Debugf("[worker %v] shutting down\n", w.spec.Id)
 
     for _, conn := range w.connections {
-        conn.WorkerClose()
+        conn.WorkerClose(w.order.CleanUpOnClose)
     }
 }
 
@@ -423,12 +423,12 @@ func onReadWriteEvent(w *Worker) {
 }
 
 
-func onClean(w *Worker) {
+func onDelete(w *Worker) {
     w.objectIndex = w.order.RangeStart
 }
 
 
-func onCleanEvent(w *Worker) {
+func onDeleteEvent(w *Worker) {
     conn := w.connections[w.connIndex]
 
     var key string
@@ -446,7 +446,7 @@ func onCleanEvent(w *Worker) {
 
     s := w.nextStat()
     s.Error = SE_None
-    s.Phase = SP_Clean
+    s.Phase = SP_Delete
     s.TimeSincePhaseStartMillis = uint32(start.Sub(w.phaseStart) / (1000 * 1000))
     s.DurationMicros = uint32(end.Sub(start) / 1000)
     s.TargetIndex = uint16(w.connIndex)
@@ -456,14 +456,14 @@ func onCleanEvent(w *Worker) {
         s.Error = SE_OperationFailure
     }
 
-    w.summary.data[SP_Clean][s.Error]++
+    w.summary.data[SP_Delete][s.Error]++
     w.sendSummary(&end, true)
 
     // Advance our object ID ready for next time.
     w.objectIndex++
     if w.objectIndex >= w.order.RangeEnd {
-        logger.Tracef("[worker %v] clean up completedv\n", w.spec.Id)
-        w.setState(WS_CleanDone)
+        logger.Tracef("[worker %v] all objects deleted\n", w.spec.Id)
+        w.setState(WS_DeleteDone)
         return
     }
 

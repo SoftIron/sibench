@@ -16,6 +16,7 @@ import "path/filepath"
 type CephFSConnection struct {
     FileConnectionBase
     protocol ProtocolConfig
+    worker WorkerConnectionConfig
     monitor string
     mountPoint string
 }
@@ -24,6 +25,7 @@ type CephFSConnection struct {
 func NewCephFSConnection(target string, protocol ProtocolConfig, worker WorkerConnectionConfig) (*CephFSConnection, error) {
     var conn CephFSConnection
     conn.protocol = protocol
+    conn.worker = worker
     conn.monitor = target
     conn.mountPoint = filepath.Join(globalConfig.MountsDir, target)
     return &conn, nil
@@ -48,7 +50,7 @@ func (conn *CephFSConnection) ManagerConnect() error {
     // as we can).
 
     err1 := conn.CreateDirectory()
-    err2 := conn.WorkerClose()
+    err2 := conn.WorkerClose(false)
     if err1 != nil {
         return err1
     }
@@ -57,19 +59,22 @@ func (conn *CephFSConnection) ManagerConnect() error {
 }
 
 
-func (conn *CephFSConnection) ManagerClose() error {
+func (conn *CephFSConnection) ManagerClose(cleanup bool) error {
     err := conn.WorkerConnect()
     if err != nil {
         return err
     }
 
-    err1 := conn.DeleteDirectory()
-    err2 := conn.WorkerClose()
-    if err1 != nil {
-        return err1
+    if cleanup {
+        err = conn.DeleteDirectory()
     }
 
-    return err2
+    err2 := conn.WorkerClose(cleanup)
+    if err != nil {
+        return err2
+    }
+
+    return err
 }
 
 
@@ -120,7 +125,7 @@ func (conn *CephFSConnection) WorkerConnect() error {
 }
 
 
-func (conn *CephFSConnection) WorkerClose() error {
+func (conn *CephFSConnection) WorkerClose(cleanup bool) error {
     logger.Infof("Closing cephfs connection to %v\n", conn.monitor)
 
     if mountManager.Release(conn.mountPoint) {

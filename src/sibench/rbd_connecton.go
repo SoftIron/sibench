@@ -53,7 +53,7 @@ func (conn *RbdConnection) ManagerConnect() error {
 }
 
 
-func (conn *RbdConnection) ManagerClose() error {
+func (conn *RbdConnection) ManagerClose(cleanup bool) error {
     conn.ioctx.Destroy()
     conn.client.Shutdown()
     return nil
@@ -108,13 +108,16 @@ func (conn *RbdConnection) WorkerConnect() error {
 }
 
 
-func (conn *RbdConnection) WorkerClose() error {
+func (conn *RbdConnection) WorkerClose(cleanup bool) error {
     if conn.image != nil {
         conn.image.Close()
-        conn.image.Remove()
+
+        if cleanup {
+            conn.image.Remove()
+        }
     }
 
-    return conn.ManagerClose()
+    return conn.ManagerClose(cleanup)
 }
 
 
@@ -127,6 +130,11 @@ func (conn *RbdConnection) objectOffset(id uint64) int64 {
 
 
 func (conn *RbdConnection) RequiresKey() bool {
+    return false
+}
+
+
+func (conn *RbdConnection) CanDelete() bool {
     return false
 }
 

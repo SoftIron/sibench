@@ -47,7 +47,7 @@ func (conn *BlockConnection) ManagerConnect() error {
 }
 
 
-func (conn *BlockConnection) ManagerClose() error {
+func (conn *BlockConnection) ManagerClose(cleanup bool) error {
     return nil
 }
 
@@ -75,12 +75,17 @@ func (conn *BlockConnection) WorkerConnect() error {
 }
 
 
-func (conn *BlockConnection) WorkerClose() error {
+func (conn *BlockConnection) WorkerClose(cleanup bool) error {
     return conn.fd.Close()
 }
 
 
 func (conn *BlockConnection) RequiresKey() bool {
+    return false
+}
+
+
+func (conn *BlockConnection) CanDelete() bool {
     return false
 }
 

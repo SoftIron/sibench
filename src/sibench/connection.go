@@ -17,10 +17,10 @@ type Connection interface {
     /* The manager will typically open a connection to the backend to test it, and will then
      * close it before firing up the workers to do their thing. */
     ManagerConnect() error
-    ManagerClose() error
+    ManagerClose(cleanup bool) error
 
     WorkerConnect() error
-    WorkerClose() error
+    WorkerClose(cleanup bool) error
 
     /* 
      * Returns true if the Put/Get methods make use of a string key, or if we can get away with
@@ -28,10 +28,16 @@ type Connection interface {
      *
      * We do this because:
      *   (a) generating the string key can be expensive, and we don't want to do it INSIDE our
-     *       timing code.
-     *   (b) We don't want to do it all if we don't need to.  This lets a worker decide...
+     *       timing code (which means not doing inside the Put/Get/Delete functions).
+     *   (b) We don't want to do it all if we don't need to.  This lets a worker decide.
      */
     RequiresKey() bool
+
+    /**
+     * Returns true if the connection can delete individual objects in the Delete phase.
+     * This is distinct from any cleaning up that might be done when the connection is closed.
+     */
+    CanDelete() bool
 
     /* 
      * Both Key and ID uniquely identify the same object.
@@ -49,6 +55,10 @@ type Connection interface {
     GetObject(key string, id uint64, buffer []byte) error
     DeleteObject(key string, id uint64) error
 
+    /*
+     * Some connection types can have their cache explitly cleared (which we do between the
+     * write and read phases).
+     */
     InvalidateCache() error
 }
 
@@ -71,7 +81,7 @@ type WorkerConnectionConfig struct {
 /*
  * Factory function that mints new connections of the appropriate type.
  *
- * config is a string->string map that contains all the protocol-specific details a Connection
+ * protocolConfig is a string->string map that contains all the protocol-specific details a Connection
  * needs (such as username, key, S3 bucket, ceph pool..)
  *
  * workerConfig is all the protocol-independent information that a worker knows that might be needed

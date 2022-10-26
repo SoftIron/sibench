@@ -166,6 +166,8 @@ Option Definitions
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 | **\-\-individual-stats**       |        | \-        | Record the individual stats in the output file.  This may be VERY big                   | off                |
 +--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
+| **\-\-clean-up**               |        | \-        | Delete the data at the end of the benchmark run                                         | off                |
++--------------------------------+--------+-----------+-----------------------------------------------------------------------------------------+--------------------+
 
 
 Targets
@@ -279,13 +281,50 @@ long enough run time for ``sibench`` to write all of the objects specified by th
 all the objects are ready for reading.
 
 
-Slow Shutdown
-~~~~~~~~~~~~~
+The Delete Phase
+~~~~~~~~~~~~~~~~
 
-There are times when ``sibench`` can take a long time when cleaning up after a
-benchmark run.  This is due to Ceph being extremely slow at deleting objects.
+``sibench`` does not clean up after itself by default, since Ceph can be very
+slow at deleting objects.  However, if you wish to run multiple runs over a 
+weekend (perhaps by using Benchmaster to control sibench), then you may run the
+risk of running out of storage space on the Ceph cluster.  In such cases, 
+deleting the objects at the end of the run may be necessary.  You can enable
+this by using the ``--clean-up`` flag.
 
-Future versions of ``sibench`` may add an option to not clean up their data in order
-to avoid this.  (For test clusters with no production data, it would be faster
-to not have ``sibench`` clean up, but to delete and recreate the Ceph pools
-instead).
+Setting ``--clean-up`` behaves differently depending on the protocol, but in 
+essence there are two operations: deleting the individual objects, and cleaning
+up other resources.  Protocols may do either, neither or both.
+
+In addition, the cleanup may be synchonous or not.  This is best illustrated
+by comparing the behaviour or RADOS and RBD.
+
+With RADOS, we delete the objects synchronously - meaning that when sibench
+completes the run, Ceph will have deleted the objects and will have no pending
+workload.
+
+With RBD, we delete the RBD image synchronously, but under the hood, that image
+is comprised of multiple objects, and Ceph does not delete them at once, but
+adds them to a queue for later deletion.
+
+Clealy asynchonous deletes are bad if we with to run a set of benchmarks: when
+the benchmark terminates, the Ceph cluster under test may still be deleting in
+background, and thus degrading the performance of subsequent runs.
+
+Sadly, there's nothing sibench can do to determine completion in such cases.
+
+|----------+---------------+-----------------------+------------------------------------+
+| Protocol | Object Delete | End Of Run Clean-up   | Synchronous                        |
+|==========+===============+=======================+====================================+
+| s3       | yes           | no                    | yes                                |
+|----------+---------------+-----------------------+------------------------------------+
+| rados    | yes           | no                    | yes                                |
+|----------+---------------+-----------------------+------------------------------------+
+| cephfs   | yes           | Deletes the directory | TBD                                |
+|----------+---------------+-----------------------+------------------------------------+
+| rbd      | no            | Deletes the images    | no                                 |
+|----------+---------------+-----------------------+------------------------------------+
+| block    | no            | no                    | n/a                                |
+|----------+---------------+-----------------------+------------------------------------+
+| file     | yes           | no                    | dependent on underlying filesystem |
+|----------+---------------+-----------------------+------------------------------------+
+
