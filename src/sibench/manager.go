@@ -70,7 +70,7 @@ func RunBenchmark(j *Job) error {
         return err
     }
 
-    defer conn.ManagerClose()
+    defer conn.ManagerClose(j.order.CleanUpOnClose)
 
     m.connectToServers()
     defer m.disconnectFromServers()
@@ -105,9 +105,9 @@ func RunBenchmark(j *Job) error {
         m.runPhaseForTime(phaseTime, OP_ReadWriteStart, OP_ReadWriteStop)
     }
 
-    if j.cleanUp {
-        logger.Infof("\n---------------------- CLEAN UP ---------------------------\n")
-        m.runPhaseToCompletion(OP_Clean)
+    if (conn.CanDelete() && j.order.CleanUpOnClose) {
+        logger.Infof("\n----------------------- DELETE ----------------------------\n")
+        m.runPhaseToCompletion(OP_Delete)
     }
 
     // Process the stats.

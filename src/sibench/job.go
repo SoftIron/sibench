@@ -44,6 +44,5 @@ type Job struct {
 
     /* extra */
     useBytes bool       // Boolean value to specify if you want the output in Bytes and not Bits
-    cleanUp bool        // Whether we should try to delete data created during a benchmark.
 }
 

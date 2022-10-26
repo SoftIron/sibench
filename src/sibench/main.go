@@ -107,29 +107,29 @@ Usage:
   sibench rados run  [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY) [--clean-up]
-                     [--skip-read-verification] [--servers SERVERS] <targets> ...
+                     [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
+                     [--clean-up] [--skip-read-verification] [--servers SERVERS] <targets> ...
   sibench cephfs run [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [-m DIR] [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
-                     [--skip-read-verification] [--servers SERVERS] <targets> ...
+                     [--clean-up] [--skip-read-verification] [--servers SERVERS] <targets> ...
   sibench rbd run    [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)
-                     [--skip-read-verification] [--servers SERVERS] <targets> ...`
+                     [--clean-up] [--skip-read-verification] [--servers SERVERS] <targets> ...`
     }
 
     s += ` 
   sibench block run  [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [--block-device DEVICE] [--skip-read-verification] [--servers SERVERS] 
+                     [--block-device DEVICE] [--clean-up] [--skip-read-verification] [--servers SERVERS] 
   sibench file run   [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [--file-dir DIR] [--skip-read-verification] [--servers SERVERS] 
+                     [--file-dir DIR] [--clean-up] [--skip-read-verification] [--servers SERVERS] 
   sibench -h | --help
 
 Options:
@@ -353,9 +353,9 @@ func startRun(args *Arguments) {
     j.rampUp = uint64(args.RampUp)
     j.rampDown = uint64(args.RampDown)
     j.useBytes = args.UseBytes
-    j.cleanUp = args.CleanUp
 
     j.order.JobId = 1
+    j.order.CleanUpOnClose = args.CleanUp
     j.order.ObjectKeyPrefix = createUniquePrefix()
     j.order.ObjectSize = args.ObjectSizeInBits
     j.order.Seed = uint64(time.Now().Unix())

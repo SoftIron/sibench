@@ -40,7 +40,7 @@ func (conn *FileConnection) ManagerConnect() error {
 }
 
 
-func (conn *FileConnection) ManagerClose() error {
+func (conn *FileConnection) ManagerClose(cleanup bool) error {
     return nil
 }
 
@@ -67,7 +67,7 @@ func (conn *FileConnection) WorkerConnect() error {
 }
 
 
-func (conn *FileConnection) WorkerClose() error {
+func (conn *FileConnection) WorkerClose(cleanup bool) error {
     path := filepath.Join(conn.root, conn.dir)
     logger.Infof("Closing file connection to %v\n", path)
     return nil

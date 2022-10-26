@@ -48,8 +48,8 @@ func (conn *S3Connection) ManagerConnect() error {
 }
 
 
-func (conn *S3Connection) ManagerClose() error {
-    return conn.WorkerClose()
+func (conn *S3Connection) ManagerClose(cleanup bool) error {
+    return conn.WorkerClose(cleanup)
 }
 
 
@@ -89,7 +89,7 @@ func (conn *S3Connection) WorkerConnect() error {
 }
 
 
-func (conn *S3Connection) WorkerClose() error {
+func (conn *S3Connection) WorkerClose(cleanup bool) error {
     // Since S3 is a stateless protocol, there is no Close necessary.
     return nil
 }
@@ -103,6 +103,10 @@ func (conn *S3Connection) createBucket(bucket string) error {
 
 
 func (conn *S3Connection) RequiresKey() bool {
+    return true
+}
+
+func (conn *S3Connection) CanDelete() bool {
     return true
 }
 

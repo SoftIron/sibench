@@ -39,8 +39,8 @@ func (conn *RadosConnection) ManagerConnect() error {
 }
 
 
-func (conn *RadosConnection) ManagerClose() error {
-    return conn.WorkerClose()
+func (conn *RadosConnection) ManagerClose(cleanup bool) error {
+    return conn.WorkerClose(cleanup)
 }
 
 
@@ -56,7 +56,7 @@ func (conn *RadosConnection) WorkerConnect() error {
 }
 
 
-func (conn *RadosConnection) WorkerClose() error {
+func (conn *RadosConnection) WorkerClose(cleanup bool) error {
     conn.ioctx.Destroy()
     conn.client.Shutdown()
     return nil
@@ -64,6 +64,11 @@ func (conn *RadosConnection) WorkerClose() error {
 
 
 func (conn *RadosConnection) RequiresKey() bool {
+    return true
+}
+
+
+func (conn *RadosConnection) CanDelete() bool {
     return true
 }
 
