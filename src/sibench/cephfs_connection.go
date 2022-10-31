@@ -49,7 +49,7 @@ func (conn *CephFSConnection) ManagerConnect() error {
     // (Not that there's necessarily a problem in doing that, but let's keep things as lightweight
     // as we can).
 
-    err1 := conn.CreateDirectory()
+    err1 := conn.CreateDirectories()
     err2 := conn.WorkerClose(false)
     if err1 != nil {
         return err1
@@ -66,7 +66,7 @@ func (conn *CephFSConnection) ManagerClose(cleanup bool) error {
     }
 
     if cleanup {
-        err = conn.DeleteDirectory()
+        err = conn.DeleteDirectories()
     }
 
     err2 := conn.WorkerClose(cleanup)
