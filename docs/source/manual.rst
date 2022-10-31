@@ -285,22 +285,22 @@ The Delete Phase
 ~~~~~~~~~~~~~~~~
 
 ``sibench`` does not clean up after itself by default, since Ceph can be very
-slow at deleting objects.  However, if you wish to run multiple runs over a 
+slow at deleting objects.  However, if you wish to execute multiple runs over a 
 weekend (perhaps by using Benchmaster to control sibench), then you may run the
 risk of running out of storage space on the Ceph cluster.  In such cases, 
 deleting the objects at the end of the run may be necessary.  You can enable
 this by using the ``--clean-up`` flag.
 
 Setting ``--clean-up`` behaves differently depending on the protocol, but in 
-essence there are two operations: deleting the individual objects, and cleaning
+essence there are two parts to it: deleting the individual objects, and cleaning
 up other resources.  Protocols may do either, neither or both.
 
 In addition, the cleanup may be synchonous or not.  This is best illustrated
 by comparing the behaviour or RADOS and RBD.
 
-With RADOS, we delete the objects synchronously - meaning that when sibench
-completes the run, Ceph will have deleted the objects and will have no pending
-workload.
+With RADOS, we can delete the individual objects, and we can do it synchronously
+ - meaning that when sibench completes the run, Ceph will have deleted the objects
+and will have no pending workload.
 
 With RBD, we delete the RBD image synchronously, but under the hood, that image
 is comprised of multiple objects, and Ceph does not delete them at once, but
@@ -312,19 +312,28 @@ background, and thus degrading the performance of subsequent runs.
 
 Sadly, there's nothing sibench can do to determine completion in such cases.
 
-|----------+---------------+-----------------------+------------------------------------+
-| Protocol | Object Delete | End Of Run Clean-up   | Synchronous                        |
-|==========+===============+=======================+====================================+
-| s3       | yes           | no                    | yes                                |
-|----------+---------------+-----------------------+------------------------------------+
-| rados    | yes           | no                    | yes                                |
-|----------+---------------+-----------------------+------------------------------------+
-| cephfs   | yes           | Deletes the directory | TBD                                |
-|----------+---------------+-----------------------+------------------------------------+
-| rbd      | no            | Deletes the images    | no                                 |
-|----------+---------------+-----------------------+------------------------------------+
-| block    | no            | no                    | n/a                                |
-|----------+---------------+-----------------------+------------------------------------+
-| file     | yes           | no                    | dependent on underlying filesystem |
-|----------+---------------+-----------------------+------------------------------------+
++----------+---------------+--------------------------------------------------+------------------------------------+
+| Protocol | Object Delete | End Of Run Clean-up                              | Synchronous                        |
++==========+===============+==================================================+====================================+
+| s3       | yes           | Deletes the bucket, but only if we created it    | yes                                |
++----------+---------------+--------------------------------------------------+------------------------------------+
+| rados    | yes           | no                                               | yes                                |
++----------+---------------+--------------------------------------------------+------------------------------------+
+| cephfs   | yes           | Deletes the directories only if we created them  | yes                                |
++----------+---------------+--------------------------------------------------+------------------------------------+
+| rbd      | no            | Deletes the images                               | no                                 |
++----------+---------------+--------------------------------------------------+------------------------------------+
+| block    | no            | no                                               | n/a                                |
++----------+---------------+--------------------------------------------------+------------------------------------+
+| file     | yes           | no                                               | dependent on underlying filesystem |
++----------+---------------+--------------------------------------------------+------------------------------------+
 
+Lastly, if you're not running a production cluster, then you can tell Ceph to 
+delete more quickly (or more accurately, to insert smaller delays between delete
+operations) by adding the following to your ceph config (and then restarting the
+osd daemons).
+
+::
+osd_delete_sleep_hybrid = 0.001
+osd_delete_sleep_hdd = 0.001
+osd_delete_sleep_ssd = 0.001

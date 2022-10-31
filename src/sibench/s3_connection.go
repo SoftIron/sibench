@@ -6,6 +6,7 @@ package main
 import "bytes"
 import "fmt"
 import "github.com/aws/aws-sdk-go/aws"
+import "github.com/aws/aws-sdk-go/aws/awserr"
 import "github.com/aws/aws-sdk-go/aws/credentials"
 import "github.com/aws/aws-sdk-go/aws/session"
 import "github.com/aws/aws-sdk-go/service/s3"
@@ -20,6 +21,7 @@ type S3Connection struct {
     gateway string
     protocol ProtocolConfig
     bucket string
+    bucketCreatedBySibench bool
     client *s3.S3
 }
 
@@ -49,7 +51,12 @@ func (conn *S3Connection) ManagerConnect() error {
 
 
 func (conn *S3Connection) ManagerClose(cleanup bool) error {
-    return conn.WorkerClose(cleanup)
+    // Only delete the bucket if we created it
+    if (cleanup && conn.bucketCreatedBySibench) {
+        return conn.deleteBucket(conn.bucket)
+    }
+
+    return nil
 }
 
 
@@ -96,9 +103,52 @@ func (conn *S3Connection) WorkerClose(cleanup bool) error {
 
 
 func (conn *S3Connection) createBucket(bucket string) error {
+    exists, err := conn.bucketExists(bucket)
+    if exists {
+        logger.Infof("Bucket already exists: %v\n", bucket)
+        return nil
+    }
+
     logger.Infof("Creating bucket on %v: %v\n", conn.gateway, bucket)
-	_, err := conn.client.CreateBucket(&s3.CreateBucketInput{ Bucket: aws.String(bucket) })
+	_, err = conn.client.CreateBucket(&s3.CreateBucketInput{ Bucket: aws.String(bucket) })
+
+    if err == nil {
+        conn.bucketCreatedBySibench = true
+    }
+
 	return err
+}
+
+
+func (conn *S3Connection) deleteBucket(bucket string) error {
+	_, err := conn.client.DeleteBucket(&s3.DeleteBucketInput{ Bucket: aws.String(bucket) })
+	return err
+}
+
+
+/**
+ * The S3 API says that creating a bucket if it already exists should fail with a
+ * 'BucketAlreadyExists' error.  Unfortunately RGW does not implement the S3 protocol
+ * correctly, so we will first need to test if it exists by using the HeadBucket call.
+ */
+func (conn *S3Connection) bucketExists(bucket string) (bool, error) {
+	input := &s3.HeadBucketInput{
+		Bucket: aws.String(bucket),
+	}
+
+	_, err := conn.client.HeadBucket(input)
+    if err == nil {
+        return true, nil
+    }
+
+    // See if the particular error is the AWS error NoSuchBucket
+    if aerr, ok := err.(awserr.Error); ok {
+        if aerr.Code() == s3.ErrCodeNoSuchBucket {
+            return false, nil
+        }
+    }
+
+    return false, err
 }
 
 

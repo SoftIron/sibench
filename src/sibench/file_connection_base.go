@@ -8,6 +8,7 @@ import "path/filepath"
 import "fmt"
 import "logger"
 import "os"
+import "strings"
 import "syscall"
 
 
@@ -25,6 +26,7 @@ import "syscall"
 type FileConnectionBase struct {
     root string
     dir string
+    dirsCreated []string
 }
 
 
@@ -35,17 +37,57 @@ func (conn *FileConnectionBase) InitFileConnectionBase(root string, dir string) 
 }
 
 
-func (conn *FileConnectionBase) CreateDirectory() error {
-    path := filepath.Join(conn.root, conn.dir)
-    logger.Infof("FileConnectionBase creating directory: %v\n", path)
-    return os.MkdirAll(path, 0644)
+func dirExists(path string) (bool, error) {
+    fi, err := os.Stat(path)
+    if err != nil {
+        if os.IsNotExist(err) { return false, nil }
+        return true, err
+    }
+
+    if !fi.IsDir() {
+        return true, fmt.Errorf("% already exists, but is not a directory", path)
+    }
+
+    return true, nil
 }
 
 
-func (conn *FileConnectionBase) DeleteDirectory() error {
-    path := filepath.Join(conn.root, conn.dir)
-    logger.Infof("FileConnectionBase deleting directory: %v\n", path)
-    return os.RemoveAll(path)
+/*
+ * Create all the directories in the path (in case we have been given a nested dir)
+ * We remember which directories we have created in case we are asked to clean them
+ * up again.
+ */
+func (conn *FileConnectionBase) CreateDirectories() error {
+    dirs := strings.Split(filepath.Clean(conn.dir), string(os.PathSeparator))
+    path := conn.root
+
+    for _, d := range dirs {
+        path = filepath.Join(path, d)
+        exists, err := dirExists(path)
+        if err != nil { return err }
+
+        if !exists {
+            err = os.Mkdir(path, 0644)
+            if err != nil { return err }
+
+            logger.Infof("Created dir: %v\n", path)
+            conn.dirsCreated = append([]string{path}, conn.dirsCreated...)
+        }
+    }
+
+    return nil
+}
+
+
+func (conn *FileConnectionBase) DeleteDirectories() error {
+
+    for _, d := range conn.dirsCreated {
+        logger.Infof("FileConnectionBase deleting directory: %v\n", d)
+        err := os.Remove(d)
+        if err != nil { return err }
+    }
+
+    return nil
 }
 
 
