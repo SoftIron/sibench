@@ -306,7 +306,7 @@ With RBD, we delete the RBD image synchronously, but under the hood, that image
 is comprised of multiple objects, and Ceph does not delete them at once, but
 adds them to a queue for later deletion.
 
-Clealy asynchonous deletes are bad if we with to run a set of benchmarks: when
+Clealy asynchonous deletes are bad if we wish to run a set of benchmarks: when
 the benchmark terminates, the Ceph cluster under test may still be deleting in
 background, and thus degrading the performance of subsequent runs.
 
