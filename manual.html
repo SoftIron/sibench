@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Examples" href="examples.html" /><link rel="prev" title="Install" href="installation.html" />
 
-    <meta name="generator" content="sphinx-5.2.3, furo 2022.09.29"/>
+    <meta name="generator" content="sphinx-5.3.0, furo 2022.09.29"/>
         <title>Manual - sibench 1.1.3 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
@@ -485,6 +485,12 @@ by <code class="docutils literal notranslate"><span class="pre">sibench</span></
 <td><p>Record the individual stats in the output file.  This may be VERY big</p></td>
 <td><p>off</p></td>
 </tr>
+<tr class="row-even"><td><p><strong>--clean-up</strong></p></td>
+<td></td>
+<td><p>-</p></td>
+<td><p>Delete the data at the end of the benchmark run</p></td>
+<td><p>off</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -584,14 +590,84 @@ long enough run time for <code class="docutils literal notranslate"><span class=
 <code class="docutils literal notranslate"><span class="pre">object-count</span></code> option.  In this case, the prepare phase will keep writing until
 all the objects are ready for reading.</p>
 </section>
-<section id="slow-shutdown">
-<h3>Slow Shutdown<a class="headerlink" href="#slow-shutdown" title="Permalink to this heading">#</a></h3>
-<p>There are times when <code class="docutils literal notranslate"><span class="pre">sibench</span></code> can take a long time when cleaning up after a
-benchmark run.  This is due to Ceph being extremely slow at deleting objects.</p>
-<p>Future versions of <code class="docutils literal notranslate"><span class="pre">sibench</span></code> may add an option to not clean up their data in order
-to avoid this.  (For test clusters with no production data, it would be faster
-to not have <code class="docutils literal notranslate"><span class="pre">sibench</span></code> clean up, but to delete and recreate the Ceph pools
-instead).</p>
+<section id="the-delete-phase">
+<h3>The Delete Phase<a class="headerlink" href="#the-delete-phase" title="Permalink to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> does not clean up after itself by default, since Ceph can be very
+slow at deleting objects.  However, if you wish to execute multiple runs over a
+weekend (perhaps by using Benchmaster to control sibench), then you may run the
+risk of running out of storage space on the Ceph cluster.  In such cases,
+deleting the objects at the end of the run may be necessary.  You can enable
+this by using the <code class="docutils literal notranslate"><span class="pre">--clean-up</span></code> flag.</p>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">--clean-up</span></code> behaves differently depending on the protocol, but in
+essence there are two parts to it: deleting the individual objects, and cleaning
+up other resources.  Protocols may do either, neither or both.</p>
+<p>In addition, the cleanup may be synchonous or not.  This is best illustrated
+by comparing the behaviour or RADOS and RBD.</p>
+<dl class="simple">
+<dt>With RADOS, we can delete the individual objects, and we can do it synchronously</dt><dd><ul class="simple">
+<li><p>meaning that when sibench completes the run, Ceph will have deleted the objects</p></li>
+</ul>
+</dd>
+</dl>
+<p>and will have no pending workload.</p>
+<p>With RBD, we delete the RBD image synchronously, but under the hood, that image
+is comprised of multiple objects, and Ceph does not delete them at once, but
+adds them to a queue for later deletion.</p>
+<p>Clealy asynchonous deletes are bad if we wish to run a set of benchmarks: when
+the benchmark terminates, the Ceph cluster under test may still be deleting in
+background, and thus degrading the performance of subsequent runs.</p>
+<p>Sadly, there’s nothing sibench can do to determine completion in such cases.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Protocol</p></th>
+<th class="head"><p>Object Delete</p></th>
+<th class="head"><p>End Of Run Clean-up</p></th>
+<th class="head"><p>Synchronous</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>s3</p></td>
+<td><p>yes</p></td>
+<td><p>Deletes the bucket, but only if we created it</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p>rados</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p>cephfs</p></td>
+<td><p>yes</p></td>
+<td><p>Deletes the directories only if we created them</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p>rbd</p></td>
+<td><p>no</p></td>
+<td><p>Deletes the images</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-even"><td><p>block</p></td>
+<td><p>no</p></td>
+<td><p>no</p></td>
+<td><p>n/a</p></td>
+</tr>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+<td><p>dependent on underlying filesystem</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Lastly, if you’re not running a production cluster, then you can tell Ceph to
+delete more quickly (or more accurately, to insert smaller delays between delete
+operations) by adding the following to your ceph config (and then restarting the
+osd daemons).</p>
+<p>::
+osd_delete_sleep_hybrid = 0.001
+osd_delete_sleep_hdd = 0.001
+osd_delete_sleep_ssd = 0.001</p>
 </section>
 </section>
 </section>
@@ -666,7 +742,7 @@ instead).</p>
 </li>
 <li><a class="reference internal" href="#write-cycles">Write Cycles</a></li>
 <li><a class="reference internal" href="#the-prepare-phase">The Prepare Phase</a></li>
-<li><a class="reference internal" href="#slow-shutdown">Slow Shutdown</a></li>
+<li><a class="reference internal" href="#the-delete-phase">The Delete Phase</a></li>
 </ul>
 </li>
 </ul>
