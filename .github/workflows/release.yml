@@ -12,6 +12,8 @@ jobs:
   build-release:
     name: Release build for amd64
     runs-on: "ubuntu-20.04"
+    permissions:
+      contents: write
     container:
       image: debian:bullseye
 
@@ -42,17 +44,13 @@ jobs:
         run:  make
 
       - name: tar the release
-        run: cd bin && tar -cvzf sibench-amd64.tar.gz sibench
+        run: cd bin && tar -cvzf sibench-amd64-${{ github.event.release.tag_name }}.tar.gz sibench
 
       - name: Upload sibench binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/bin/sibench-amd64.tar.gz
-          asset_name: sibench-amd64-${{ github.event.release.tag_name }}.tar.gz
-          asset_content_type: application/gzip
+          files: |
+            bin/sibench-amd64-${{ github.event.release.tag_name }}.tar.gz
 
   build-and-push-image:
     runs-on: "ubuntu-20.04"
