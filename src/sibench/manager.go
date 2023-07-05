@@ -128,12 +128,12 @@ func RunBenchmark(j *Job) error {
  * Returns a string containing a banner with a centred message.
  */
 func banner(msg string, padChar byte) string {
-	msgLen := len(msg)
-	padStr := string(padChar)
-	prepadLen := (78 - msgLen) / 2
-	postpadLen := (79 - msgLen) / 2
+    msgLen := len(msg)
+    padStr := string(padChar)
+    prepadLen := (78 - msgLen) / 2
+    postpadLen := (79 - msgLen) / 2
 
-	return "\n" + strings.Repeat(padStr, prepadLen) + " " + msg + " " + strings.Repeat(padStr, postpadLen) + "\n"
+    return "\n" + strings.Repeat(padStr, prepadLen) + " " + msg + " " + strings.Repeat(padStr, postpadLen) + "\n"
 }
 
 
