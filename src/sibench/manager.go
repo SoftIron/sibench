@@ -3,14 +3,19 @@
 
 package main
 
-import "comms"
-import "fmt"
-import "io"
-import "logger"
-import "os"
-import "os/signal"
-import "syscall"
-import "time"
+import (
+	"comms"
+	"fmt"
+	"io"
+	"logger"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"golang.org/x/exp/slices"
+)
 
 
 type ServerDetails struct {
@@ -24,10 +29,10 @@ type ServerDetails struct {
  * A Manager handles connecting to a set of Foremen over TCP and executing
  * a benchmarking job on them.
  *
- * Currently a manager can only handle running a single job, but this would also 
- * be the right place to add queueing, or a job-listening socket, or anything 
+ * Currently a manager can only handle running a single job, but this would also
+ * be the right place to add queueing, or a job-listening socket, or anything
  * else that you would need to manage multiple users with multiple (possibly
- * simultaneous requests).  
+ * simultaneous requests).
  *
  * For the moment, though, this is just brain-dead simple.
  */
@@ -86,33 +91,24 @@ func RunBenchmark(j *Job) error {
 
     if j.order.ReadWriteMix == 0 {
         // Write/Prepare/Read
-
-        logger.Infof("\n----------------------- WRITE -----------------------------\n")
-        m.runPhaseForTime(phaseTime, OP_WriteStart, OP_WriteStop)
-
-        logger.Infof("\n---------------------- PREPARE ----------------------------\n")
-        m.runPhaseToCompletion(OP_Prepare)
-
-        logger.Infof("\n----------------------- READ ------------------------------\n")
-        m.runPhaseForTime(phaseTime, OP_ReadStart, OP_ReadStop)
+        m.runPhaseForTime("WRITE", phaseTime, OP_WriteStart, OP_WriteStop)
+        m.runPhaseToCompletion("PREPARE", OP_Prepare)
+        m.runPhaseForTime("READ", phaseTime, OP_ReadStart, OP_ReadStop)
     } else {
         // Prepare/Read-Write-Mix
-
-        logger.Infof("\n---------------------- PREPARE ----------------------------\n")
-        m.runPhaseToCompletion(OP_Prepare)
-
-        logger.Infof("\n--------------------- READ/WRITE --------------------------\n")
-        m.runPhaseForTime(phaseTime, OP_ReadWriteStart, OP_ReadWriteStop)
+        m.runPhaseToCompletion("PREPARE", OP_Prepare)
+        m.runPhaseForTime("READ/WRITE", phaseTime, OP_ReadWriteStart, OP_ReadWriteStop)
     }
 
     if (conn.CanDelete() && j.order.CleanUpOnClose) {
-        logger.Infof("\n----------------------- DELETE ----------------------------\n")
-        m.runPhaseToCompletion(OP_Delete)
+        m.runPhaseToCompletion("DELETE", OP_Delete)
     }
 
     // Process the stats.
-    logger.Infof("\n")
-    m.report.DisplayAnalyses(m.job.useBytes)
+    if m.err == nil {
+        logger.Infof("\n")
+        m.report.DisplayAnalyses(m.job.useBytes)
+    }
 
     // Terminate
     logger.Infof("\n")
@@ -128,13 +124,28 @@ func RunBenchmark(j *Job) error {
 }
 
 
-/* 
- * Sends an operation request to the servers.  
+/*
+ * Returns a string containing a banner with a centred message.
+ */
+func banner(msg string, padChar byte) string {
+    msgLen := len(msg)
+    padStr := string(padChar)
+    prepadLen := (78 - msgLen) / 2
+    postpadLen := (79 - msgLen) / 2
+
+    return "\n" + strings.Repeat(padStr, prepadLen) + " " + msg + " " + strings.Repeat(padStr, postpadLen) + "\n"
+}
+
+
+/*
+ * Sends an operation request to the servers.
  * If waitForResponse is true, then we block until all the servers have responded.
  */
 func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
-    if m.err != nil { return }
-    if m.isInterrupted && (op != OP_Terminate) { return }
+    if op != OP_Terminate {
+        if m.err != nil { return }
+        if m.isInterrupted { return }
+    }
 
     logger.Debugf("Sending: %v\n", op.ToString())
 
@@ -153,29 +164,43 @@ func (m *Manager) sendOpToServers(op Opcode, waitForResponse bool) {
  * Check if an incoming message is an error type, and convert it to error if so.
  */
 func (m *Manager) checkError(msgInfo *comms.ReceivedMessageInfo) {
-    if (m.err != nil) || m.isInterrupted { return }
-
     msg := msgInfo.Message
     op := Opcode(msg.ID())
 
-    if (op != OP_Fail) && (op != OP_Hung) {
-        return
-    }
+    // If it's not a failure, then we're done.
+    if (op != OP_Fail) && (op != OP_Hung) { return }
 
     var resp ForemanGenericResponse
     msg.Data(&resp)
 
     details := m.connToServerDetails[msgInfo.Connection]
-    m.err = fmt.Errorf("%v:%v", details.Name, resp.Error)
+    err := fmt.Errorf("%v:%v", details.Name, resp.Error)
+
+    // First check if this is a hung server, in which case we drop all knowledge of it
+    // so that we don't try to shut it down cleanly later.
+    if op == OP_Hung {
+        logger.Infof("Server %v has hung\n", m.connToServerDetails[msgInfo.Connection].Name)
+
+        index := slices.Index(m.msgConns, msgInfo.Connection)
+        if index >= 0 {
+            m.msgConns = slices.Delete(m.msgConns, index, index + 1)
+            delete(m.connToServerDetails, msgInfo.Connection)
+        }
+    }
+
+    // If we've already seen an error, then we don't need to record this one.
+    if (m.err != nil) || m.isInterrupted { return }
+
+    m.err = err
 }
 
 
-/* 
- * When we have complete a phase (or the whole run!) we can ask the servers to 
+/*
+ * When we have complete a phase (or the whole run!) we can ask the servers to
  * send us all the detailed stats that they have been collecting (and to then
- * forget about them themselves).  
- * 
- * (The detailed  stats are NOT sent during the benchmark's execution as it may be a 
+ * forget about them themselves).
+ *
+ * (The detailed  stats are NOT sent during the benchmark's execution as it may be a
  * lot of traffic, though once-per-second summaries are sent during that time).
  *
  * We return the stats we obtain this way.
@@ -258,8 +283,10 @@ func (m* Manager) drainStats() {
  *
  * This is used for the Prepare and CleanUp phases.
  */
-func (m *Manager) runPhaseToCompletion(phaseOp Opcode) {
+func (m *Manager) runPhaseToCompletion(msg string, phaseOp Opcode) {
     if (m.err != nil) || m.isInterrupted { return }
+
+    logger.Infof(banner(msg, '-'))
 
     m.sendOpToServers(OP_StatSummaryStart, true)
     m.sendOpToServers(phaseOp, false)
@@ -326,14 +353,16 @@ func (m *Manager) runPhaseToCompletion(phaseOp Opcode) {
 /*
  * Waits for the specified number of seconds whilst a benchmark executes.
  *
- * During this time, we accept StatSummary messages from the servers.   
+ * During this time, we accept StatSummary messages from the servers.
  * These are aggragated, and printed out once per second so that the user can
  * see what the system is doing.
- * 
+ *
  * This is used for Read, Write and Read/Write phases.
  */
-func (m *Manager) runPhaseForTime(secs uint64, startOp Opcode, stopOp Opcode) {
+func (m *Manager) runPhaseForTime(msg string, secs uint64, startOp Opcode, stopOp Opcode) {
     if (m.err != nil) || m.isInterrupted { return }
+
+    logger.Infof(banner(msg, '-'))
 
     m.sendOpToServers(startOp, true)
     m.sendOpToServers(OP_StatSummaryStart, true)
@@ -373,7 +402,6 @@ func (m *Manager) runPhaseForTime(secs uint64, startOp Opcode, stopOp Opcode) {
 
             case <-ticker.C:
                 logger.Infof("%v: %v\n", i, summary.String(m.job.order.ObjectSize, m.job.useBytes))
-                //Here printing
                 i++
 
                 // Draw some lines to indicate the ramp-up/ramp-down demarcation.
@@ -401,7 +429,7 @@ func (m *Manager) runPhaseForTime(secs uint64, startOp Opcode, stopOp Opcode) {
 }
 
 
-/* 
+/*
  * Blocks until all the servers have responded with the specified opcode.
  *
  * Any unexpected opcodes recieved from the servers will cause us to error out.
@@ -440,8 +468,8 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
 
                     logger.Debugf("Received %v, still waiting for %v more\n", op.ToString(), pending)
                 } else if op != OP_StatSummary {
-                    // Stat Summary messages can arrive later than expected because they're asynchronous.  
-                    // If we see one when we don't want one, we just drop it.  
+                    // Stat Summary messages can arrive later than expected because they're asynchronous.
+                    // If we see one when we don't want one, we just drop it.
                     // All other unexpected opcodes are an error.
                     m.err = fmt.Errorf("Unexpected Opcode received: expected %v but got %v\n", expectedOp.ToString(), op.ToString())
                     return
@@ -457,6 +485,8 @@ func (m *Manager) waitForResponses(expectedOp Opcode) {
 
 
 func (m *Manager) terminate() {
+    logger.Infof("Terminating\n")
+
     m.sendOpToServers(OP_Terminate, false)
 
     // We don't do our usual wait-for-response thing here because we may have done this from
@@ -484,8 +514,8 @@ func (m *Manager) terminate() {
 /*
  * Send a job to our current set of servers.
  *
- * This makes a copy of the Job's WorkOrder for each server, and adjusts the object 
- * range of each so that the range is partioned distinctly between the servers. 
+ * This makes a copy of the Job's WorkOrder for each server, and adjusts the object
+ * range of each so that the range is partioned distinctly between the servers.
  *
  * Each server is allocated a section proportional to the number of cores it has.
  *
@@ -531,7 +561,7 @@ func (m *Manager) sendJobToServers() {
 
 
 /*
- * Interogates each sibench server for information about core count, RAM size and 
+ * Interogates each sibench server for information about core count, RAM size and
  * so forth, so that we can allocate the workloads appropriately later.
  */
 func (m *Manager) discoverServerCapabilities() {
@@ -579,13 +609,13 @@ func (m *Manager) discoverServerCapabilities() {
 }
 
 
-/* 
+/*
  * Attempts to connect to a set of servers (as specified in our current Job).
  *
- * Currently we exit with a non-zero error code if we can't connect to all of them.  
+ * Currently we exit with a non-zero error code if we can't connect to all of them.
  *
  * In future (if we add job queuing, and the Manager becomes a daemon) then we could
- * change this to logger the errors but continue with whatever servers we could 
+ * change this to logger the errors but continue with whatever servers we could
  * successfully talk to.
  */
 func (m *Manager) connectToServers() {

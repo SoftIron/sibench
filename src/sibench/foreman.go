@@ -3,16 +3,17 @@
 
 package main
 
-import "comms"
-import "fmt"
-import "io"
-import "logger"
-import "os"
-import "runtime"
-import "runtime/pprof"
-import "time"
-import "unsafe"
-
+import (
+	"comms"
+	"fmt"
+	"io"
+	"logger"
+	"os"
+	"runtime"
+	"runtime/pprof"
+	"time"
+	"unsafe"
+)
 
 // Initial value for how long we will wait for a worker to report a summary
 // before we conclude that it has hung.
@@ -24,8 +25,8 @@ const InitialHangTimeoutSecs = 90
 const MinHangTimeoutSecs = 60
 
 
-/* 
- * All the states a Foreman can be in. 
+/*
+ * All the states a Foreman can be in.
  *
  * Note that BadTransition isn't really a state, but is the nil value.
  * This is made use of when we look up valid transitions in our state
@@ -58,7 +59,7 @@ const(
 )
 
 
-/* 
+/*
  * Extra information associated with each state.
  */
 type foremanStateDetails struct {
@@ -109,11 +110,11 @@ func foremanStateToStr(state foremanState) string {
 }
 
 /*
- * A map of the state transitions that may be triggered by incoming TCP opcode (as opposed to 
+ * A map of the state transitions that may be triggered by incoming TCP opcode (as opposed to
  * the opcodes contained in the worker responses to our own commands).
- * Each opcode maps to a map from current state to next state. 
+ * Each opcode maps to a map from current state to next state.
  * If an opcode has no entry for the current state, then the output will be the zero value,
- * which in this case is BadTransition. 
+ * which in this case is BadTransition.
  */
 var validTcpTransitions = map[Opcode]map[foremanState]foremanState {
     OP_Discovery:           { FS_Idle:                  FS_Idle },
@@ -244,12 +245,12 @@ type WorkerInfo struct {
 }
 
 
-/* 
- * A Foreman is a server that listens on TCP for incoming commands from a Manager and 
+/*
+ * A Foreman is a server that listens on TCP for incoming commands from a Manager and
  * executes them by farming our the actual work to a horde of Workers.
  *
  * Foremen only work on one TCP connection at a time.  If any other managers attempt
- * to connect, then they will be handed a OP_Busy message and then connection will be 
+ * to connect, then they will be handed a OP_Busy message and then connection will be
  * closed.
  *
  * When a Foreman accepts a new WorkOrder from a Manager (sent as part of an OP_Connect
@@ -269,7 +270,7 @@ type Foreman struct {
     /* Our current set of workers, or nil if we are idle. */
     workerInfos []*WorkerInfo
 
-    /* A channel on which workers can send their response to us.  
+    /* A channel on which workers can send their response to us.
      * They all share the same channel. */
     workerResponseChannel chan *WorkerResponse
 
@@ -311,13 +312,13 @@ type Foreman struct {
 }
 
 
-/* 
- * Creates a new Foreman which starts a TCP listening socket and waits for connections.  
+/*
+ * Creates a new Foreman which starts a TCP listening socket and waits for connections.
  *
  * If we have an error establishing a listening socket, then we return the error.
  *
  * Otherwise, we will start out event-loop.  We will not return from that, so this function
- * should be run as a new go-routine if you need to continue to do things in your current 
+ * should be run as a new go-routine if you need to continue to do things in your current
  * go-routine.
  */
 func StartForeman(profileFilename string) error {
@@ -480,6 +481,7 @@ func (f *Foreman) handleWorkerResponse(resp *WorkerResponse) {
     switch resp.Op {
         // Handle the special failure cases first.
         case OP_Fail: f.fail(resp.Error)
+        case OP_Hung: f.hung(resp.Error)
 
         // Everything wlse is handled the same way.
         default:
@@ -534,8 +536,8 @@ func (f *Foreman) connect() {
 
     // Determine how much memory each worker should pre-allocate for stats.
     // (They can allocate more than this, but we'll pick something usable to start with).
-    // We'll take a quarter of the physical memory on the box and then divide it between the 
-    // workers. Then we round down to the nearest power of two.  Finally, we limit it to a 
+    // We'll take a quarter of the physical memory on the box and then divide it between the
+    // workers. Then we round down to the nearest power of two.  Finally, we limit it to a
     // million stats.
     var stat Stat
     statPreallocationCount := previousPowerOfTwo(GetPhysicalMemorySize() / (4 * uint64(unsafe.Sizeof(stat)) * nWorkers))
@@ -618,9 +620,10 @@ func (f *Foreman) fail(err error) {
 func (f *Foreman) hung(err error) {
     logger.Errorf("Hung with error: %v\n", err)
     f.sendOpcodeToManager(OP_Hung,  err)
-    f.terminateTCP()
+    f.terminate()
 
     logger.Infof("Exiting process to allow daemon to restart\n")
+    time.Sleep(10)
     os.Exit(-1)
 }
 
@@ -686,17 +689,26 @@ func (f *Foreman) terminateTCP() {
 }
 
 
-/* Terminate the current WorkOrder, kill our workers and return to the Idle state ready for the 
+/* Terminate the current WorkOrder, kill our workers and return to the Idle state ready for the
  * next connection. */
 func (f *Foreman) terminate() {
     f.setState(FS_Terminate)
     f.sendOpcodeToWorkers(OP_Terminate)
 
+    timeout := time.NewTimer(f.hangTimeout)
+	defer timeout.Stop()
+
     // And wait for acknowledgment
     for pending := len(f.workerInfos); pending > 0;  {
-        resp := <-f.workerResponseChannel;
-        if resp.Op == OP_Terminate {
-            pending--
+        select {
+            case resp := <-f.workerResponseChannel:
+                if resp.Op == OP_Terminate {
+                    pending--
+                }
+
+            case <- timeout.C:
+                logger.Infof("Timing out on worker clean-up in terminate")
+                pending = 0
         }
     }
 
@@ -743,14 +755,14 @@ func (f *Foreman) clearHangTimeouts() {
 }
 
 
-/* 
+/*
  * Stats handling function, to be run as its own go-routine.
  *
  * Workers send us stats summaries periodically.  These also function as heartbeats, and their absence
  * is used to determine if a worker has hung.  (Note that we only check for this if the worker is in
  * the middle of benchmark phase and thus is running operations on its connections.
  *
- * We start a Ticker to trigger sending a summary back to the Manager once per second.  
+ * We start a Ticker to trigger sending a summary back to the Manager once per second.
  * This can be enabled and disabled by using the controlChannel.
  */
 func (f *Foreman) processStats() {
@@ -795,7 +807,7 @@ func (f *Foreman) processStats() {
                     f.tcpConnection.Send(OP_StatSummary, summary)
                     summary = new(StatSummary)
 
-                    // And check for hung workers (defined as any worker that has not send a summary in the 
+                    // And check for hung workers (defined as any worker that has not send a summary in the
                     // last 90 or so seconds, provided that it should be in the middle of running benchmark ops).
 
                     now := time.Now()
