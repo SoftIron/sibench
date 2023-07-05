@@ -706,8 +706,8 @@ func (f *Foreman) terminate() {
                     pending--
                 }
 
-			case <- timeout.C:
-				logger.Infof("Timing out on worker clean-up in terminate")
+            case <- timeout.C:
+                logger.Infof("Timing out on worker clean-up in terminate")
                 pending = 0
         }
     }
