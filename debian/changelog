@@ -1,3 +1,6 @@
+sibench (1.1.5) buster; urgency=low
+  [ Harry Richardson ]
+  * Better handling of abnormal termination due to Ceph hanging
 sibench (1.1.4) buster; urgency=low
   [ Harry Richardson ]
   * Added end-of-run clean up as an option
