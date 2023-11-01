@@ -113,7 +113,7 @@ func (conn *FileConnectionBase) PutObject(key string, id uint64, buffer []byte) 
 
     for len(buffer) > 0 {
         n, err := fd.Write(buffer)
-        if err == nil {
+        if err != nil {
             return err
         }
 
