@@ -300,7 +300,7 @@ by comparing the behaviour or RADOS and RBD.
 
 With RADOS, we can delete the individual objects, and we can do it synchronously
  - meaning that when sibench completes the run, Ceph will have deleted the objects
-and will have no pending workload.
+   and will have no pending workload.
 
 With RBD, we delete the RBD image synchronously, but under the hood, that image
 is comprised of multiple objects, and Ceph does not delete them at once, but
