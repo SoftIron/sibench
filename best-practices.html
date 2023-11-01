@@ -1,16 +1,16 @@
 <!doctype html>
-<html class="no-js" lang="en">
+<html class="no-js" lang="en" data-content_root="./">
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Benchmaster" href="benchmaster.html" /><link rel="prev" title="Examples" href="examples.html" />
 
-    <!-- Generated with Sphinx 7.0.1 and Furo 2023.05.20 -->
+    <!-- Generated with Sphinx 7.2.6 and Furo 2023.09.10 -->
         <title>Best practices - sibench documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
-    <link rel="stylesheet" type="text/css" href="_static/tabs.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="_static/tabs.css?v=a5c4661c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=36a5483c" />
     
     
 
@@ -198,9 +198,9 @@
         </div>
         <article role="main">
           <section id="best-practices">
-<h1>Best practices<a class="headerlink" href="#best-practices" title="Permalink to this heading">#</a></h1>
+<h1>Best practices<a class="headerlink" href="#best-practices" title="Link to this heading">#</a></h1>
 <section id="cache-considerations">
-<h2>Cache considerations<a class="headerlink" href="#cache-considerations" title="Permalink to this heading">#</a></h2>
+<h2>Cache considerations<a class="headerlink" href="#cache-considerations" title="Link to this heading">#</a></h2>
 <p>When doing read operations, it is vital that your working set is large enough
 that the storage backend cannot fulfil requests from cache - unless of course,
 cache performance  is what you are trying to benchmark!</p>
@@ -219,7 +219,7 @@ benchmark.</p>
 sized clusters.</p>
 </section>
 <section id="throughput-isn-t-everything">
-<h2>Throughput isn’t everything!<a class="headerlink" href="#throughput-isn-t-everything" title="Permalink to this heading">#</a></h2>
+<h2>Throughput isn’t everything!<a class="headerlink" href="#throughput-isn-t-everything" title="Link to this heading">#</a></h2>
 <p>Storage systems are not usually run at peak throughput because it can lead to
 extremely long response times.  In consequence, running without bandwidth
 limiting is only giving half the story: it’ll tell you what the maximum
@@ -230,7 +230,7 @@ throughput of the system, and <em>then</em> re-running the benchmarks with the
 bandwidth limited to 80 or 90 percent of the peak number.</p>
 </section>
 <section id="boosting-throughput">
-<h2>Boosting throughput<a class="headerlink" href="#boosting-throughput" title="Permalink to this heading">#</a></h2>
+<h2>Boosting throughput<a class="headerlink" href="#boosting-throughput" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> is inefficient with respect to the amount of load it puts on its own
 nodes.  This is by design: we do not want to have to wait long for a thread to
 be scheduled in order to read data that has become available.  Nor do we want to
@@ -255,7 +255,7 @@ count boosts your throughput numbers, then that is an indication that more
 giving accurate timings.</p>
 </section>
 <section id="response-times">
-<h2>Response times<a class="headerlink" href="#response-times" title="Permalink to this heading">#</a></h2>
+<h2>Response times<a class="headerlink" href="#response-times" title="Link to this heading">#</a></h2>
 <p>Whilst <code class="docutils literal notranslate"><span class="pre">sibench</span></code> will output the maximum, minimum and average response times, in
 practice it is the 95%-response time - the time in which 95% of requests
 complete - that is likely to be the most informative.  Maximum response times
@@ -264,7 +264,7 @@ can be thrown out by one outlier result, which in turn poisons the average.  The
 better indicator of a system’s behaviour.</p>
 </section>
 <section id="memory-considerations">
-<h2>Memory considerations<a class="headerlink" href="#memory-considerations" title="Permalink to this heading">#</a></h2>
+<h2>Memory considerations<a class="headerlink" href="#memory-considerations" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> is written to use as little memory as possible.  The generators
 algorithmically create each object to be written or read-and-verified on the
 fly, and so objects do not need to be held in memory for longer than a single
@@ -297,7 +297,7 @@ consequences.  However, the benchmark will try to run (and because this assumes
 worst-case ceph library behaviour, it may well succeed).</p>
 </section>
 <section id="homogeneous-cores">
-<h2>Homogeneous cores<a class="headerlink" href="#homogeneous-cores" title="Permalink to this heading">#</a></h2>
+<h2>Homogeneous cores<a class="headerlink" href="#homogeneous-cores" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> divides its workload between nodes, with each taking responsibility for
 reading and writing some number of objects.  The division of labour is done
 purely according to how many cores each node has.  It does not attempt to
@@ -384,9 +384,9 @@ at the beginning again, the data may still be in the storage system’s caches.<
       
     </aside>
   </div>
-</div><script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
-    <script src="_static/scripts/furo.js"></script>
+</div><script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>
 </html>

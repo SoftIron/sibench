@@ -1,16 +1,16 @@
 <!doctype html>
-<html class="no-js" lang="en">
+<html class="no-js" lang="en" data-content_root="./">
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Examples" href="examples.html" /><link rel="prev" title="Install" href="installation.html" />
 
-    <!-- Generated with Sphinx 7.0.1 and Furo 2023.05.20 -->
+    <!-- Generated with Sphinx 7.2.6 and Furo 2023.09.10 -->
         <title>Manual - sibench documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
-    <link rel="stylesheet" type="text/css" href="_static/tabs.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="_static/tabs.css?v=a5c4661c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=36a5483c" />
     
     
 
@@ -198,14 +198,14 @@
         </div>
         <article role="main">
           <section id="manual">
-<h1>Manual<a class="headerlink" href="#manual" title="Permalink to this heading">#</a></h1>
+<h1>Manual<a class="headerlink" href="#manual" title="Link to this heading">#</a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> is a benchmarking tool for storage systems, and for Ceph in particular.</p>
 <p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> typically runs on many nodes in parallel, in order to be able to scale
 up to the very high bandwidths of which modern scaleable storage systems are
 capable.</p>
 <p>For more detailed information, visit <a class="reference external" href="https://sibench.io">https://sibench.io</a>.</p>
 <section id="how-it-works">
-<h2>How It Works<a class="headerlink" href="#how-it-works" title="Permalink to this heading">#</a></h2>
+<h2>How It Works<a class="headerlink" href="#how-it-works" title="Link to this heading">#</a></h2>
 <p>Each benchmarking node runs <code class="docutils literal notranslate"><span class="pre">sibench</span></code> as a server daemon, listening for incoming
 connections from a <code class="docutils literal notranslate"><span class="pre">sibench</span></code> client.</p>
 <p>Once the client starts a benchmark, the <code class="docutils literal notranslate"><span class="pre">sibench</span></code> servers send periodic summaries
@@ -223,7 +223,7 @@ server nodes without significantly impacting benchmarking performance, though
 it may result in higher memory usage on that node.</p>
 </section>
 <section id="command-line">
-<h2>Command Line<a class="headerlink" href="#command-line" title="Permalink to this heading">#</a></h2>
+<h2>Command Line<a class="headerlink" href="#command-line" title="Link to this heading">#</a></h2>
 <p>The following is a list of all the commands that the sibench binary accepts:</p>
 <dl class="simple">
 <dt><strong>sibench -h | --help</strong></dt><dd><p>Outputs the full command line syntax.</p>
@@ -268,7 +268,7 @@ it may result in higher memory usage on that node.</p>
 <li><p>[--individual-stats]</p></li>
 </ul>
 <section id="option-definitions">
-<h3>Option Definitions<a class="headerlink" href="#option-definitions" title="Permalink to this heading">#</a></h3>
+<h3>Option Definitions<a class="headerlink" href="#option-definitions" title="Link to this heading">#</a></h3>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -496,7 +496,7 @@ by <code class="docutils literal notranslate"><span class="pre">sibench</span></
 </div>
 </section>
 <section id="targets">
-<h3>Targets<a class="headerlink" href="#targets" title="Permalink to this heading">#</a></h3>
+<h3>Targets<a class="headerlink" href="#targets" title="Link to this heading">#</a></h3>
 <p>The targets are the nodes to which the worker threads connect.  Each worker
 opens a connection to each target and round-robins their reads and writes across
 those connections.</p>
@@ -508,7 +508,7 @@ RGW nodes as targets, since those nodes are doing real work, and it needs to be
 balanced.</p>
 </section>
 <section id="rbd">
-<h3>RBD<a class="headerlink" href="#rbd" title="Permalink to this heading">#</a></h3>
+<h3>RBD<a class="headerlink" href="#rbd" title="Link to this heading">#</a></h3>
 <p>RBD behaviour is a little different than you might expect: each worker creates
 an RBD image per target, just big enough to hold that worker’s share of the
 ‘objects’ for the benchmark.  All reads and writes that the worker then does are
@@ -524,12 +524,12 @@ which will create a single 10MB RBD image, and then it will proceed to read and
 write 1 MB at a time to parts of that image.</p>
 </section>
 <section id="generators">
-<h3>Generators<a class="headerlink" href="#generators" title="Permalink to this heading">#</a></h3>
+<h3>Generators<a class="headerlink" href="#generators" title="Link to this heading">#</a></h3>
 <p>Generators create the data that <code class="docutils literal notranslate"><span class="pre">sibench</span></code> uses as workloads for the storage
 system.  There are currently two of them, selectable with the <code class="docutils literal notranslate"><span class="pre">--generator</span></code>
 option.</p>
 <section id="prng-generator">
-<h4>PRNG Generator<a class="headerlink" href="#prng-generator" title="Permalink to this heading">#</a></h4>
+<h4>PRNG Generator<a class="headerlink" href="#prng-generator" title="Link to this heading">#</a></h4>
 <p>The PRNG generator creates data which is entirely pseudorandom.  It requires no
 configuration, and is the default choice.  However, it has one shortcoming:
 because it creates pseudorandom data, it is not compressible.  If you wish to
@@ -538,7 +538,7 @@ compressible workload.  The same restriction applies to de-duplication
 technologies.</p>
 </section>
 <section id="slice-generator">
-<h4>Slice Generator<a class="headerlink" href="#slice-generator" title="Permalink to this heading">#</a></h4>
+<h4>Slice Generator<a class="headerlink" href="#slice-generator" title="Link to this heading">#</a></h4>
 <p>The Slice generator builds workloads from existing files.  It aims to reproduce
 the compressibility characteristics of those files, whilst still creating an
 effectively infinite supply of different objects.</p>
@@ -569,7 +569,7 @@ begins, and so will not affect the numbers.</p>
 </section>
 </section>
 <section id="write-cycles">
-<h3>Write Cycles<a class="headerlink" href="#write-cycles" title="Permalink to this heading">#</a></h3>
+<h3>Write Cycles<a class="headerlink" href="#write-cycles" title="Link to this heading">#</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">count</span></code> parameter determines how many objects we create.  However, for long
 benchmarks runs, or for small counts or object sizes, we are likely to wrap
 around and start writing from the first object again.  If this happens, <code class="docutils literal notranslate"><span class="pre">sibench</span></code>
@@ -578,7 +578,7 @@ written in different cycles will have different contents, even though the object
 will still use the same key as previously.</p>
 </section>
 <section id="the-prepare-phase">
-<h3>The Prepare Phase<a class="headerlink" href="#the-prepare-phase" title="Permalink to this heading">#</a></h3>
+<h3>The Prepare Phase<a class="headerlink" href="#the-prepare-phase" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> either benchmarks write operations first and then read operations, or
 else it benchmarks a mixture of the too (depending on the <code class="docutils literal notranslate"><span class="pre">--read-write-mix</span></code>
 option.  When benchmarking reads, or a read-write mix, it must first ensure that
@@ -591,7 +591,7 @@ long enough run time for <code class="docutils literal notranslate"><span class=
 all the objects are ready for reading.</p>
 </section>
 <section id="the-delete-phase">
-<h3>The Delete Phase<a class="headerlink" href="#the-delete-phase" title="Permalink to this heading">#</a></h3>
+<h3>The Delete Phase<a class="headerlink" href="#the-delete-phase" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">sibench</span></code> does not clean up after itself by default, since Ceph can be very
 slow at deleting objects.  However, if you wish to execute multiple runs over a
 weekend (perhaps by using Benchmaster to control sibench), then you may run the
@@ -754,9 +754,9 @@ osd_delete_sleep_ssd = 0.001</p>
       
     </aside>
   </div>
-</div><script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
-    <script src="_static/scripts/furo.js"></script>
+</div><script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>
 </html>

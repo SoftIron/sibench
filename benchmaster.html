@@ -1,16 +1,16 @@
 <!doctype html>
-<html class="no-js" lang="en">
+<html class="no-js" lang="en" data-content_root="./">
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="prev" title="Best practices" href="best-practices.html" />
 
-    <!-- Generated with Sphinx 7.0.1 and Furo 2023.05.20 -->
+    <!-- Generated with Sphinx 7.2.6 and Furo 2023.09.10 -->
         <title>Benchmaster - sibench documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
-    <link rel="stylesheet" type="text/css" href="_static/tabs.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="_static/tabs.css?v=a5c4661c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=36a5483c" />
     
     
 
@@ -198,7 +198,7 @@
         </div>
         <article role="main">
           <section id="benchmaster">
-<h1>Benchmaster<a class="headerlink" href="#benchmaster" title="Permalink to this heading">#</a></h1>
+<h1>Benchmaster<a class="headerlink" href="#benchmaster" title="Link to this heading">#</a></h1>
 <p>Benchmaster is a storage benchmarking manager. It doesn’t do any benchmarking
 itself, but will leverage other tools to do the work (e.g. <cite>sibench</cite> and
 <cite>cosbench</cite>).</p>
@@ -215,7 +215,7 @@ information, to then put the results on a spreadsheet.</p>
 <li><p>Direct access: File system, or block device.</p></li>
 </ul>
 <section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">#</a></h2>
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h2>
 <p>On a Debian system, install the dependencies:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">python3</span><span class="o">-</span><span class="n">pip</span> <span class="n">sshpass</span>
 </pre></div>
@@ -231,7 +231,7 @@ straight from GitHub:</p>
 </div>
 </section>
 <section id="spreadsheet-integration">
-<h2>Spreadsheet integration<a class="headerlink" href="#spreadsheet-integration" title="Permalink to this heading">#</a></h2>
+<h2>Spreadsheet integration<a class="headerlink" href="#spreadsheet-integration" title="Link to this heading">#</a></h2>
 <p>To be able to use Benchmaster to create Spreadsheets and upload data to them,
 you must create a service account. You can follow <a class="reference external" href="https://docs.gspread.org/en/latest/oauth2.html#enable-api-access-for-a-project">gspread documentation</a>
 about how to create a service account.</p>
@@ -240,7 +240,7 @@ about how to create a service account.</p>
 <code class="docutils literal notranslate"><span class="pre">--google-credentials</span> <span class="pre">FILE</span></code> option. (See <code class="docutils literal notranslate"><span class="pre">benchmaster</span> <span class="pre">--help</span></code>).</p>
 </section>
 <section id="examples">
-<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this heading">#</a></h2>
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
 <p>Once you have the service account ready, running Benchmaster can be as simple
 as running <code class="docutils literal notranslate"><span class="pre">sibench</span></code>.</p>
 <p>First of all, you need to create a spreadsheet for your benchmarking data:</p>
@@ -257,7 +257,7 @@ Ceph Admin key, or to create a Rados Gateway user in the case of <code class="do
 <span class="pre">s3</span> <span class="pre">adduser</span></code>. In any case, you can specify the Ceph user and Key using the options
 <code class="docutils literal notranslate"><span class="pre">--ceph--user</span></code> and <code class="docutils literal notranslate"><span class="pre">--ceph-key</span></code>.</p>
 <section id="benchmarking-rados-using-sibench">
-<h3>Benchmarking Rados using <code class="docutils literal notranslate"><span class="pre">sibench</span></code><a class="headerlink" href="#benchmarking-rados-using-sibench" title="Permalink to this heading">#</a></h3>
+<h3>Benchmarking Rados using <code class="docutils literal notranslate"><span class="pre">sibench</span></code><a class="headerlink" href="#benchmarking-rados-using-sibench" title="Link to this heading">#</a></h3>
 <p>You may need to create an user and a pool for these. Read the <a class="reference internal" href="examples.html"><span class="doc">Examples</span></a>
 page for information about how to do it.</p>
 <p>For an initial benchmark with Benchmaster, using default values, and a single
@@ -273,7 +273,7 @@ how to create a Ceph pool and user.</p>
 <img alt="Screenshot of the produced spreadsheet after the benchmarking rados using sibench." src="_images/benchmaster-spreadsheet-1.png" />
 </section>
 <section id="benchmarking-rbd-using-sibench">
-<h3>Benchmarking RBD using <code class="docutils literal notranslate"><span class="pre">sibench</span></code><a class="headerlink" href="#benchmarking-rbd-using-sibench" title="Permalink to this heading">#</a></h3>
+<h3>Benchmarking RBD using <code class="docutils literal notranslate"><span class="pre">sibench</span></code><a class="headerlink" href="#benchmarking-rbd-using-sibench" title="Link to this heading">#</a></h3>
 <p>In a similar way, we can use the same user, key, and pool to run a benchmark
 using RBD protocol:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">benchmaster</span> <span class="n">rbd</span> <span class="n">sibench</span> <span class="n">time</span> <span class="o">--</span><span class="n">sheet</span> <span class="s2">&quot;benchmaster example tests&quot;</span> \
@@ -286,7 +286,7 @@ benchmark run.</p>
 <img alt="Screenshot of the produced spreadsheet after the benchmarking RBD using sibench." src="_images/benchmaster-spreadsheet-2.png" />
 </section>
 <section id="benchmarking-s3-using-sibench">
-<h3>Benchmarking S3 using <code class="docutils literal notranslate"><span class="pre">sibench</span></code><a class="headerlink" href="#benchmarking-s3-using-sibench" title="Permalink to this heading">#</a></h3>
+<h3>Benchmarking S3 using <code class="docutils literal notranslate"><span class="pre">sibench</span></code><a class="headerlink" href="#benchmarking-s3-using-sibench" title="Link to this heading">#</a></h3>
 <p>If you want to run benchmaks using the S3 protocol you will need an S3 user.
 You can use the command <code class="docutils literal notranslate"><span class="pre">benchmaster</span> <span class="pre">s3</span> <span class="pre">adduser</span></code> to do this, or you can add
 it manually yourself as explained on the <a class="reference internal" href="examples.html"><span class="doc">Examples</span></a> page and saving the
@@ -304,7 +304,7 @@ first element of the <code class="docutils literal notranslate"><span class="pre
 <img alt="Screenshot of the produced spreadsheet after the benchmarking S3 using sibench." src="_images/benchmaster-spreadsheet-3.png" />
 </section>
 <section id="the-spreadsheet">
-<h3>The spreadsheet<a class="headerlink" href="#the-spreadsheet" title="Permalink to this heading">#</a></h3>
+<h3>The spreadsheet<a class="headerlink" href="#the-spreadsheet" title="Link to this heading">#</a></h3>
 <p>On the initial columns of the spreadsheet you can find:</p>
 <ul class="simple">
 <li><p>ID of the run (COSbench only)</p></li>
@@ -401,9 +401,9 @@ both operation types you will see:</p>
       
     </aside>
   </div>
-</div><script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
-    <script src="_static/scripts/furo.js"></script>
+</div><script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>
 </html>
