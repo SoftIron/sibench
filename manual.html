@@ -605,11 +605,11 @@ up other resources.  Protocols may do either, neither or both.</p>
 by comparing the behaviour or RADOS and RBD.</p>
 <dl class="simple">
 <dt>With RADOS, we can delete the individual objects, and we can do it synchronously</dt><dd><ul class="simple">
-<li><p>meaning that when sibench completes the run, Ceph will have deleted the objects
-and will have no pending workload.</p></li>
+<li><p>meaning that when sibench completes the run, Ceph will have deleted the objects</p></li>
 </ul>
 </dd>
 </dl>
+<p>and will have no pending workload.</p>
 <p>With RBD, we delete the RBD image synchronously, but under the hood, that image
 is comprised of multiple objects, and Ceph does not delete them at once, but
 adds them to a queue for later deletion.</p>
