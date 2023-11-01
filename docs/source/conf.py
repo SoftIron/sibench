@@ -32,6 +32,9 @@ import re
 import os
 release = re.sub('-.+-.{8}$', '', os.popen('git describe').read().strip())
 
+if not release:
+    print("Failed to get release number using git-describe")
+    exit(1)
 
 # -- General configuration ---------------------------------------------------
 
