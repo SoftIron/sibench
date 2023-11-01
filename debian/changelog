@@ -1,3 +1,6 @@
+sibench (1.1.6) buster; urgency=low
+  [ Stephen Howell ]
+  * Prevent error when writing large files taking more than one IO operation
 sibench (1.1.5) buster; urgency=low
   [ Harry Richardson ]
   * Better handling of abnormal termination due to Ceph hanging
