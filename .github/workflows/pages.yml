@@ -27,6 +27,7 @@ jobs:
 
       - name: Install dependencies and build documentation
         run: |
+          git config --global --add safe.directory '*'
           apt-get install -y python3-pip make
           cd docs
           pip3 install -r requirements.txt
