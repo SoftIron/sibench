@@ -7,7 +7,6 @@ all = rbd sibench comms logger
 all:	$(all)
 
 sibench:
-	go get -tags pacific -ldflags "-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" $@
 	go install -tags pacific -ldflags "-X main.Version=${VERSION} -X main.BuildDate=${BUILD_DATE}" $@
 
 ifeq ($(shell go env GOOS),linux)
