@@ -10,6 +10,8 @@ import "logger"
 import "os"
 import "strings"
 import "syscall"
+import "errors"
+import "io"
 
 
 /* 
@@ -113,7 +115,7 @@ func (conn *FileConnectionBase) PutObject(key string, id uint64, buffer []byte) 
 
     for len(buffer) > 0 {
         n, err := fd.Write(buffer)
-        if err != nil {
+        if (err != nil) && (!errors.Is(err, io.ErrShortWrite)) {
             return err
         }
 
