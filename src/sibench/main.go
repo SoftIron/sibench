@@ -83,6 +83,9 @@ type Arguments struct {
     SliceSize int
     SliceCount int
 
+    // Script options
+    Script string
+
     // Synthesized options
     Bucket string
     BandwidthInBits uint64
@@ -107,29 +110,32 @@ Usage:
   sibench rados run  [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats]
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY)
+                     [--ceph-pool POOL] [--ceph-user USER] (--ceph-key KEY) [--script SCRIPT]
                      [--clean-up] [--skip-read-verification] [--servers SERVERS] <targets> ...
   sibench cephfs run [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [-m DIR] [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY)
+                     [-m DIR] [--ceph-dir DIR] [--ceph-user USER] (--ceph-key KEY) [--script SCRIPT]
                      [--clean-up] [--skip-read-verification] [--servers SERVERS] <targets> ...
   sibench rbd run    [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
                      [--ceph-pool POOL] [--ceph-datapool POOL] [--ceph-user USER] (--ceph-key KEY)
-                     [--clean-up] [--skip-read-verification] [--servers SERVERS] <targets> ...`
+                     [--script SCRIPT] [--clean-up] [--skip-read-verification] [--servers SERVERS] 
+                     <targets> ...`
     }
 
     s += ` 
   sibench block run  [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [--block-device DEVICE] [--clean-up] [--skip-read-verification] [--servers SERVERS] 
+                     [--block-device DEVICE] [--script SCRIPT] [--clean-up] 
+                     [--skip-read-verification] [--servers SERVERS] 
   sibench file run   [-v LEVEL] [-p PORT] [-o FILE] [--individual-stats] 
                      [-s SIZE] [-c COUNT] [-b BW] [-x MIX] [-r TIME] [-u TIME] [-d TIME] [-w FACTOR]
                      [-g GEN] [--slice-dir DIR] [--slice-count COUNT] [--slice-size BYTES] [--use-bytes]
-                     [--file-dir DIR] [--clean-up] [--skip-read-verification] [--servers SERVERS] 
+                     [--script SCRIPT] [--file-dir DIR] [--clean-up] [--skip-read-verification] 
+                     [--servers SERVERS] 
   sibench -h | --help
 
 Options:
@@ -167,6 +173,7 @@ Options:
   --slice-count COUNT             The number of slices to construct for workload generation        [default: 10000]
   --slice-size BYTES              The size of each slice in bytes.                                 [default: 4097]
   --profile-prefix FILE           Enable profiling, using tne given prefix for any output.
+  --script SCRIPT                 Specifies a script to be run at key points in each phase.
 `
     return s
 }
@@ -353,6 +360,7 @@ func startRun(args *Arguments) {
     j.rampUp = uint64(args.RampUp)
     j.rampDown = uint64(args.RampDown)
     j.useBytes = args.UseBytes
+    j.script = args.Script
 
     j.order.JobId = 1
     j.order.CleanUpOnClose = args.CleanUp
