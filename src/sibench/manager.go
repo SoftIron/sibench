@@ -9,6 +9,7 @@ import (
 	"io"
 	"logger"
 	"os"
+    "os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -134,6 +135,25 @@ func banner(msg string, padChar byte) string {
     postpadLen := (79 - msgLen) / 2
 
     return "\n" + strings.Repeat(padStr, prepadLen) + " " + msg + " " + strings.Repeat(padStr, postpadLen) + "\n"
+}
+
+
+/**
+ * Runs a script, if we have one, at key points in the run.
+ */
+func (m *Manager) runScript(phase string, event string) {
+    if m.job.script == "" {
+        return
+    }
+
+    logger.Debugf("Running phase script: '%s %s %s'\n", m.job.script, phase, event)
+
+    cmd := exec.Command(m.job.script, phase, event)
+    err := cmd.Run()
+
+    if err != nil {
+        logger.Errorf("Failure running phase script: '%s %s %ws' - %v\n", m.job.script, phase, event, err)
+    }
 }
 
 
@@ -404,9 +424,19 @@ func (m *Manager) runPhaseForTime(msg string, secs uint64, startOp Opcode, stopO
                 logger.Infof("%v: %v\n", i, summary.String(m.job.order.ObjectSize, m.job.useBytes))
                 i++
 
-                // Draw some lines to indicate the ramp-up/ramp-down demarcation.
-                if (uint64(i) == m.job.rampUp) || (uint64(i) == m.job.rampUp + m.job.runTime) {
+                isRampUp := (uint64(i) == m.job.rampUp)
+                isRampDown := (uint64(i) == m.job.rampUp + m.job.runTime)
+
+                if isRampUp || isRampDown {
+                    // Draw some lines to indicate the ramp-up/ramp-down demarcation.
                     logger.Infof("-----------------------------------------------------------\n")
+
+                    // Run the script (if we have one) with suitable args.
+                    if isRampUp {
+                        go m.runScript(msg, "UP")
+                    } else {
+                        go m.runScript(msg, "DOWN")
+                    }
                 }
 
                 summary.Zero()
