@@ -44,5 +44,6 @@ type Job struct {
 
     /* extra */
     useBytes bool       // Boolean value to specify if you want the output in Bytes and not Bits
+    script string       // An optional script to be invoked at key points within each phase
 }
 
